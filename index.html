@@ -1,0 +1,1282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Mileage">
+<meta name="theme-color" content="#080b0f">
+<title>Mileage Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCF4StHsdwlXMb0WetM3LzSfF668j5J2rg&libraries=places,geometry&callback=initGoogleMaps" async defer></script>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root {
+  --bg:#080b0f; --bg2:#0d1117; --surface:#111720; --surface2:#161e2a; --surface3:#1c2535;
+  --border:rgba(255,255,255,0.06); --border2:rgba(255,255,255,0.1); --border3:rgba(255,255,255,0.16);
+  --text:#e8edf5; --text2:#8b95a8; --text3:#4d5868;
+  --accent:#4f9eff; --accent2:#3d8ef0; --accent-glow:rgba(79,158,255,0.15); --accent-bg:rgba(79,158,255,0.08);
+  --green:#3dd68c; --green-bg:rgba(61,214,140,0.08);
+  --red:#f87171; --red-bg:rgba(248,113,113,0.08);
+  --r:6px; --r2:10px; --r3:14px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:0 20px 0 80px;height:52px;min-height:52px;background:var(--bg2);border-bottom:1px solid var(--border);-webkit-app-region:drag;flex-shrink:0;}
+.topbar *{-webkit-app-region:no-drag;}
+.logo{display:flex;align-items:center;gap:10px;}
+.logo-mark{width:26px;height:26px;background:linear-gradient(135deg,#4f9eff,#7b5ea7);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;}
+.logo-text{font-size:13px;font-weight:600;letter-spacing:.02em;}
+.logo-biz{font-size:12px;color:var(--text3);}
+.nav-pills{display:flex;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:3px;gap:2px;}
+.np{padding:4px 14px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;border:none;background:transparent;color:var(--text3);font-family:'Inter',sans-serif;transition:all .15s;}
+.np:hover{color:var(--text2);}
+.np.on{background:var(--surface3);color:var(--text);border:1px solid var(--border2);}
+
+.main{display:flex;flex:1;overflow:hidden;}
+.left{width:280px;min-width:180px;max-width:450px;border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;background:var(--bg2);flex-shrink:0;position:relative;transition:width 0s;}
+.left-scroll{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:16px;}
+.left-scroll::-webkit-scrollbar{width:4px;}
+.left-scroll::-webkit-scrollbar-thumb{background:var(--surface3);border-radius:4px;}
+.right{flex:1;min-width:200px;overflow-y:auto;padding:24px;display:flex;flex-direction:column;gap:20px;background:var(--bg);}
+  .map-panel{width:30%;min-width:180px;max-width:65%;border-left:1px solid var(--border);display:flex;flex-direction:column;background:var(--bg2);position:relative;overflow:hidden;flex-shrink:0;}
+  .map-panel-header{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--border);flex-shrink:0;}
+  .map-panel-title{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;}
+  .map-panel-info{font-size:11px;color:var(--accent);font-family:'JetBrains Mono',monospace;}
+  #mainMap{flex:1;width:100%;min-height:0;}
+  .map-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--text3);font-size:13px;gap:12px;text-align:center;padding:32px;line-height:1.8;}
+.right::-webkit-scrollbar{width:4px;}
+.right::-webkit-scrollbar-thumb{background:var(--surface3);border-radius:4px;}
+
+.stats-bar{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border);border-radius:var(--r2);overflow:hidden;border:1px solid var(--border);flex-shrink:0;}
+.stat{background:var(--surface);padding:13px 14px;}
+.stat-label{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px;}
+.stat-val{font-family:'JetBrains Mono',monospace;font-size:19px;font-weight:500;color:var(--text);line-height:1;}
+.stat-val.green{color:var(--green);}
+.stat-sub{font-size:10px;color:var(--text3);margin-top:4px;font-family:'JetBrains Mono',monospace;}
+
+.section-label{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;}
+.field{display:flex;flex-direction:column;gap:5px;}
+.field-label{font-size:11px;font-weight:500;color:var(--text3);letter-spacing:.02em;}
+
+input[type=text],input[type=number],input[type=date],select{
+  background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);
+  color:var(--text);font-family:'Inter',sans-serif;font-size:13px;padding:8px 11px;
+  width:100%;outline:none;transition:border-color .15s,box-shadow .15s;-webkit-appearance:none;}
+input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow);}
+input[type=date]::-webkit-calendar-picker-indicator{filter:invert(0.4);cursor:pointer;}
+select option{background:#1a2030;}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.iw{position:relative;}
+.iw input{padding-right:36px;}
+.isuf{position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:11px;color:var(--text3);font-family:'JetBrains Mono',monospace;pointer-events:none;}
+
+.btn{padding:8px 16px;border-radius:var(--r);font-size:13px;font-weight:500;cursor:pointer;font-family:'Inter',sans-serif;border:1px solid var(--border2);background:transparent;color:var(--text2);transition:all .15s;}
+.btn:hover{color:var(--text);border-color:var(--border3);background:var(--surface2);}
+.btn-primary{background:var(--accent);color:#fff;border-color:transparent;font-weight:600;box-shadow:0 0 20px rgba(79,158,255,0.2);}
+.btn-primary:hover{background:var(--accent2);}
+.btn-calc{background:var(--accent-bg);color:var(--accent);border-color:rgba(79,158,255,0.2);font-size:12px;padding:7px 13px;}
+.btn-calc:hover{background:rgba(79,158,255,0.14);}
+.btn-calc:disabled{opacity:.35;cursor:not-allowed;}
+.btn-danger{color:var(--red);border-color:transparent;background:transparent;padding:4px 8px;font-size:12px;}
+.btn-danger:hover{background:var(--red-bg);}
+.btn-row{display:flex;justify-content:flex-end;gap:8px;margin-top:6px;}
+
+.dist-box{display:none;flex-direction:column;background:var(--surface);border:1px solid rgba(79,158,255,0.2);border-radius:var(--r2);overflow:hidden;margin-bottom:10px;}
+.dist-box.show{display:flex;}
+.dist-opt{display:flex;align-items:center;gap:10px;padding:10px 13px;transition:background .1s;}
+.dist-opt:hover{background:var(--surface2);}
+.dist-type{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;min-width:62px;}
+.dist-mi{font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:500;color:var(--accent);min-width:64px;}
+.dist-info{font-size:11px;color:var(--text3);flex:1;}
+.dist-use{font-size:11px;font-weight:600;color:var(--accent);cursor:pointer;padding:3px 9px;border-radius:4px;background:var(--accent-bg);border:1px solid rgba(79,158,255,0.2);transition:all .12s;white-space:nowrap;}
+.dist-use:hover{background:rgba(79,158,255,0.16);}
+.dist-sep{height:1px;background:var(--border);}
+
+.view{display:none;}
+.view.on{display:flex;flex-direction:column;gap:16px;}
+
+.filter-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.filter-bar select{width:auto;font-size:12px;padding:6px 10px;}
+
+.table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--r3);overflow:hidden;}
+table{width:100%;border-collapse:collapse;font-size:12px;table-layout:auto;}
+thead th{padding:8px 8px;text-align:left;font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;border-bottom:1px solid var(--border);background:var(--bg2);}
+td{padding:8px 8px;border-bottom:1px solid var(--border);vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+tbody tr:hover{background:var(--surface2);}
+tfoot td{padding:8px 8px;font-weight:600;font-family:'JetBrains Mono',monospace;font-size:12px;border-top:1px solid var(--border2);color:var(--green);background:var(--green-bg);}
+
+.pill{display:inline-flex;align-items:center;font-size:11px;font-weight:500;padding:3px 9px;border-radius:20px;white-space:nowrap;}
+.p-office    {background:rgba(167,139,250,0.12);color:#a78bfa;border:1px solid rgba(167,139,250,0.2);}
+.p-blockchain{background:rgba(79,158,255,0.12); color:#4f9eff;border:1px solid rgba(79,158,255,0.2);}
+.p-team      {background:rgba(61,214,140,0.12); color:#3dd68c;border:1px solid rgba(61,214,140,0.2);}
+.p-client    {background:rgba(251,191,36,0.12); color:#fbbf24;border:1px solid rgba(251,191,36,0.2);}
+.p-errand    {background:rgba(248,113,113,0.12);color:#f87171;border:1px solid rgba(248,113,113,0.2);}
+.p-conf      {background:rgba(99,202,220,0.12); color:#63cadc;border:1px solid rgba(99,202,220,0.2);}
+.p-bank      {background:rgba(34,197,94,0.12);  color:#22c55e;border:1px solid rgba(34,197,94,0.2);}
+.p-supplies  {background:rgba(249,115,22,0.12); color:#f97316;border:1px solid rgba(249,115,22,0.2);}
+.p-other     {background:rgba(139,149,168,0.1); color:#8b95a8;border:1px solid rgba(139,149,168,0.15);}
+
+.route-cell{font-size:11px;color:var(--text3);font-family:'JetBrains Mono',monospace;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.mono{font-family:'JetBrains Mono',monospace;}
+.empty{text-align:center;padding:60px 24px;color:var(--text3);font-size:13px;line-height:1.8;}
+
+.settings-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.sc{background:var(--surface);border:1px solid var(--border);border-radius:var(--r3);padding:18px;}
+.sc h3{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:14px;}
+
+.hint-box{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:60px 40px;border:1px dashed var(--border2);border-radius:var(--r3);color:var(--text3);font-size:13px;line-height:1.9;}
+.hint-box strong{color:var(--text2);}
+
+#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(8px);background:var(--surface3);border:1px solid var(--border2);color:var(--text);padding:8px 18px;border-radius:20px;font-size:12px;font-weight:500;font-family:'JetBrains Mono',monospace;opacity:0;transition:all .2s;pointer-events:none;z-index:999;box-shadow:0 8px 32px rgba(0,0,0,0.5);}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.spin{display:inline-block;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+  .map-wrap{display:none;}
+  .map-info{position:absolute;bottom:8px;left:8px;z-index:1000;background:rgba(0,0,0,0.65);border:1px solid rgba(255,255,255,0.12);color:#fff;border-radius:4px;padding:4px 10px;font-size:11px;font-family:'JetBrains Mono',monospace;pointer-events:none;}
+  .map-btn{font-size:11px;font-weight:500;color:var(--accent);cursor:pointer;padding:2px 8px;border-radius:4px;background:var(--accent-bg);border:1px solid rgba(79,158,255,0.2);transition:all .12s;white-space:nowrap;font-family:'Inter',sans-serif;}
+  .map-btn:hover{background:rgba(79,158,255,0.16);}
+  #histMap{height:400px;width:100%;background:var(--surface);}
+  .hist-map-wrap{display:none;border-radius:var(--r2);overflow:hidden;border:1px solid rgba(79,158,255,0.2);position:relative;}
+  .hist-map-wrap.show{display:block;}
+  .hist-map-info{position:absolute;bottom:8px;left:8px;z-index:1000;background:rgba(0,0,0,0.65);border:1px solid rgba(255,255,255,0.12);color:#fff;border-radius:4px;padding:4px 10px;font-size:11px;font-family:'JetBrains Mono',monospace;pointer-events:none;}
+
+  @media(max-width:900px){
+    .main{grid-template-columns:340px 1fr;}
+    .map-panel{display:none;}
+  }
+  @media(max-width:600px){
+    .main{grid-template-columns:1fr;height:auto;overflow:visible;}
+    .left{border-right:none;border-bottom:1px solid var(--border);overflow:visible;}
+    .left-scroll{overflow:visible;height:auto;}
+    .right{overflow:visible;padding:16px;}
+    .map-panel{display:none;}
+    .topbar{padding:0 14px;}
+    .settings-grid{grid-template-columns:1fr;}
+    body{height:auto;overflow-y:auto;}
+  }
+
+  .resize-handle{width:12px;background:var(--surface3);border-left:2px solid var(--accent);border-right:2px solid var(--accent);cursor:col-resize;position:absolute;right:-6px;top:0;bottom:0;z-index:50;transition:background .15s;display:flex;align-items:center;justify-content:center;}
+  .resize-handle::after{content:'⋮⋮';color:var(--accent);font-size:12px;pointer-events:none;letter-spacing:-2px;}
+  .resize-handle:hover,.resize-handle.dragging{background:var(--accent);}
+  .resize-handle:hover::after,.resize-handle.dragging::after{color:#000;}
+  .map-resize-handle{width:12px;background:var(--surface3);border-left:2px solid var(--accent);border-right:2px solid var(--accent);cursor:col-resize;position:absolute;left:-6px;top:0;bottom:0;z-index:50;transition:background .15s;display:flex;align-items:center;justify-content:center;}
+  .map-resize-handle::after{content:'⋮⋮';color:var(--accent);font-size:12px;pointer-events:none;letter-spacing:-2px;}
+  .map-resize-handle:hover,.map-resize-handle.dragging{background:var(--accent);}
+  .map-resize-handle:hover::after,.map-resize-handle.dragging::after{color:#000;}
+  .collapse-btn{position:absolute;top:50%;right:-22px;transform:translateY(-50%);width:18px;height:52px;background:var(--accent);border:none;border-radius:0 6px 6px 0;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px;color:#000;font-weight:700;z-index:52;transition:all .15s;}
+  .collapse-btn:hover{opacity:.8;}
+  .left.collapsed{width:0!important;min-width:0!important;overflow:hidden;}
+  .left.collapsed .collapse-btn{right:-22px;border-radius:6px;}
+
+  .auth-overlay{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:9999;flex-direction:column;gap:20px;}
+  .auth-card{background:var(--surface);border:1px solid var(--border2);border-radius:var(--r3);padding:32px;width:360px;display:flex;flex-direction:column;gap:16px;}
+  .auth-title{font-size:18px;font-weight:600;color:var(--text);text-align:center;}
+  .auth-sub{font-size:12px;color:var(--text3);text-align:center;margin-top:-8px;}
+  .auth-field{display:flex;flex-direction:column;gap:5px;}
+  .auth-field label{font-size:11px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;}
+  .auth-field input{background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r);color:var(--text);font-family:'Inter',sans-serif;font-size:13px;padding:9px 11px;outline:none;transition:border-color .15s;}
+  .auth-field input:focus{border-color:var(--accent);}
+  .auth-error{font-size:12px;color:var(--red);text-align:center;display:none;}
+  .auth-toggle{font-size:12px;color:var(--accent);cursor:pointer;text-align:center;text-decoration:underline;}
+  .user-pill{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text3);font-family:'JetBrains Mono',monospace;}
+  .user-pill .signout{color:var(--red);cursor:pointer;font-size:11px;text-decoration:underline;}
+  .sync-dot{width:7px;height:7px;border-radius:50%;background:var(--green);display:inline-block;margin-right:4px;}
+  .sync-dot.syncing{background:var(--amber,#f5c86a);animation:pulse 1s infinite;}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+
+  .map-click-hint{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);z-index:1000;background:rgba(0,0,0,0.7);color:#fff;font-size:11px;padding:5px 12px;border-radius:20px;pointer-events:none;font-family:'Inter',sans-serif;white-space:nowrap;display:none;}
+  .map-click-hint.show{display:block;}
+  .map-mode-btn{font-size:11px;font-weight:500;color:var(--text3);cursor:pointer;padding:4px 10px;border-radius:4px;background:var(--surface2);border:1px solid var(--border2);transition:all .12s;white-space:nowrap;font-family:'Inter',sans-serif;}
+  .map-mode-btn.active{background:var(--accent-bg);color:var(--accent);border-color:rgba(79,158,255,0.3);}
+  .map-mode-btn:hover{color:var(--text);}
+</style>
+</head>
+<body>
+
+<!-- AUTH OVERLAY -->
+<div class="auth-overlay" id="authOverlay">
+  <div class="auth-card">
+    <div class="auth-title">🚗 Mileage Tracker</div>
+    <div class="auth-sub" id="authSub">Sign in to sync your trips across all devices</div>
+    <div class="auth-field"><label>Email</label><input type="email" id="authEmail" placeholder="you@example.com"/></div>
+    <div class="auth-field"><label>Password</label><input type="password" id="authPassword" placeholder="••••••••"/></div>
+    <div class="auth-error" id="authError"></div>
+    <button class="btn btn-primary" id="authBtn" style="width:100%;justify-content:center">Sign in</button>
+    <div class="auth-toggle" id="authToggle">Don't have an account? Sign up</div>
+  </div>
+</div>
+
+<div class="topbar">
+  <div class="logo">
+    <div class="logo-mark">🚗</div>
+    <span class="logo-text">Mileage</span>
+    <span class="logo-biz" id="bizLabel"></span>
+  </div>
+  <div class="user-pill"><span class="sync-dot" id="syncDot"></span><span id="userEmail"></span><span class="signout" id="signOutBtn">sign out</span></div>
+  <nav class="nav-pills">
+    <button class="np on" id="nav-log">Log Trip</button>
+    <button class="np" id="nav-hist">History</button>
+    <button class="np" id="nav-set">Settings</button>
+  </nav>
+</div>
+
+<div class="main">
+  <div class="left" id="leftPanel">
+    <div class="resize-handle" id="leftResize"></div>
+    <button class="collapse-btn" id="collapseBtn" title="Collapse sidebar">‹</button>
+    <div class="left-scroll">
+
+      <div class="stats-bar">
+        <div class="stat">
+          <div class="stat-label">Miles YTD</div>
+          <div class="stat-val" id="sM">0.0</div>
+          <div class="stat-sub" id="sYear">2026</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Deductible</div>
+          <div class="stat-val green" id="sV">$0.00</div>
+          <div class="stat-sub" id="rateDisp">—</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Trips</div>
+          <div class="stat-val" id="sT">0</div>
+          <div class="stat-sub" id="vehicleDisp">—</div>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-label">New trip</div>
+
+        <div class="g2" style="margin-bottom:10px">
+          <div class="field"><span class="field-label">Date</span><input type="date" id="tDate"/></div>
+          <div class="field"><span class="field-label">Miles</span>
+            <div class="iw"><input type="number" id="tMiles" placeholder="0.0" step="0.1" min="0"/><span class="isuf">mi</span></div>
+          </div>
+        </div>
+
+        <!-- FROM address -->
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--r2);padding:10px 12px;margin-bottom:8px;">
+          <div style="font-size:10px;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;">📍 From</div>
+          <div class="field" style="margin-bottom:6px">
+            <span class="field-label">Street</span>
+            <input type="text" id="tFromStreet" placeholder="123 Main St" oninput="clearDist();buildAddr()"/>
+          </div>
+          <div class="g2" style="margin-bottom:6px">
+            <div class="field"><span class="field-label">City</span><input type="text" id="tFromCity" placeholder="Salt Lake City" oninput="clearDist();buildAddr()"/></div>
+            <div class="field"><span class="field-label">State</span><input type="text" id="tFromState" placeholder="UT" maxlength="2" oninput="clearDist();buildAddr()" style="text-transform:uppercase"/></div>
+          </div>
+        </div>
+        <!-- TO address -->
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--r2);padding:10px 12px;margin-bottom:8px;">
+          <div style="font-size:10px;font-weight:600;color:var(--red);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;">🏁 To</div>
+          <div class="field" style="margin-bottom:6px">
+            <span class="field-label">Street</span>
+            <input type="text" id="tToStreet" placeholder="456 Business Ave" oninput="clearDist();buildAddr()"/>
+          </div>
+          <div class="g2" style="margin-bottom:6px">
+            <div class="field"><span class="field-label">City</span><input type="text" id="tToCity" placeholder="Provo" oninput="clearDist();buildAddr()"/></div>
+            <div class="field"><span class="field-label">State</span><input type="text" id="tToState" placeholder="UT" maxlength="2" oninput="clearDist();buildAddr()" style="text-transform:uppercase"/></div>
+          </div>
+        </div>
+        <input type="hidden" id="tFrom"/>
+        <input type="hidden" id="tTo"/>
+
+        <div style="margin-bottom:10px;display:flex;align-items:center;gap:10px">
+          <button class="btn btn-calc" id="calcBtn" onclick="calcDist()">⊙ Calculate distance</button>
+          <span style="font-size:11px;color:var(--text3)">⌘D</span>
+        </div>
+
+        <div class="dist-box" id="distBox">
+          <div class="dist-opt">
+            <span class="dist-type">One way</span>
+            <span class="dist-mi" id="distMi1">—</span>
+            <span class="dist-info" id="distInfo1"></span>
+            <span class="dist-use" onclick="useDist(1)">Use →</span>
+          </div>
+          <div class="dist-sep"></div>
+          <div class="dist-opt">
+            <span class="dist-type">Round trip</span>
+            <span class="dist-mi" id="distMi2">—</span>
+            <span class="dist-info" id="distInfo2"></span>
+            <span class="dist-use" onclick="useDist(2)">Use →</span>
+          </div>
+        </div>
+
+        <div class="field" style="margin-bottom:10px">
+          <span class="field-label">Purpose / Client</span>
+          <input type="text" id="tPurpose" placeholder="e.g. Met with Acme Corp re: contract"/>
+        </div>
+
+        <div class="field" style="margin-bottom:12px">
+          <span class="field-label">Category</span>
+          <select id="tCat">
+            <option>Office Visit</option>
+            <option>Blockchain Work</option>
+            <option>Team Meeting</option>
+            <option>Client Meeting</option>
+            <option>Business Errand</option>
+            <option>Conference / Event</option>
+            <option>Bank / Finance</option>
+            <option>Office Supplies</option>
+            <option>Other Business</option>
+          </select>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn" onclick="clearF()">Clear</button>
+          <button class="btn btn-primary" onclick="addTrip()">Save trip →</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="right">
+
+    <div class="view on" id="view-log">
+<div class="hint-box" id="hintBox">
+        <div style="font-size:40px;opacity:.15;margin-bottom:10px">🚗</div>
+        Enter addresses and hit <strong>Calculate distance</strong>, or type miles directly.<br>
+        Switch to <strong>History</strong> to view and export your trips.
+      </div>
+    </div>
+
+    <div class="view" id="view-hist">
+      <div class="filter-bar">
+        <select id="fYear" onchange="renderH()"><option value="">All years</option></select>
+        <select id="fCat" onchange="renderH()">
+          <option value="">All categories</option>
+          <option>Office Visit</option>
+          <option>Blockchain Work</option>
+          <option>Team Meeting</option>
+          <option>Client Meeting</option>
+          <option>Business Errand</option>
+          <option>Conference / Event</option>
+          <option>Bank / Finance</option>
+          <option>Office Supplies</option>
+          <option>Other Business</option>
+        </select>
+        <div style="flex:1"></div>
+        <button class="btn" onclick="doExport()">↓ Export CSV</button>
+        <label class="btn" style="cursor:pointer">↑ Import<input type="file" accept=".csv" style="display:none" onchange="importCSV(event)"/></label>
+      </div>
+      <div class="table-wrap"><div id="htable"></div></div>
+    </div>
+
+    <div class="view" id="view-set">
+      <div class="settings-grid">
+        <div class="sc">
+          <h3>Business info</h3>
+          <div class="field" style="margin-bottom:10px"><span class="field-label">Business name</span><input type="text" id="sBiz" placeholder="Your S-Corp name"/></div>
+          <div class="field" style="margin-bottom:10px"><span class="field-label">Vehicle</span><input type="text" id="sVehicle" placeholder="e.g. Tesla Model 3"/></div>
+          <div class="field">
+            <span class="field-label">Default "From" address</span>
+            <input type="text" id="sHome" placeholder="Your office or home address"/>
+            <span style="font-size:11px;color:var(--text3);margin-top:3px">Pre-fills From on every new trip</span>
+          </div>
+        </div>
+        <div class="sc">
+          <h3>Distance calculation</h3>
+          <div style="font-size:12px;color:var(--text2);line-height:1.8">
+            Uses <strong style="color:var(--text)">OpenStreetMap</strong> + <strong style="color:var(--text)">OSRM</strong> for routing.<br>
+            Completely free — no API key needed.<br>
+            <span style="font-size:11px;color:var(--text3)">Requires internet when calculating.</span>
+          </div>
+        </div>
+      </div>
+      <div class="settings-grid">
+        <div class="sc">
+          <h3>IRS mileage rates</h3>
+          <div class="g2" style="margin-bottom:10px">
+            <div class="field"><span class="field-label">2026</span><div class="iw"><input type="number" id="r2026" step="0.001" value="0.700"/><span class="isuf">$/mi</span></div></div>
+            <div class="field"><span class="field-label">2025</span><div class="iw"><input type="number" id="r2025" step="0.001" value="0.700"/><span class="isuf">$/mi</span></div></div>
+          </div>
+          <div class="g2">
+            <div class="field"><span class="field-label">2024</span><div class="iw"><input type="number" id="r2024" step="0.001" value="0.670"/><span class="isuf">$/mi</span></div></div>
+            <div class="field"><span class="field-label">2023</span><div class="iw"><input type="number" id="r2023" step="0.001" value="0.655"/><span class="isuf">$/mi</span></div></div>
+          </div>
+        </div>
+        <div class="sc">
+          <h3>Data</h3>
+          <p style="font-size:12px;color:var(--text3);margin-bottom:14px;line-height:1.6">Export CSV to back up or share with your accountant. Import a CSV to restore trips.</p>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <label class="btn btn-primary" style="cursor:pointer;text-align:center">↑ Import CSV
+              <input type="file" accept=".csv" style="display:none" onchange="importCSV(event)"/>
+            </label>
+            <button class="btn" onclick="doExport()">↓ Export all as CSV</button>
+            <button class="btn btn-danger" onclick="clearAll()">Clear all trips</button>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px">
+        <button class="btn btn-primary" onclick="saveSet()">Save settings</button>
+        <button class="btn" onclick="doExport()">↓ Export all as CSV</button>
+        <label class="btn" style="cursor:pointer">↑ Import CSV<input type="file" accept=".csv" style="display:none" onchange="importCSV(event)"/></label>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ALWAYS-VISIBLE MAP PANEL -->
+  <div class="map-panel" id="mapPanel">
+    <div class="map-resize-handle" id="mapResize"></div>
+    <div class="map-panel-header">
+      <span class="map-panel-title">Route map</span>
+      <div style="display:flex;gap:6px;align-items:center">
+        <button class="map-mode-btn" id="setFromBtn" title="Click map to set start point">📍 Set start</button>
+        <button class="map-mode-btn" id="setToBtn" title="Click map to set end point">🏁 Set end</button>
+        <span class="map-panel-info" id="mainMapInfo"></span>
+      </div>
+    </div>
+    <div class="map-click-hint" id="mapClickHint">Click anywhere on the map to set location</div>
+    <div id="mainMap"></div>
+    <div class="map-empty" id="mapEmpty">
+      <div style="font-size:36px;opacity:.15">🗺</div>
+      Calculate a route to see it here.<br>
+      <span style="font-size:12px;color:var(--text3)">Satellite view · powered by OpenStreetMap</span>
+    </div>
+  </div>
+
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ── SUPABASE ─────────────────────────────────────────────────
+const SUPA_URL = 'https://rmlexkojikmasgfpljxr.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJtbGV4a29qaWttYXNnZnBsanhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcyNTQxOTQsImV4cCI6MjA5MjgzMDE5NH0.gCbvNQRtcVqaLfZObNFyT2zrWcl681GJZOX43sDYL5s';
+const supa = supabase.createClient(SUPA_URL, SUPA_KEY);
+let currentUser = null;
+
+// ── LOCAL FALLBACK ───────────────────────────────────────────
+const TK='ml3_trips',SK='ml3_set';
+let trips=[],cfg={rates:{2026:0.700,2025:0.700,2024:0.670,2023:0.655},biz:'',vehicle:'Tesla',home:''};
+let pendingDist=null;
+
+const PCLASS={
+  'Office Visit':'p-office','Blockchain Work':'p-blockchain','Team Meeting':'p-team',
+  'Client Meeting':'p-client','Business Errand':'p-errand','Conference / Event':'p-conf',
+  'Bank / Finance':'p-bank','Office Supplies':'p-supplies','Other Business':'p-other'
+};
+
+function today(){return new Date().toISOString().split("T")[0];}
+function yr(d){return d?new Date(d+'T12:00').getFullYear():new Date().getFullYear();}
+function rate(d){return cfg.rates[yr(d)]||0.700;}
+function fmt(d){if(!d)return'';const p=d.split("-");return p[1]+'/'+p[2]+'/'+p[0].slice(2);}
+function save(){localStorage.setItem(TK,JSON.stringify(trips));}
+
+// ── SUPABASE SYNC ─────────────────────────────────────────────
+function setSyncing(on){
+  const dot=document.getElementById('syncDot');
+  if(dot)dot.className='sync-dot'+(on?' syncing':'');
+}
+
+async function loadFromSupabase(){
+  if(!currentUser)return;
+  setSyncing(true);
+  try{
+    const{data,error}=await supa.from('trips').select('*').order('date',{ascending:false});
+    if(error)throw error;
+    trips=data.map(r=>({
+      id:r.id, date:r.date, miles:parseFloat(r.miles),
+      from:r.from_addr||'', to:r.to_addr||'',
+      purpose:r.purpose||'', category:r.category||'',
+      coords:r.coords||null, fromLatLng:r.from_latlng||null, toLatLng:r.to_latlng||null,
+      supaId:r.id
+    }));
+    save();
+    updateSidebar();renderH();
+  }catch(e){console.error('Load error:',e);}
+  setSyncing(false);
+}
+
+async function saveToSupabase(trip){
+  if(!currentUser)return;
+  setSyncing(true);
+  try{
+    const row={
+      user_id:currentUser.id,
+      date:trip.date,
+      miles:trip.miles,
+      from_addr:trip.from||'',
+      to_addr:trip.to||'',
+      purpose:trip.purpose||'',
+      category:trip.category||'',
+      coords:trip.coords||null,
+      from_latlng:trip.fromLatLng||null,
+      to_latlng:trip.toLatLng||null
+    };
+    const{data,error}=await supa.from('trips').insert(row).select().single();
+    if(error)throw error;
+    // Update local trip with supabase id
+    const idx=trips.findIndex(t=>t.id===trip.id);
+    if(idx>=0){trips[idx].supaId=data.id;save();}
+  }catch(e){console.error('Save error:',e);}
+  setSyncing(false);
+}
+
+async function deleteFromSupabase(trip){
+  if(!currentUser||!trip.supaId)return;
+  try{
+    await supa.from('trips').delete().eq('id',trip.supaId);
+  }catch(e){console.error('Delete error:',e);}
+}
+function pc(cat){return PCLASS[cat]||'p-other';}
+
+function init(){
+  try{const r=localStorage.getItem(TK);if(r)trips=JSON.parse(r);}catch(e){}
+  try{const s=localStorage.getItem(SK);if(s)cfg=Object.assign({},cfg,JSON.parse(s));}catch(e){}
+  document.getElementById('tDate').value=today();
+  if(cfg.home){
+    document.getElementById('tFrom').value=cfg.home;
+    const parts=cfg.home.split(',').map(p=>p.trim());
+    if(parts[0]&&document.getElementById('tFromStreet'))document.getElementById('tFromStreet').value=parts[0];
+    if(parts[1]&&document.getElementById('tFromCity'))document.getElementById('tFromCity').value=parts[1];
+    if(parts[2]&&document.getElementById('tFromState'))document.getElementById('tFromState').value=parts[2];
+  }
+  applySettings();updateSidebar();renderH();
+}
+
+function applySettings(){
+  document.getElementById('r2026').value=cfg.rates[2026];
+  document.getElementById('r2025').value=cfg.rates[2025];
+  document.getElementById('r2024').value=cfg.rates[2024];
+  document.getElementById('r2023').value=cfg.rates[2023];
+  document.getElementById('sBiz').value=cfg.biz||'';
+  document.getElementById('sVehicle').value=cfg.vehicle||'';
+  document.getElementById('sHome').value=cfg.home||'';
+  document.getElementById('bizLabel').textContent=cfg.biz?'· '+cfg.biz:'';
+  const cr=cfg.rates[new Date().getFullYear()]||0.700;
+  document.getElementById('rateDisp').textContent='$'+cr.toFixed(3)+'/mi';
+  document.getElementById('vehicleDisp').textContent=cfg.vehicle||'—';
+  document.getElementById('sYear').textContent=new Date().getFullYear();
+}
+
+function saveSet(){
+  cfg.rates[2026]=parseFloat(document.getElementById('r2026').value)||0.700;
+  cfg.rates[2025]=parseFloat(document.getElementById('r2025').value)||0.700;
+  cfg.rates[2024]=parseFloat(document.getElementById('r2024').value)||0.670;
+  cfg.rates[2023]=parseFloat(document.getElementById('r2023').value)||0.655;
+  cfg.biz=document.getElementById('sBiz').value.trim();
+  cfg.vehicle=document.getElementById('sVehicle').value.trim();
+  cfg.home=document.getElementById('sHome').value.trim();
+  localStorage.setItem(SK,JSON.stringify(cfg));
+  applySettings();updateSidebar();toast('Settings saved ✓');
+}
+
+function updateSidebar(){
+  const y=new Date().getFullYear();
+  const ytd=trips.filter(t=>yr(t.date)===y);
+  const mi=ytd.reduce((s,t)=>s+parseFloat(t.miles||0),0);
+  const val=ytd.reduce((s,t)=>s+parseFloat(t.miles||0)*rate(t.date),0);
+  document.getElementById('sM').textContent=mi.toFixed(1);
+  document.getElementById('sV').textContent='$'+val.toFixed(2);
+  document.getElementById('sT').textContent=ytd.length;
+}
+
+let mainMap=null, histMapObj=null, currentLayers=[];
+
+// Map tile options
+const DARK_TILES='https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+const DARK_ATTR='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>';
+const SAT_TILES='https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+const LABEL_TILES='https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}';
+const SAT_ATTR='Tiles &copy; Esri';
+
+// Use dark map by default - cleaner look
+function addSatLayer(map){
+  L.tileLayer(DARK_TILES,{maxZoom:19,attribution:DARK_ATTR,subdomains:'abcd'}).addTo(map);
+}
+
+function initMainMap(){
+  if(mainMap)return;
+  // Only init Leaflet as fallback if Google isn't available
+  if(googleReady&&googleMap)return;
+  mainMap=L.map('mainMap',{zoomControl:false,attributionControl:false});
+  addSatLayer(mainMap);
+  L.control.zoom({position:'topright'}).addTo(mainMap);
+  mainMap.setView([40.76,-111.89],10);
+}
+
+function clearMapLayers(){currentLayers.forEach(l=>{try{l.remove();}catch(e){}});currentLayers=[];}
+
+// ── ADDRESS BUILDER ─────────────────────────────────────────
+function buildAddr(){
+  const fromStreet=document.getElementById('tFromStreet').value.trim();
+  const fromCity=document.getElementById('tFromCity').value.trim();
+  const fromState=document.getElementById('tFromState').value.trim().toUpperCase();
+  const toStreet=document.getElementById('tToStreet').value.trim();
+  const toCity=document.getElementById('tToCity').value.trim();
+  const toState=document.getElementById('tToState').value.trim().toUpperCase();
+  const fromParts=[fromStreet,fromCity,fromState].filter(Boolean);
+  const toParts=[toStreet,toCity,toState].filter(Boolean);
+  document.getElementById('tFrom').value=fromParts.join(', ');
+  document.getElementById('tTo').value=toParts.join(', ');
+}
+
+// ── GOOGLE MAPS INTEGRATION ──────────────────────────────────
+let googleReady=false;
+let mapClickMode=null;
+let fromAC=null, toAC=null;
+let googleMap=null; // Google Maps instance for the right panel
+
+window.initGoogleMaps=function(){
+  googleReady=true;
+  setupAutocomplete();
+  initGoogleMapPanel();
+};
+
+function setupAutocomplete(){
+  if(!googleReady)return;
+  // Autocomplete on street fields
+  const opts={componentRestrictions:{country:'us'},fields:['address_components','geometry','formatted_address']};
+  const fromEl=document.getElementById('tFromStreet');
+  const toEl=document.getElementById('tToStreet');
+  if(fromEl&&!fromAC){
+    fromAC=new google.maps.places.Autocomplete(fromEl,opts);
+    fromAC.addListener('place_changed',()=>{
+      const p=fromAC.getPlace();
+      if(!p.address_components)return;
+      fillAddrFields(p,'from');
+      clearDist();
+    });
+  }
+  if(toEl&&!toAC){
+    toAC=new google.maps.places.Autocomplete(toEl,opts);
+    toAC.addListener('place_changed',()=>{
+      const p=toAC.getPlace();
+      if(!p.address_components)return;
+      fillAddrFields(p,'to');
+      clearDist();
+    });
+  }
+}
+
+function fillAddrFields(place, prefix){
+  let street='', city='', state='';
+  let streetNum='', route='';
+  for(const c of place.address_components){
+    if(c.types.includes('street_number'))streetNum=c.long_name;
+    if(c.types.includes('route'))route=c.long_name;
+    if(c.types.includes('locality'))city=c.long_name;
+    if(c.types.includes('administrative_area_level_1'))state=c.short_name;
+  }
+  street=(streetNum+' '+route).trim();
+  document.getElementById('t'+prefix.charAt(0).toUpperCase()+prefix.slice(1)+'Street').value=street;
+  document.getElementById('t'+prefix.charAt(0).toUpperCase()+prefix.slice(1)+'City').value=city;
+  document.getElementById('t'+prefix.charAt(0).toUpperCase()+prefix.slice(1)+'State').value=state;
+  buildAddr();
+}
+
+function initGoogleMapPanel(){
+  if(!googleReady||googleMap)return;
+  const mapEl=document.getElementById('mainMap');
+  if(!mapEl)return;
+  googleMap=new google.maps.Map(mapEl,{
+    center:{lat:40.76,lng:-111.89},
+    zoom:10,
+    mapTypeId:'roadmap',
+    styles:[
+      {elementType:'geometry',stylers:[{color:'#1a2030'}]},
+      {elementType:'labels.text.fill',stylers:[{color:'#8b95a8'}]},
+      {elementType:'labels.text.stroke',stylers:[{color:'#0d1117'}]},
+      {featureType:'road',elementType:'geometry',stylers:[{color:'#2a3548'}]},
+      {featureType:'road.highway',elementType:'geometry',stylers:[{color:'#3d4f6b'}]},
+      {featureType:'road',elementType:'labels.text.fill',stylers:[{color:'#8b95a8'}]},
+      {featureType:'water',elementType:'geometry',stylers:[{color:'#0d1117'}]},
+      {featureType:'poi',elementType:'geometry',stylers:[{color:'#1c2535'}]},
+      {featureType:'poi',elementType:'labels',stylers:[{visibility:'off'}]},
+      {featureType:'transit',stylers:[{visibility:'off'}]},
+      {featureType:'administrative',elementType:'geometry.stroke',stylers:[{color:'#2e3e55'}]},
+    ],
+    disableDefaultUI:false,
+    zoomControl:true,
+    mapTypeControl:false,
+    streetViewControl:false,
+    fullscreenControl:false,
+  });
+  // Click to set handler
+  googleMap.addListener('click',e=>{
+    if(!mapClickMode)return;
+    const lat=e.latLng.lat();
+    const lng=e.latLng.lng();
+    // Reverse geocode
+    const geocoder=new google.maps.Geocoder();
+    geocoder.geocode({location:{lat,lng}},(results,status)=>{
+      if(status==='OK'&&results[0]){
+        fillAddrFields(results[0],mapClickMode);
+      }
+      setMapClickMode(null);
+      buildAddr();
+    });
+  });
+}
+
+let gDirectionsRenderer=null;
+let gMarkers=[];
+
+function clearGoogleMap(){
+  if(gDirectionsRenderer){gDirectionsRenderer.setMap(null);gDirectionsRenderer=null;}
+  gMarkers.forEach(m=>m.setMap(null));
+  gMarkers=[];
+}
+
+async function showRouteOnGoogleMap(fromAddr,toAddr,miles,durText){
+  if(!googleReady||!googleMap){showRouteMap_Leaflet(null,null,null,miles,durText);return;}
+  clearGoogleMap();
+  document.getElementById('mapEmpty').style.display='none';
+  const directionsService=new google.maps.DirectionsService();
+  const request={origin:fromAddr,destination:toAddr,travelMode:google.maps.TravelMode.DRIVING};
+  directionsService.route(request,(result,status)=>{
+    if(status==='OK'){
+      gDirectionsRenderer=new google.maps.DirectionsRenderer({
+        map:googleMap,
+        suppressMarkers:true,
+        polylineOptions:{strokeColor:'#4f9eff',strokeWeight:6,strokeOpacity:0.9}
+      });
+      gDirectionsRenderer.setDirections(result);
+      // Custom A/B markers
+      const leg=result.routes[0].legs[0];
+      gMarkers.push(new google.maps.Marker({
+        position:leg.start_location,map:googleMap,
+        icon:{path:google.maps.SymbolPath.CIRCLE,scale:10,fillColor:'#3dd68c',fillOpacity:1,strokeColor:'#fff',strokeWeight:2},
+        label:{text:'A',color:'#fff',fontSize:'11px',fontWeight:'bold'}
+      }));
+      gMarkers.push(new google.maps.Marker({
+        position:leg.end_location,map:googleMap,
+        icon:{path:google.maps.SymbolPath.CIRCLE,scale:10,fillColor:'#f87171',fillOpacity:1,strokeColor:'#fff',strokeWeight:2},
+        label:{text:'B',color:'#fff',fontSize:'11px',fontWeight:'bold'}
+      }));
+      if(miles!==undefined)document.getElementById('mainMapInfo').textContent=miles.toFixed(1)+' mi · ~'+durText;
+    }
+  });
+}
+
+async function geocode(address){
+  if(googleReady){
+    return new Promise((resolve,reject)=>{
+      new google.maps.Geocoder().geocode({address},(results,status)=>{
+        if(status==='OK'&&results[0]){
+          const loc=results[0].geometry.location;
+          resolve([loc.lng(),loc.lat()]);
+        } else {
+          reject(new Error('Address not found: '+address));
+        }
+      });
+    });
+  }
+  // Fallback to Nominatim
+  const r=await fetch('https://nominatim.openstreetmap.org/search?q='+encodeURIComponent(address)+'&format=json&limit=1',{headers:{'Accept':'application/json'}});
+  const d=await r.json();
+  if(!d.length)throw new Error('Address not found: '+address);
+  return[parseFloat(d[0].lon),parseFloat(d[0].lat)];
+}
+
+async function calcDist(){
+  const from=document.getElementById('tFrom').value.trim();
+  const to=document.getElementById('tTo').value.trim();
+  if(!from||!to){toast('⚠ Enter both From and To');return;}
+  const btn=document.getElementById('calcBtn');
+  btn.disabled=true;btn.innerHTML='<span class="spin">⊙</span> Calculating…';
+  document.getElementById('distBox').classList.remove('show');
+  // map always visible
+  pendingDist=null;
+  try{
+    const[[fLng,fLat],[tLng,tLat]]=await Promise.all([geocode(from),geocode(to)]);
+    // Get route with full geometry for the map
+    const r=await fetch(`https://router.project-osrm.org/route/v1/driving/${fLng},${fLat};${tLng},${tLat}?overview=full&geometries=geojson`);
+    const d=await r.json();
+    if(d.code!=='Ok'||!d.routes?.length)throw new Error('No route found');
+    const miles=d.routes[0].distance*0.000621371;
+    const mins=Math.round(d.routes[0].duration/60);
+    const dur=t=>t>=60?(Math.floor(t/60)+'h '+(t%60)+'m'):(t+' min');
+    pendingDist={
+      one:parseFloat(miles.toFixed(1)),
+      round:parseFloat((miles*2).toFixed(1)),
+      coords:d.routes[0].geometry.coordinates,
+      from:[fLat,fLng], to:[tLat,tLng]
+    };
+    document.getElementById('distMi1').textContent=miles.toFixed(1)+' mi';
+    document.getElementById('distInfo1').textContent='~'+dur(mins)+' drive';
+    document.getElementById('distMi2').textContent=(miles*2).toFixed(1)+' mi';
+    document.getElementById('distInfo2').textContent='~'+dur(mins*2)+' total';
+    document.getElementById('distBox').classList.add('show');
+    // Show route on map
+    showRouteMap(pendingDist.from, pendingDist.to, pendingDist.coords, miles, dur(mins));
+  }catch(err){
+    toast(err.message.startsWith('Address not found')?'⚠ '+err.message:err.message==='No route found'?'⚠ No driving route found':'⚠ Could not calculate distance');
+  }finally{btn.disabled=false;btn.innerHTML='⊙ Calculate distance';}
+}
+
+function pinIcon(label,color){
+  return L.divIcon({className:'',html:`<div style="background:${color};color:#fff;font-size:11px;font-weight:700;padding:4px 8px;border-radius:5px;white-space:nowrap;box-shadow:0 2px 10px rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.2)">${label}</div>`,iconAnchor:[14,10]});
+}
+
+function showRouteMap(from, to, coords, miles, dur){
+  document.getElementById('mapEmpty').style.display='none';
+  initMainMap();
+  clearMapLayers();
+  const latlngs=coords.map(c=>[c[1],c[0]]);
+  // Improved route styling - outer glow + main line + direction dots
+  const shadow=L.polyline(latlngs,{color:'#000',weight:14,opacity:0.2}).addTo(mainMap);
+  const glow=L.polyline(latlngs,{color:'#4f9eff',weight:12,opacity:0.15}).addTo(mainMap);
+  const poly=L.polyline(latlngs,{color:'#4f9eff',weight:5,opacity:1,dashArray:null,lineCap:'round',lineJoin:'round'}).addTo(mainMap);
+  // Animated dash overlay for direction
+  const dash=L.polyline(latlngs,{color:'#fff',weight:2,opacity:0.6,dashArray:'10,15',lineCap:'round'}).addTo(mainMap);
+  const mA=L.marker(from,{icon:pinIcon('A','#3dd68c'),zIndexOffset:100}).addTo(mainMap);
+  const mB=L.marker(to,{icon:pinIcon('B','#f87171'),zIndexOffset:100}).addTo(mainMap);
+  currentLayers=[shadow,glow,poly,dash,mA,mB];
+  setTimeout(()=>{
+    mainMap.invalidateSize();
+    mainMap.fitBounds(poly.getBounds(),{padding:[50,50]});
+  },80);
+  if(miles!==undefined) document.getElementById('mainMapInfo').textContent=miles.toFixed(1)+' mi · ~'+dur;
+}
+
+function closeMap(){} // map is always visible
+
+async function showHistMap(tripId){
+  const trip=trips.find(t=>t.id===tripId);
+  if(!trip)return;
+  document.getElementById('mapEmpty').style.display='none';
+  // Switch to log view so the map panel is visible
+  const navLog=document.getElementById('nav-log');
+  if(navLog){
+    document.querySelectorAll('.np').forEach(b=>b.classList.remove('on'));
+    navLog.classList.add('on');
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
+    document.getElementById('view-log').classList.add('on');
+  }
+  initMainMap();
+  try{
+    let coords, fromLL, toLL;
+    if(trip.coords&&trip.fromLatLng&&trip.toLatLng){
+      coords=trip.coords; fromLL=trip.fromLatLng; toLL=trip.toLatLng;
+    } else {
+      toast('Loading route…');
+      const[[fLng,fLat],[tLng,tLat]]=await Promise.all([geocode(trip.from),geocode(trip.to)]);
+      const r=await fetch(`https://router.project-osrm.org/route/v1/driving/${fLng},${fLat};${tLng},${tLat}?overview=full&geometries=geojson`);
+      const d=await r.json();
+      if(d.code!=='Ok'||!d.routes?.length)throw new Error('No route');
+      coords=d.routes[0].geometry.coordinates;
+      fromLL=[fLat,fLng]; toLL=[tLat,tLng];
+      trip.coords=coords; trip.fromLatLng=fromLL; trip.toLatLng=toLL;
+      save();
+    }
+    clearMapLayers();
+    const latlngs=coords.map(c=>[c[1],c[0]]);
+    // Use Google Maps if available, otherwise Leaflet
+    if(googleReady&&googleMap&&trip.from&&trip.to){
+      showRouteOnGoogleMap(trip.from,trip.to,trip.miles,fmt(trip.date)+(trip.purpose?' · '+trip.purpose:''));
+    } else {
+      const latlngs=coords.map(c=>[c[1],c[0]]);
+      clearMapLayers();
+      const shadow=L.polyline(latlngs,{color:'#000',weight:14,opacity:0.2}).addTo(mainMap);
+      const glow=L.polyline(latlngs,{color:'#4f9eff',weight:12,opacity:0.15}).addTo(mainMap);
+      const poly=L.polyline(latlngs,{color:'#4f9eff',weight:5,opacity:1,lineCap:'round',lineJoin:'round'}).addTo(mainMap);
+      const dash=L.polyline(latlngs,{color:'#fff',weight:2,opacity:0.6,dashArray:'10,15',lineCap:'round'}).addTo(mainMap);
+      const mA=L.marker(fromLL,{icon:pinIcon('A','#3dd68c'),zIndexOffset:100}).addTo(mainMap);
+      const mB=L.marker(toLL,{icon:pinIcon('B','#f87171'),zIndexOffset:100}).addTo(mainMap);
+      currentLayers=[shadow,glow,poly,dash,mA,mB];
+      setTimeout(()=>{mainMap.invalidateSize();mainMap.fitBounds(poly.getBounds(),{padding:[50,50]});},80);
+      document.getElementById('mainMapInfo').textContent=trip.miles+' mi · '+fmt(trip.date)+(trip.purpose?' · '+trip.purpose:'');
+    }
+  }catch(e){toast('⚠ Could not load route map');}
+}
+
+function useDist(t){
+  if(!pendingDist)return;
+  const m=t===2?pendingDist.round:pendingDist.one;
+  document.getElementById('tMiles').value=m;
+  document.getElementById('distBox').classList.remove('show');
+  toast('Set to '+m+' mi ✓');pendingDist=null;
+}
+
+function clearDist(){
+  document.getElementById('distBox').classList.remove('show');
+  // map always visible
+
+  pendingDist=null;
+}
+
+function addTrip(){
+  const d=document.getElementById('tDate').value;
+  const m=document.getElementById('tMiles').value;
+  if(!d||!m||parseFloat(m)<=0){toast('⚠ Enter date and miles');return;}
+  buildAddr(); // ensure hidden fields are up to date
+  const trip={id:Date.now(),date:d,miles:parseFloat(m),
+    from:document.getElementById('tFrom').value.trim(),
+    to:document.getElementById('tTo').value.trim(),
+    purpose:document.getElementById('tPurpose').value.trim(),
+    category:document.getElementById('tCat').value};
+  // Save route geometry if we calculated it
+  if(pendingDist&&pendingDist.coords){
+    trip.coords=pendingDist.coords;
+    trip.fromLatLng=pendingDist.from;
+    trip.toLatLng=pendingDist.to;
+  }
+  trips.push(trip);
+  save();clearF();updateSidebar();renderH();toast('Trip saved ✓');
+  saveToSupabase(trip);
+}
+
+function clearF(){
+  document.getElementById('tMiles').value='';
+  document.getElementById('tTo').value='';
+  document.getElementById('tPurpose').value='';
+  document.getElementById('tDate').value=today();
+  document.getElementById('tFrom').value=cfg.home||'';
+  clearDist();
+}
+
+function del(id){
+  if(!confirm('Delete this trip?'))return;
+  const trip=trips.find(t=>t.id===id);
+  trips=trips.filter(t=>t.id!==id);
+  save();updateSidebar();renderH();toast('Deleted');
+  if(trip)deleteFromSupabase(trip);
+}
+
+function renderH(){
+  const fy=document.getElementById('fYear').value;
+  const fc=document.getElementById('fCat').value;
+  const years=[...new Set(trips.map(t=>yr(t.date)))].sort().reverse();
+  const sel=document.getElementById('fYear');const cv=sel.value;
+  sel.innerHTML='<option value="">All years</option>'+years.map(y=>`<option value="${y}"${cv==y?' selected':''}>${y}</option>`).join('');
+  let fl=[...trips].reverse();
+  if(fy)fl=fl.filter(t=>yr(t.date)==fy);
+  if(fc)fl=fl.filter(t=>t.category===fc);
+  const box=document.getElementById('htable');
+  if(!fl.length){box.innerHTML='<div class="empty"><div style="font-size:32px;opacity:.15;margin-bottom:12px">🚗</div>No trips yet — log your first one!</div>';return;}
+  const tmi=fl.reduce((s,t)=>s+parseFloat(t.miles||0),0);
+  const tv=fl.reduce((s,t)=>s+parseFloat(t.miles||0)*rate(t.date),0);
+  box.innerHTML=`<table>
+    <thead><tr><th>Date</th><th>Route</th><th>Purpose</th><th>Category</th><th style="text-align:right">Miles</th><th style="text-align:right">Value</th><th></th></tr></thead>
+    <tbody>${fl.map(t=>`<tr>
+      <td class="mono" style="white-space:nowrap;font-size:12px;color:var(--text2)">${fmt(t.date)}</td>
+      <td><div class="route-cell" title="${t.from||''}${t.from&&t.to?' → ':''}${t.to||''}">${t.from||''}${t.from&&t.to?' → ':''}${t.to||''}</div></td>
+      <td style="font-size:12px;color:var(--text2);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.purpose||'—'}</td>
+      <td><span class="pill ${pc(t.category)}">${t.category||''}</span></td>
+      <td class="mono" style="text-align:right;font-weight:500">${parseFloat(t.miles||0).toFixed(1)}</td>
+      <td class="mono" style="text-align:right;color:var(--green)">$${(parseFloat(t.miles||0)*rate(t.date)).toFixed(2)}</td>
+      <td style="display:flex;gap:6px;align-items:center">${t.from&&t.to?`<button class="map-btn" onclick="showHistMap(${t.id})">🗺 View Route</button>`:''}
+      <button class="btn btn-danger" onclick="del(${t.id})">✕</button></td>
+    </tr>`).join('')}</tbody>
+    <tfoot><tr>
+      <td colspan="4" style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3)">Total · ${fl.length} trip${fl.length!==1?'s':''}</td>
+      <td style="text-align:right">${tmi.toFixed(1)} mi</td>
+      <td style="text-align:right">$${tv.toFixed(2)}</td>
+      <td></td>
+    </tr></tfoot>
+  </table>`;
+}
+
+function doExport(){
+  const fy=document.getElementById('fYear')?document.getElementById('fYear').value:'';
+  let fl=[...trips];if(fy)fl=fl.filter(t=>yr(t.date)==fy);
+  if(!fl.length){toast('No trips to export');return;}
+  const rows=[['Date','From','To','Purpose','Category','Miles','Rate ($/mi)','Deductible Value','Vehicle']];
+  fl.forEach(t=>{const r=rate(t.date);rows.push([t.date,t.from||'',t.to||'',t.purpose||'',t.category||'',
+    parseFloat(t.miles||0).toFixed(1),r.toFixed(3),(parseFloat(t.miles||0)*r).toFixed(2),cfg.vehicle||'']);});
+  const csv=rows.map(r=>r.map(c=>'"'+c+'"').join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download='mileage'+(fy?'_'+fy:'')+'_'+((cfg.biz||'export').replace(/\s/g,'_'))+'.csv';
+  a.click();URL.revokeObjectURL(a.href);toast('CSV exported ✓');
+}
+
+function clearAll(){
+  if(!confirm('Delete ALL trips? Cannot be undone.'))return;
+  trips=[];save();updateSidebar();renderH();toast('Cleared');
+}
+
+function switchNav(name,el){
+  document.querySelectorAll('.np').forEach(b=>b.classList.remove('on'));
+  el.classList.add('on');
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
+  document.getElementById('view-'+name).classList.add('on');
+  if(name==='hist')renderH();
+
+}
+
+let tt;
+function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>el.classList.remove('show'),2500);}
+
+document.addEventListener('keydown',e=>{
+  if((e.metaKey||e.ctrlKey)&&e.key==='Enter')addTrip();
+  if((e.metaKey||e.ctrlKey)&&e.key==='d'){e.preventDefault();calcDist();}
+});
+
+// ── RESIZABLE PANELS ─────────────────────────────────────────
+function initResize(){
+  // Left panel resize
+  const leftPanel=document.getElementById('leftPanel');
+  const leftHandle=document.getElementById('leftResize');
+  let dragging=false, startX=0, startW=0;
+
+  leftHandle.addEventListener('mousedown',e=>{
+    dragging=true; startX=e.clientX; startW=leftPanel.offsetWidth;
+    leftHandle.classList.add('dragging');
+    document.body.style.cursor='col-resize';
+    document.body.style.userSelect='none';
+  });
+
+  document.addEventListener('mousemove',e=>{
+    if(!dragging)return;
+    const w=Math.min(500,Math.max(200,startW+(e.clientX-startX)));
+    leftPanel.style.width=w+'px';
+  });
+
+  document.addEventListener('mouseup',()=>{
+    if(dragging){dragging=false;leftHandle.classList.remove('dragging');document.body.style.cursor='';document.body.style.userSelect='';}
+  });
+
+  // Map panel resize
+  const mapPanel=document.getElementById('mapPanel');
+  const mapHandle=document.getElementById('mapResize');
+  let mDragging=false, mStartX=0, mStartW=0;
+
+  mapHandle.addEventListener('mousedown',e=>{
+    mDragging=true; mStartX=e.clientX; mStartW=mapPanel.offsetWidth;
+    mapHandle.classList.add('dragging');
+    document.body.style.cursor='col-resize';
+    document.body.style.userSelect='none';
+  });
+
+  document.addEventListener('mousemove',e=>{
+    if(!mDragging)return;
+    const w=Math.min(window.innerWidth*0.7,Math.max(200,mStartW-(e.clientX-mStartX)));
+    mapPanel.style.width=w+'px';
+    if(mainMap)setTimeout(()=>mainMap.invalidateSize(),10);
+  });
+
+  document.addEventListener('mouseup',()=>{
+    if(mDragging){mDragging=false;mapHandle.classList.remove('dragging');document.body.style.cursor='';document.body.style.userSelect='';if(mainMap)mainMap.invalidateSize();}
+  });
+}
+
+function toggleSidebar(){
+  const panel=document.getElementById('leftPanel');
+  const btn=document.getElementById('collapseBtn');
+  panel.classList.toggle('collapsed');
+  btn.textContent=panel.classList.contains('collapsed')?'›':'‹';
+  if(mainMap)setTimeout(()=>mainMap.invalidateSize(),300);
+}
+
+function importCSV(event){
+  const file=event.target.files[0];
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(e){
+    const lines=e.target.result.split(/[\r\n]+/).filter(l=>l.trim());
+    if(lines.length<2){toast('⚠ Empty or invalid CSV');return;}
+    const headers=lines[0].split(",").map(h=>h.replace(/"/g,"").trim().toLowerCase());
+    const dateIdx=headers.findIndex(h=>h==='date');
+    const milesIdx=headers.findIndex(h=>h==='miles');
+    const fromIdx=headers.findIndex(h=>h==='from');
+    const toIdx=headers.findIndex(h=>h==='to');
+    const purposeIdx=headers.findIndex(h=>h==='purpose');
+    const catIdx=headers.findIndex(h=>h.includes('category'));
+    if(dateIdx===-1||milesIdx===-1){toast('⚠ CSV must have Date and Miles columns');return;}
+    let added=0,skipped=0;
+    for(let i=1;i<lines.length;i++){
+      const cols=lines[i].match(/(".*?"|[^,]+)(?=,|$)/g)||lines[i].split(",");
+      const clean=c=>c?c.replace(/^"|"$/g,'').trim():'';
+      const date=clean(cols[dateIdx]);
+      const miles=parseFloat(clean(cols[milesIdx]));
+      if(!date||isNaN(miles)||miles<=0){skipped++;continue;}
+      // Check for duplicate (same date + miles + from)
+      const from=fromIdx>=0?clean(cols[fromIdx]):'';
+      const isDup=trips.some(t=>t.date===date&&parseFloat(t.miles)===miles&&t.from===from);
+      if(isDup){skipped++;continue;}
+      trips.push({
+        id:Date.now()+i,
+        date,
+        miles,
+        from,
+        to:toIdx>=0?clean(cols[toIdx]):'',
+        purpose:purposeIdx>=0?clean(cols[purposeIdx]):'',
+        category:catIdx>=0?clean(cols[catIdx]):'Other Business'
+      });
+      added++;
+    }
+    save();updateSidebar();renderH();
+    toast(added+' trips imported'+(skipped?' · '+skipped+' skipped':'')+'  ✓');
+    event.target.value='';
+    // Sync all imported trips to Supabase
+    if(currentUser){
+      const newTrips=trips.slice(-added);
+      Promise.all(newTrips.map(t=>saveToSupabase(t))).then(()=>{
+        toast(added+' trips synced to cloud ✓');
+      });
+    }
+  };
+  reader.readAsText(file);
+}
+
+// Expose all functions to global window scope to bypass lockdown extensions
+window.switchNav=switchNav;
+window.calcDist=calcDist;
+window.useDist=useDist;
+window.clearF=clearF;
+window.addTrip=addTrip;
+window.doExport=doExport;
+window.clearAll=clearAll;
+window.saveSet=saveSet;
+window.showHistMap=showHistMap;
+window.del=del;
+window.closeMap=closeMap;
+window.toggleSidebar=toggleSidebar;
+window.importCSV=importCSV;
+
+// ── AUTH ─────────────────────────────────────────────────────
+async function signIn(){
+  const email=document.getElementById('authEmail').value.trim();
+  const pwd=document.getElementById('authPassword').value;
+  const err=document.getElementById('authError');
+  const btn=document.getElementById('authBtn');
+  btn.textContent='Signing in...';btn.disabled=true;err.style.display='none';
+  const{data,error}=await supa.auth.signInWithPassword({email,password:pwd});
+  btn.textContent='Sign in';btn.disabled=false;
+  if(error){err.textContent=error.message;err.style.display='block';return;}
+  onSignedIn(data.user);
+}
+
+async function signUp(){
+  const email=document.getElementById('authEmail').value.trim();
+  const pwd=document.getElementById('authPassword').value;
+  const err=document.getElementById('authError');
+  const btn=document.getElementById('authBtn');
+  btn.textContent='Creating account...';btn.disabled=true;err.style.display='none';
+  const{data,error}=await supa.auth.signUp({email,password:pwd});
+  btn.textContent='Sign up';btn.disabled=false;
+  if(error){err.textContent=error.message;err.style.display='block';return;}
+  if(data.user&&!data.user.confirmed_at){
+    err.style.color='var(--green)';err.textContent='Check your email to confirm your account!';err.style.display='block';return;
+  }
+  onSignedIn(data.user);
+}
+
+async function signOut(){
+  await supa.auth.signOut();
+  currentUser=null;
+  document.getElementById('authOverlay').style.display='flex';
+  document.getElementById('userEmail').textContent='';
+}
+
+function onSignedIn(user){
+  currentUser=user;
+  document.getElementById('authOverlay').style.display='none';
+  document.getElementById('userEmail').textContent=user.email;
+  init();
+  setTimeout(()=>{initMainMap();initResize();},200);
+  loadFromSupabase();
+}
+
+window.addEventListener('DOMContentLoaded',function(){
+  // Check existing session first
+  supa.auth.getSession().then(({data:{session}})=>{
+    if(session){
+      onSignedIn(session.user);
+    } else {
+      // No session - show login, still init UI
+      init();
+      setTimeout(()=>{initMainMap();initResize();},200);
+    }
+  });
+  document.getElementById('signOutBtn').addEventListener('click',signOut);
+  // Setup autocomplete if Google already loaded
+  if(typeof google!=='undefined'&&google.maps){initGoogleMaps();}
+
+  // Click-to-set map mode buttons
+  var setFromBtn=document.getElementById('setFromBtn');
+  var setToBtn=document.getElementById('setToBtn');
+  var mapClickHint=document.getElementById('mapClickHint');
+
+  function setMapClickMode(mode){
+    mapClickMode=mode;
+    setFromBtn.classList.toggle('active',mode==='from');
+    setToBtn.classList.toggle('active',mode==='to');
+    if(mode){
+      mapClickHint.textContent='Click map to set '+(mode==='from'?'start':'end')+' point';
+      mapClickHint.classList.add('show');
+      if(mainMap)mainMap.getContainer().style.cursor='crosshair';
+    } else {
+      mapClickHint.classList.remove('show');
+      if(mainMap)mainMap.getContainer().style.cursor='';
+    }
+  }
+
+  if(setFromBtn)setFromBtn.addEventListener('click',function(){setMapClickMode(mapClickMode==='from'?null:'from');});
+  if(setToBtn)setToBtn.addEventListener('click',function(){setMapClickMode(mapClickMode==='to'?null:'to');});
+
+  // Hook map clicks for click-to-set
+  setTimeout(function(){
+    if(mainMap){
+      mainMap.on('click',function(e){
+        if(!mapClickMode)return;
+        const lat=e.latlng.lat.toFixed(6);
+        const lng=e.latlng.lng.toFixed(6);
+        // Reverse geocode with Google if available
+        // Reverse geocode with Nominatim
+        fetch('https://nominatim.openstreetmap.org/reverse?lat='+e.latlng.lat+'&lon='+e.latlng.lng+'&format=json')
+          .then(r=>r.json()).then(d=>{
+            const addr=d.display_name||lat+','+lng;
+            // Parse into street/city/state
+            const road=d.address?.road||d.address?.suburb||'';
+            const house=d.address?.house_number||'';
+            const street=(house?house+' ':'')+road;
+            const city=d.address?.city||d.address?.town||d.address?.village||'';
+            const state=d.address?.state||'';
+            if(mapClickMode==='from'){
+              if(document.getElementById('tFromStreet'))document.getElementById('tFromStreet').value=street;
+              if(document.getElementById('tFromCity'))document.getElementById('tFromCity').value=city;
+              if(document.getElementById('tFromState'))document.getElementById('tFromState').value=state;
+            } else {
+              if(document.getElementById('tToStreet'))document.getElementById('tToStreet').value=street;
+              if(document.getElementById('tToCity'))document.getElementById('tToCity').value=city;
+              if(document.getElementById('tToState'))document.getElementById('tToState').value=state;
+            }
+            buildAddr();clearDist();setMapClickMode(null);
+          }).catch(()=>{
+            if(mapClickMode==='from')document.getElementById('tFrom').value=lat+','+lng;
+            else document.getElementById('tTo').value=lat+','+lng;
+            clearDist();setMapClickMode(null);
+          });
+      });
+    }
+  },500);
+
+
+  document.getElementById('nav-log').addEventListener('click',function(){switchNav('log',this);});
+  document.getElementById('nav-hist').addEventListener('click',function(){switchNav('hist',this);});
+  document.getElementById('nav-set').addEventListener('click',function(){switchNav('set',this);});
+  var cb=document.getElementById('collapseBtn');
+  if(cb)cb.addEventListener('click',toggleSidebar);
+  var mc=document.getElementById('mapCloseBtn');
+  if(mc)mc.addEventListener('click',closeMap);
+
+  // Auth overlay buttons
+  var isSignUp=false;
+  document.getElementById('authBtn').addEventListener('click',function(){isSignUp?signUp():signIn();});
+  document.getElementById('authEmail').addEventListener('keydown',function(e){if(e.key==='Enter')document.getElementById('authPassword').focus();});
+  document.getElementById('authPassword').addEventListener('keydown',function(e){if(e.key==='Enter'){isSignUp?signUp():signIn();}});
+  document.getElementById('authToggle').addEventListener('click',function(){
+    isSignUp=!isSignUp;
+    document.getElementById('authBtn').textContent=isSignUp?'Sign up':'Sign in';
+    document.getElementById('authSub').textContent=isSignUp?'Create an account to get started':'Sign in to sync your trips across all devices';
+    document.getElementById('authToggle').textContent=isSignUp?'Already have an account? Sign in':"Don't have an account? Sign up";
+  });
+});
+</script>
+</body>
+</html>
