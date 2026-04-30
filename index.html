@@ -43,7 +43,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
 .left-scroll{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:16px;}
 .left-scroll::-webkit-scrollbar{width:4px;}
 .left-scroll::-webkit-scrollbar-thumb{background:var(--surface3);border-radius:4px;}
-.right{width:320px;min-width:280px;max-width:380px;flex-shrink:0;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:20px;background:var(--bg);}
+.right{width:380px;min-width:340px;max-width:460px;flex-shrink:0;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:20px;background:var(--bg);}
   .map-panel{flex:2;min-width:300px;border-left:1px solid var(--border);border-right:1px solid var(--border);display:flex;flex-direction:column;background:var(--bg2);position:relative;overflow:hidden;}
   .map-panel-header{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--border);flex-shrink:0;}
   .map-panel-title{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;}
@@ -828,38 +828,50 @@ async function geocode(address){
 }
 
 async function calcDist(){
+  buildAddr();
   const from=document.getElementById('tFrom').value.trim();
   const to=document.getElementById('tTo').value.trim();
-  if(!from||!to){toast('⚠ Enter both From and To');return;}
+  if(!from||!to){toast('⚠ Enter From and To addresses');return;}
   const btn=document.getElementById('calcBtn');
   btn.disabled=true;btn.innerHTML='<span class="spin">⊙</span> Calculating…';
   document.getElementById('distBox').classList.remove('show');
-  // map always visible
   pendingDist=null;
   try{
+    // Step 1: Geocode both addresses using Google (or Nominatim fallback)
     const[[fLng,fLat],[tLng,tLat]]=await Promise.all([geocode(from),geocode(to)]);
-    // Get route with full geometry for the map
-    const r=await fetch(`https://router.project-osrm.org/route/v1/driving/${fLng},${fLat};${tLng},${tLat}?overview=full&geometries=geojson`);
+
+    // Step 2: Get driving distance/time from OSRM (reliable, free)
+    const r=await fetch('https://router.project-osrm.org/route/v1/driving/'+fLng+','+fLat+';'+tLng+','+tLat+'?overview=full&geometries=geojson');
     const d=await r.json();
     if(d.code!=='Ok'||!d.routes?.length)throw new Error('No route found');
     const miles=d.routes[0].distance*0.000621371;
     const mins=Math.round(d.routes[0].duration/60);
     const dur=t=>t>=60?(Math.floor(t/60)+'h '+(t%60)+'m'):(t+' min');
+
     pendingDist={
       one:parseFloat(miles.toFixed(1)),
       round:parseFloat((miles*2).toFixed(1)),
       coords:d.routes[0].geometry.coordinates,
-      from:[fLat,fLng], to:[tLat,tLng]
+      from:[fLat,fLng],to:[tLat,tLng]
     };
+
     document.getElementById('distMi1').textContent=miles.toFixed(1)+' mi';
     document.getElementById('distInfo1').textContent='~'+dur(mins)+' drive';
     document.getElementById('distMi2').textContent=(miles*2).toFixed(1)+' mi';
     document.getElementById('distInfo2').textContent='~'+dur(mins*2)+' total';
     document.getElementById('distBox').classList.add('show');
-    // Show route on map
-    showRouteMap(pendingDist.from, pendingDist.to, pendingDist.coords, miles, dur(mins));
+
+    // Step 3: Show on Google Maps if available, otherwise Leaflet
+    if(googleReady&&googleMap){
+      showRouteOnGoogleMap(from,to,miles,dur(mins));
+    } else {
+      showRouteMap(pendingDist.from,pendingDist.to,pendingDist.coords,miles,dur(mins));
+    }
   }catch(err){
-    toast(err.message.startsWith('Address not found')?'⚠ '+err.message:err.message==='No route found'?'⚠ No driving route found':'⚠ Could not calculate distance');
+    const msg=err.message||'';
+    if(msg.includes('Address not found'))toast('⚠ '+msg);
+    else if(msg==='No route found')toast('⚠ No driving route found');
+    else toast('⚠ Could not calculate: '+msg);
   }finally{btn.disabled=false;btn.innerHTML='⊙ Calculate distance';}
 }
 
