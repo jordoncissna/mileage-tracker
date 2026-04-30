@@ -43,8 +43,8 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
 .left-scroll{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:16px;}
 .left-scroll::-webkit-scrollbar{width:4px;}
 .left-scroll::-webkit-scrollbar-thumb{background:var(--surface3);border-radius:4px;}
-.right{flex:1;min-width:200px;overflow-y:auto;padding:24px;display:flex;flex-direction:column;gap:20px;background:var(--bg);}
-  .map-panel{width:30%;min-width:180px;max-width:65%;border-left:1px solid var(--border);display:flex;flex-direction:column;background:var(--bg2);position:relative;overflow:hidden;flex-shrink:0;}
+.right{width:320px;min-width:280px;max-width:380px;flex-shrink:0;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:20px;background:var(--bg);}
+  .map-panel{flex:2;min-width:300px;border-left:1px solid var(--border);border-right:1px solid var(--border);display:flex;flex-direction:column;background:var(--bg2);position:relative;overflow:hidden;}
   .map-panel-header{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--border);flex-shrink:0;}
   .map-panel-title{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;}
   .map-panel-info{font-size:11px;color:var(--accent);font-family:'JetBrains Mono',monospace;}
@@ -365,6 +365,27 @@ tfoot td{padding:8px 8px;font-weight:600;font-family:'JetBrains Mono',monospace;
     </div>
   </div>
 
+  <!-- ALWAYS-VISIBLE MAP PANEL - CENTER -->
+  <div class="map-panel" id="mapPanel">
+    <div class="map-resize-handle" id="mapResize"></div>
+    <div class="map-panel-header">
+      <span class="map-panel-title">Route map</span>
+      <div style="display:flex;gap:6px;align-items:center">
+        <button class="map-mode-btn" id="setFromBtn" title="Click map to set start point">📍 Set start</button>
+        <button class="map-mode-btn" id="setToBtn" title="Click map to set end point">🏁 Set end</button>
+        <span class="map-panel-info" id="mainMapInfo"></span>
+      </div>
+    </div>
+    <div class="map-click-hint" id="mapClickHint">Click anywhere on the map to set location</div>
+    <div id="mainMap"></div>
+    <div class="map-empty" id="mapEmpty">
+      <div style="font-size:36px;opacity:.15">🗺</div>
+      Calculate a route to see it here.<br>
+      <span style="font-size:12px;color:var(--text3)">Satellite view · powered by OpenStreetMap</span>
+    </div>
+  </div>
+
+
   <div class="right">
 
     <div class="view on" id="view-log">
@@ -458,27 +479,6 @@ tfoot td{padding:8px 8px;font-weight:600;font-family:'JetBrains Mono',monospace;
     </div>
 
   </div>
-
-  <!-- ALWAYS-VISIBLE MAP PANEL -->
-  <div class="map-panel" id="mapPanel">
-    <div class="map-resize-handle" id="mapResize"></div>
-    <div class="map-panel-header">
-      <span class="map-panel-title">Route map</span>
-      <div style="display:flex;gap:6px;align-items:center">
-        <button class="map-mode-btn" id="setFromBtn" title="Click map to set start point">📍 Set start</button>
-        <button class="map-mode-btn" id="setToBtn" title="Click map to set end point">🏁 Set end</button>
-        <span class="map-panel-info" id="mainMapInfo"></span>
-      </div>
-    </div>
-    <div class="map-click-hint" id="mapClickHint">Click anywhere on the map to set location</div>
-    <div id="mainMap"></div>
-    <div class="map-empty" id="mapEmpty">
-      <div style="font-size:36px;opacity:.15">🗺</div>
-      Calculate a route to see it here.<br>
-      <span style="font-size:12px;color:var(--text3)">Satellite view · powered by OpenStreetMap</span>
-    </div>
-  </div>
-
 </div>
 
 <div id="toast"></div>
@@ -757,32 +757,52 @@ function clearGoogleMap(){
 }
 
 async function showRouteOnGoogleMap(fromAddr,toAddr,miles,durText){
-  if(!googleReady||!googleMap){showRouteMap_Leaflet(null,null,null,miles,durText);return;}
+  // Wait for Google Map to be ready
+  if(!googleReady){
+    setTimeout(()=>showRouteOnGoogleMap(fromAddr,toAddr,miles,durText),500);
+    return;
+  }
+  if(!googleMap){
+    initGoogleMapPanel();
+    setTimeout(()=>showRouteOnGoogleMap(fromAddr,toAddr,miles,durText),800);
+    return;
+  }
   clearGoogleMap();
   document.getElementById('mapEmpty').style.display='none';
   const directionsService=new google.maps.DirectionsService();
-  const request={origin:fromAddr,destination:toAddr,travelMode:google.maps.TravelMode.DRIVING};
-  directionsService.route(request,(result,status)=>{
+  directionsService.route({
+    origin:fromAddr,
+    destination:toAddr,
+    travelMode:google.maps.TravelMode.DRIVING
+  },(result,status)=>{
     if(status==='OK'){
       gDirectionsRenderer=new google.maps.DirectionsRenderer({
         map:googleMap,
         suppressMarkers:true,
-        polylineOptions:{strokeColor:'#4f9eff',strokeWeight:6,strokeOpacity:0.9}
+        polylineOptions:{strokeColor:'#4f9eff',strokeWeight:6,strokeOpacity:0.95,strokeLinecap:'round'}
       });
       gDirectionsRenderer.setDirections(result);
-      // Custom A/B markers
       const leg=result.routes[0].legs[0];
       gMarkers.push(new google.maps.Marker({
-        position:leg.start_location,map:googleMap,
-        icon:{path:google.maps.SymbolPath.CIRCLE,scale:10,fillColor:'#3dd68c',fillOpacity:1,strokeColor:'#fff',strokeWeight:2},
-        label:{text:'A',color:'#fff',fontSize:'11px',fontWeight:'bold'}
+        position:leg.start_location,map:googleMap,zIndex:10,
+        icon:{path:google.maps.SymbolPath.CIRCLE,scale:12,fillColor:'#3dd68c',fillOpacity:1,strokeColor:'#fff',strokeWeight:3},
+        label:{text:'A',color:'#fff',fontSize:'12px',fontWeight:'bold'}
       }));
       gMarkers.push(new google.maps.Marker({
-        position:leg.end_location,map:googleMap,
-        icon:{path:google.maps.SymbolPath.CIRCLE,scale:10,fillColor:'#f87171',fillOpacity:1,strokeColor:'#fff',strokeWeight:2},
-        label:{text:'B',color:'#fff',fontSize:'11px',fontWeight:'bold'}
+        position:leg.end_location,map:googleMap,zIndex:10,
+        icon:{path:google.maps.SymbolPath.CIRCLE,scale:12,fillColor:'#f87171',fillOpacity:1,strokeColor:'#fff',strokeWeight:3},
+        label:{text:'B',color:'#fff',fontSize:'12px',fontWeight:'bold'}
       }));
-      if(miles!==undefined)document.getElementById('mainMapInfo').textContent=miles.toFixed(1)+' mi · ~'+durText;
+      const infoEl=document.getElementById('mainMapInfo');
+      if(infoEl)infoEl.textContent=(miles!==undefined?miles.toFixed(1)+' mi · ':'')+'~'+durText;
+      // Fit map to route
+      const bounds=new google.maps.LatLngBounds();
+      bounds.extend(leg.start_location);
+      bounds.extend(leg.end_location);
+      googleMap.fitBounds(bounds,{top:40,right:40,bottom:40,left:40});
+    } else {
+      console.error('Directions failed:',status);
+      toast('⚠ Google Maps routing failed: '+status);
     }
   });
 }
