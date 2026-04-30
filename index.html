@@ -174,18 +174,13 @@ tfoot td{padding:8px 8px;font-weight:600;font-family:'JetBrains Mono',monospace;
     body{height:auto;overflow-y:auto;}
   }
 
-  .resize-handle{width:12px;background:var(--surface3);border-left:2px solid var(--accent);border-right:2px solid var(--accent);cursor:col-resize;position:absolute;right:-6px;top:0;bottom:0;z-index:50;transition:background .15s;display:flex;align-items:center;justify-content:center;}
-  .resize-handle::after{content:'⋮⋮';color:var(--accent);font-size:12px;pointer-events:none;letter-spacing:-2px;}
-  .resize-handle:hover,.resize-handle.dragging{background:var(--accent);}
-  .resize-handle:hover::after,.resize-handle.dragging::after{color:#000;}
-  .map-resize-handle{width:12px;background:var(--surface3);border-left:2px solid var(--accent);border-right:2px solid var(--accent);cursor:col-resize;position:absolute;left:-6px;top:0;bottom:0;z-index:50;transition:background .15s;display:flex;align-items:center;justify-content:center;}
-  .map-resize-handle::after{content:'⋮⋮';color:var(--accent);font-size:12px;pointer-events:none;letter-spacing:-2px;}
+  .resize-handle{width:6px;background:var(--border2);cursor:col-resize;position:absolute;right:-3px;top:0;bottom:0;z-index:50;transition:background .15s;}
+  .resize-handle:hover,.resize-handle.dragging{background:var(--accent);width:6px;}
+  .map-resize-handle{width:6px;background:var(--border2);cursor:col-resize;position:absolute;left:-3px;top:0;bottom:0;z-index:50;transition:background .15s;}
   .map-resize-handle:hover,.map-resize-handle.dragging{background:var(--accent);}
-  .map-resize-handle:hover::after,.map-resize-handle.dragging::after{color:#000;}
-  .collapse-btn{position:absolute;top:50%;right:-22px;transform:translateY(-50%);width:18px;height:52px;background:var(--accent);border:none;border-radius:0 6px 6px 0;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px;color:#000;font-weight:700;z-index:52;transition:all .15s;}
+  .collapse-btn{position:absolute;top:50%;right:-18px;transform:translateY(-50%);width:16px;height:48px;background:var(--accent);border:none;border-radius:0 6px 6px 0;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:11px;color:#000;font-weight:700;z-index:52;}
   .collapse-btn:hover{opacity:.8;}
   .left.collapsed{width:0!important;min-width:0!important;overflow:hidden;}
-  .left.collapsed .collapse-btn{right:-22px;border-radius:6px;}
 
   .auth-overlay{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:9999;flex-direction:column;gap:20px;}
   .auth-card{background:var(--surface);border:1px solid var(--border2);border-radius:var(--r3);padding:32px;width:360px;display:flex;flex-direction:column;gap:16px;}
@@ -691,6 +686,11 @@ window.initGoogleMaps=function(){
   googleReady=true;
   setupAutocomplete();
   initGoogleMapPanel();
+  // Apply saved mode to map after it loads
+  setTimeout(()=>{
+    const savedMode=localStorage.getItem('ml_mode')||'dark';
+    applyMapMode(savedMode);
+  },500);
 };
 
 function setupAutocomplete(){
@@ -1087,50 +1087,55 @@ document.addEventListener('keydown',e=>{
 
 // ── RESIZABLE PANELS ─────────────────────────────────────────
 function initResize(){
-  // Left panel resize
+  function makeDraggable(handle, getSize, setSize, onDone){
+    if(!handle)return;
+    let dragging=false, startX=0, startW=0;
+    handle.addEventListener('mousedown',e=>{
+      e.preventDefault();
+      dragging=true; startX=e.clientX; startW=getSize();
+      handle.classList.add('dragging');
+      document.body.style.cursor='col-resize';
+      document.body.style.userSelect='none';
+    });
+    document.addEventListener('mousemove',e=>{
+      if(!dragging)return;
+      setSize(startW, e.clientX - startX);
+    });
+    document.addEventListener('mouseup',()=>{
+      if(!dragging)return;
+      dragging=false;
+      handle.classList.remove('dragging');
+      document.body.style.cursor='';
+      document.body.style.userSelect='';
+      if(onDone)onDone();
+    });
+  }
+
   const leftPanel=document.getElementById('leftPanel');
   const leftHandle=document.getElementById('leftResize');
-  let dragging=false, startX=0, startW=0;
+  makeDraggable(leftHandle,
+    ()=>leftPanel.offsetWidth,
+    (startW,dx)=>{
+      const w=Math.min(500,Math.max(180,startW+dx));
+      leftPanel.style.width=w+'px';
+      leftPanel.style.minWidth=w+'px';
+    }
+  );
 
-  leftHandle.addEventListener('mousedown',e=>{
-    dragging=true; startX=e.clientX; startW=leftPanel.offsetWidth;
-    leftHandle.classList.add('dragging');
-    document.body.style.cursor='col-resize';
-    document.body.style.userSelect='none';
-  });
-
-  document.addEventListener('mousemove',e=>{
-    if(!dragging)return;
-    const w=Math.min(500,Math.max(200,startW+(e.clientX-startX)));
-    leftPanel.style.width=w+'px';
-  });
-
-  document.addEventListener('mouseup',()=>{
-    if(dragging){dragging=false;leftHandle.classList.remove('dragging');document.body.style.cursor='';document.body.style.userSelect='';}
-  });
-
-  // Map panel resize
   const mapPanel=document.getElementById('mapPanel');
   const mapHandle=document.getElementById('mapResize');
-  let mDragging=false, mStartX=0, mStartW=0;
-
-  mapHandle.addEventListener('mousedown',e=>{
-    mDragging=true; mStartX=e.clientX; mStartW=mapPanel.offsetWidth;
-    mapHandle.classList.add('dragging');
-    document.body.style.cursor='col-resize';
-    document.body.style.userSelect='none';
-  });
-
-  document.addEventListener('mousemove',e=>{
-    if(!mDragging)return;
-    const w=Math.min(window.innerWidth*0.7,Math.max(200,mStartW-(e.clientX-mStartX)));
-    mapPanel.style.width=w+'px';
-    if(mainMap)setTimeout(()=>mainMap.invalidateSize(),10);
-  });
-
-  document.addEventListener('mouseup',()=>{
-    if(mDragging){mDragging=false;mapHandle.classList.remove('dragging');document.body.style.cursor='';document.body.style.userSelect='';if(mainMap)mainMap.invalidateSize();}
-  });
+  makeDraggable(mapHandle,
+    ()=>mapPanel.offsetWidth,
+    (startW,dx)=>{
+      const w=Math.min(window.innerWidth*0.75,Math.max(250,startW+dx));
+      mapPanel.style.flex='none';
+      mapPanel.style.width=w+'px';
+    },
+    ()=>{
+      if(googleMap)google.maps.event.trigger(googleMap,'resize');
+      if(mainMap)mainMap.invalidateSize();
+    }
+  );
 }
 
 function toggleSidebar(){
@@ -1194,29 +1199,31 @@ function importCSV(event){
 
 // Expose all functions to global window scope to bypass lockdown extensions
 // Dark/Light mode
+const DARK_MAP_STYLES=[
+  {elementType:'geometry',stylers:[{color:'#1a2030'}]},
+  {elementType:'labels.text.fill',stylers:[{color:'#8b95a8'}]},
+  {elementType:'labels.text.stroke',stylers:[{color:'#0d1117'}]},
+  {featureType:'road',elementType:'geometry',stylers:[{color:'#2a3548'}]},
+  {featureType:'road.highway',elementType:'geometry',stylers:[{color:'#3d4f6b'}]},
+  {featureType:'road',elementType:'labels.text.fill',stylers:[{color:'#8b95a8'}]},
+  {featureType:'water',elementType:'geometry',stylers:[{color:'#0d1117'}]},
+  {featureType:'poi',elementType:'labels',stylers:[{visibility:'off'}]},
+  {featureType:'transit',stylers:[{visibility:'off'}]},
+];
+
+function applyMapMode(mode){
+  if(!googleMap)return;
+  googleMap.setOptions({styles:mode==='light'?[]:DARK_MAP_STYLES});
+}
+
 function setMode(mode){
   cfg.mode=mode;
   document.body.className=mode==='light'?'light':'';
-  document.getElementById('modeDark').classList.toggle('active',mode!=='light');
-  document.getElementById('modeLight').classList.toggle('active',mode==='light');
-  // Restyle Google Map if loaded
-  if(googleMap){
-    if(mode==='light'){
-      googleMap.setOptions({styles:[]});
-    } else {
-      googleMap.setOptions({styles:[
-        {elementType:'geometry',stylers:[{color:'#1a2030'}]},
-        {elementType:'labels.text.fill',stylers:[{color:'#8b95a8'}]},
-        {elementType:'labels.text.stroke',stylers:[{color:'#0d1117'}]},
-        {featureType:'road',elementType:'geometry',stylers:[{color:'#2a3548'}]},
-        {featureType:'road.highway',elementType:'geometry',stylers:[{color:'#3d4f6b'}]},
-        {featureType:'road',elementType:'labels.text.fill',stylers:[{color:'#8b95a8'}]},
-        {featureType:'water',elementType:'geometry',stylers:[{color:'#0d1117'}]},
-        {featureType:'poi',elementType:'labels',stylers:[{visibility:'off'}]},
-        {featureType:'transit',stylers:[{visibility:'off'}]},
-      ]});
-    }
-  }
+  const darkBtn=document.getElementById('modeDark');
+  const lightBtn=document.getElementById('modeLight');
+  if(darkBtn)darkBtn.classList.toggle('active',mode!=='light');
+  if(lightBtn)lightBtn.classList.toggle('active',mode==='light');
+  applyMapMode(mode);
   localStorage.setItem('ml_mode',mode);
 }
 window.setMode=setMode;
