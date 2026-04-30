@@ -571,10 +571,14 @@ function init(){
   document.getElementById('tDate').value=today();
   if(cfg.home){
     document.getElementById('tFrom').value=cfg.home;
+    // Parse structured home: "Street, City, State"
     const parts=cfg.home.split(',').map(p=>p.trim());
-    if(parts[0]&&document.getElementById('tFromStreet'))document.getElementById('tFromStreet').value=parts[0];
-    if(parts[1]&&document.getElementById('tFromCity'))document.getElementById('tFromCity').value=parts[1];
-    if(parts[2]&&document.getElementById('tFromState'))document.getElementById('tFromState').value=parts[2];
+    const sEl=document.getElementById('tFromStreet');
+    const cEl=document.getElementById('tFromCity');
+    const stEl=document.getElementById('tFromState');
+    if(sEl)sEl.value=parts[0]||'';
+    if(cEl)cEl.value=parts[1]||'';
+    if(stEl)stEl.value=parts[2]||'';
   }
   applySettings();updateSidebar();renderH();
 }
