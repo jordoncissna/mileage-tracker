@@ -11,7 +11,18 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCF4StHsdwlXMb0WetM3LzSfF668j5J2rg&libraries=places,geometry&callback=initGoogleMaps" async defer></script>
+<script src="config.js" onerror="console.warn('config.js not found')"></script>
+<script>
+// Load Google Maps dynamically using key from config.js
+(function(){
+  var key=window.GOOGLE_MAPS_KEY||'';
+  if(!key)return;
+  var s=document.createElement('script');
+  s.src='https://maps.googleapis.com/maps/api/js?key='+key+'&libraries=places,geometry&callback=initGoogleMaps';
+  s.async=true;s.defer=true;
+  document.head.appendChild(s);
+})();
+</script>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
