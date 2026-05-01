@@ -448,7 +448,7 @@ tfoot td{padding:8px 8px;font-weight:600;font-family:'JetBrains Mono',monospace;
     <!-- Chart -->
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);padding:20px;">
       <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);margin-bottom:16px" id="aChartTitle">Miles per Period</div>
-      <div id="aChart" style="display:flex;align-items:flex-end;gap:8px;height:160px;"></div>
+      <div id="aChart" style="display:flex;align-items:flex-end;gap:8px;height:160px;width:100%;overflow-x:auto;padding-bottom:4px;"></div>
     </div>
     <!-- Category breakdown -->
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);padding:20px;">
@@ -1251,12 +1251,15 @@ function renderAnalytics(){
   // Chart
   document.getElementById('aChartTitle').textContent='Miles per '+(period==='month'?'Month':period==='quarter'?'Quarter':period==='half'?'Half Year':'Year');
   const chart=document.getElementById('aChart');
+  const chartH=140;
   chart.innerHTML=keys.map(k=>{
-    const pct=grouped[k].miles/maxMi*100;
+    const pct=grouped[k].miles/maxMi;
+    const barH=Math.max(Math.round(pct*chartH),4);
+    const label=k.replace(/^\d{4}-/,'').replace(/^(\d{4}) /,'');
     return `<div class="a-bar-wrap" title="${grouped[k].miles.toFixed(0)} mi · $${grouped[k].value.toFixed(0)}">
       <div class="a-bar-val">${grouped[k].miles.toFixed(0)}</div>
-      <div class="a-bar" style="height:${Math.max(pct,1)}%"></div>
-      <div class="a-bar-label">${k.replace(/\d{4}-/,'').replace(/^(\d{4}) /,'')}</div>
+      <div class="a-bar" style="height:${barH}px;width:100%;"></div>
+      <div class="a-bar-label">${label}</div>
     </div>`;
   }).join('');
 
