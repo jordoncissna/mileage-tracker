@@ -438,8 +438,8 @@ tfoot td{padding:8px 8px;font-weight:600;font-family:'JetBrains Mono',monospace;
           </div>
           <h3 style="margin-top:4px">Appearance</h3>
           <div style="display:flex;gap:8px">
-            <button class="mode-btn" id="modeDark" onclick="setMode('dark');applyMapMode('dark')">🌙 Dark</button>
-            <button class="mode-btn" id="modeLight" onclick="setMode('light');applyMapMode('light')">☀️ Light</button>
+            <button class="mode-btn" id="modeDark" onclick="setMode('dark')">🌙 Dark</button>
+            <button class="mode-btn" id="modeLight" onclick="setMode('light')">☀️ Light</button>
           </div>
         </div>
       </div>
@@ -1219,31 +1219,53 @@ const DARK_MAP_STYLES=[
 ];
 
 function applyMapMode(mode){
-  if(!googleMap)return;
-  try{
-    if(mode==='light'){
-      // Must set styles to null/[] AND trigger a refresh
-      googleMap.set('styles',[]);
-      googleMap.setOptions({styles:null});
-      googleMap.setMapTypeId(google.maps.MapTypeId.ROADMAP);
-    } else {
-      googleMap.setOptions({styles:DARK_MAP_STYLES});
-      googleMap.setMapTypeId(google.maps.MapTypeId.ROADMAP);
-    }
-    // Force map to re-render
-    google.maps.event.trigger(googleMap,'resize');
-  }catch(e){console.error('applyMapMode error:',e);}
+  if(!googleReady)return;
+  // Destroy and recreate map with new style - most reliable approach
+  const mapEl=document.getElementById('mainMap');
+  if(!mapEl)return;
+  // Clear existing map
+  if(gDirectionsRenderer){gDirectionsRenderer.setMap(null);gDirectionsRenderer=null;}
+  gMarkers.forEach(m=>m.setMap(null));gMarkers=[];
+  // Get current center/zoom before destroying
+  const center=googleMap?googleMap.getCenter():{lat:40.76,lng:-111.89};
+  const zoom=googleMap?googleMap.getZoom():10;
+  // Recreate map with correct style
+  googleMap=new google.maps.Map(mapEl,{
+    center:center,
+    zoom:zoom,
+    mapTypeId:'roadmap',
+    styles:mode==='light'?[]:DARK_MAP_STYLES,
+    disableDefaultUI:false,
+    zoomControl:true,
+    mapTypeControl:false,
+    streetViewControl:false,
+    fullscreenControl:false,
+  });
+  // Re-attach click handler
+  googleMap.addListener('click',e=>{
+    if(!mapClickMode)return;
+    const geocoder=new google.maps.Geocoder();
+    geocoder.geocode({location:{lat:e.latLng.lat(),lng:e.latLng.lng()}},(results,status)=>{
+      if(status==='OK'&&results[0])fillAddrFields(results[0],mapClickMode);
+      setMapClickMode(null);buildAddr();
+    });
+  });
+  console.log('Map recreated in',mode,'mode');
 }
 
 function setMode(mode){
   cfg.mode=mode;
+  localStorage.setItem('ml_mode',mode);
   document.body.className=mode==='light'?'light':'';
   const darkBtn=document.getElementById('modeDark');
   const lightBtn=document.getElementById('modeLight');
   if(darkBtn)darkBtn.classList.toggle('active',mode!=='light');
   if(lightBtn)lightBtn.classList.toggle('active',mode==='light');
+  // Try immediately, then retry until map is ready
   applyMapMode(mode);
-  localStorage.setItem('ml_mode',mode);
+  setTimeout(()=>applyMapMode(mode),500);
+  setTimeout(()=>applyMapMode(mode),1500);
+  setTimeout(()=>applyMapMode(mode),3000);
 }
 window.setMode=setMode;
 window.applyMapMode=applyMapMode;
