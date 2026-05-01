@@ -9,8 +9,6 @@
 <meta name="theme-color" content="#080b0f">
 <title>Mileage Tracker</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <!-- Google Maps loaded by main.js after page load -->
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -628,26 +626,10 @@ function updateSidebar(){
 
 let mainMap=null, histMapObj=null, currentLayers=[];
 
-// Map tile options
-const DARK_TILES='https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
-const DARK_ATTR='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>';
-const SAT_TILES='https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
-const LABEL_TILES='https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}';
-const SAT_ATTR='Tiles &copy; Esri';
-
-// Use dark map by default - cleaner look
-function addSatLayer(map){
-  L.tileLayer(DARK_TILES,{maxZoom:19,attribution:DARK_ATTR,subdomains:'abcd'}).addTo(map);
-}
+// Map tiles handled by Google Maps
 
 function initMainMap(){
-  if(mainMap)return;
-  // Only init Leaflet as fallback if Google isn't available
-  if(googleReady&&googleMap)return;
-  mainMap=L.map('mainMap',{zoomControl:false,attributionControl:false});
-  addSatLayer(mainMap);
-  L.control.zoom({position:'topright'}).addTo(mainMap);
-  mainMap.setView([40.76,-111.89],10);
+  // Google Maps handles the map panel - nothing to do here
 }
 
 function clearMapLayers(){currentLayers.forEach(l=>{try{l.remove();}catch(e){}});currentLayers=[];}
@@ -838,81 +820,69 @@ async function calcDist(){
   const from=document.getElementById('tFrom').value.trim();
   const to=document.getElementById('tTo').value.trim();
   if(!from||!to){toast('⚠ Enter From and To addresses');return;}
+  if(!googleReady||!googleMap){toast('⚠ Map not ready yet - please wait');return;}
   const btn=document.getElementById('calcBtn');
   btn.disabled=true;btn.innerHTML='<span class="spin">⊙</span> Calculating…';
   document.getElementById('distBox').classList.remove('show');
   pendingDist=null;
-  try{
-    // Step 1: Geocode both addresses using Google (or Nominatim fallback)
-    const[[fLng,fLat],[tLng,tLat]]=await Promise.all([geocode(from),geocode(to)]);
-
-    // Step 2: Get driving distance/time from OSRM (reliable, free)
-    const r=await fetch('https://router.project-osrm.org/route/v1/driving/'+fLng+','+fLat+';'+tLng+','+tLat+'?overview=full&geometries=geojson');
-    const d=await r.json();
-    if(d.code!=='Ok'||!d.routes?.length)throw new Error('No route found');
-    const miles=d.routes[0].distance*0.000621371;
-    const mins=Math.round(d.routes[0].duration/60);
+  const svc=new google.maps.DirectionsService();
+  svc.route({origin:from,destination:to,travelMode:google.maps.TravelMode.DRIVING},(result,status)=>{
+    btn.disabled=false;btn.innerHTML='⊙ Calculate distance';
+    if(status!=='OK'){
+      toast('⚠ Could not calculate route: '+status);
+      return;
+    }
+    const leg=result.routes[0].legs[0];
+    const miles=leg.distance.value*0.000621371;
+    const mins=Math.round(leg.duration.value/60);
     const dur=t=>t>=60?(Math.floor(t/60)+'h '+(t%60)+'m'):(t+' min');
-
-    pendingDist={
-      one:parseFloat(miles.toFixed(1)),
-      round:parseFloat((miles*2).toFixed(1)),
-      coords:d.routes[0].geometry.coordinates,
-      from:[fLat,fLng],to:[tLat,tLng]
-    };
-
+    pendingDist={one:parseFloat(miles.toFixed(1)),round:parseFloat((miles*2).toFixed(1))};
     document.getElementById('distMi1').textContent=miles.toFixed(1)+' mi';
     document.getElementById('distInfo1').textContent='~'+dur(mins)+' drive';
     document.getElementById('distMi2').textContent=(miles*2).toFixed(1)+' mi';
     document.getElementById('distInfo2').textContent='~'+dur(mins*2)+' total';
     document.getElementById('distBox').classList.add('show');
-
-    // Step 3: Show on Google Maps if available, otherwise Leaflet
-    if(googleReady&&googleMap){
-      showRouteOnGoogleMap(from,to,miles,dur(mins));
-    } else {
-      showRouteMap(pendingDist.from,pendingDist.to,pendingDist.coords,miles,dur(mins));
-    }
-  }catch(err){
-    const msg=err.message||'';
-    if(msg.includes('Address not found'))toast('⚠ '+msg);
-    else if(msg==='No route found')toast('⚠ No driving route found');
-    else toast('⚠ Could not calculate: '+msg);
-  }finally{btn.disabled=false;btn.innerHTML='⊙ Calculate distance';}
+    // Render the route on Google Maps
+    clearGoogleMap();
+    document.getElementById('mapEmpty').style.display='none';
+    gDirectionsRenderer=new google.maps.DirectionsRenderer({
+      map:googleMap,
+      suppressMarkers:true,
+      polylineOptions:{strokeColor:'#4f9eff',strokeWeight:6,strokeOpacity:0.95}
+    });
+    gDirectionsRenderer.setDirections(result);
+    const startLoc=leg.start_location;
+    const endLoc=leg.end_location;
+    gMarkers.push(new google.maps.Marker({
+      position:startLoc,map:googleMap,zIndex:10,
+      icon:{path:google.maps.SymbolPath.CIRCLE,scale:12,fillColor:'#3dd68c',fillOpacity:1,strokeColor:'#fff',strokeWeight:3},
+      label:{text:'A',color:'#fff',fontSize:'12px',fontWeight:'bold'}
+    }));
+    gMarkers.push(new google.maps.Marker({
+      position:endLoc,map:googleMap,zIndex:10,
+      icon:{path:google.maps.SymbolPath.CIRCLE,scale:12,fillColor:'#f87171',fillOpacity:1,strokeColor:'#fff',strokeWeight:3},
+      label:{text:'B',color:'#fff',fontSize:'12px',fontWeight:'bold'}
+    }));
+    const bounds=new google.maps.LatLngBounds();
+    bounds.extend(startLoc);bounds.extend(endLoc);
+    googleMap.fitBounds(bounds,{top:40,right:40,bottom:40,left:40});
+    const infoEl=document.getElementById('mainMapInfo');
+    if(infoEl)infoEl.textContent=miles.toFixed(1)+' mi · ~'+dur(mins);
+  });
 }
 
-function pinIcon(label,color){
-  return L.divIcon({className:'',html:`<div style="background:${color};color:#fff;font-size:11px;font-weight:700;padding:4px 8px;border-radius:5px;white-space:nowrap;box-shadow:0 2px 10px rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.2)">${label}</div>`,iconAnchor:[14,10]});
-}
+// pinIcon removed - using Google Maps markers
 
-function showRouteMap(from, to, coords, miles, dur){
-  document.getElementById('mapEmpty').style.display='none';
-  initMainMap();
-  clearMapLayers();
-  const latlngs=coords.map(c=>[c[1],c[0]]);
-  // Improved route styling - outer glow + main line + direction dots
-  const shadow=L.polyline(latlngs,{color:'#000',weight:14,opacity:0.2}).addTo(mainMap);
-  const glow=L.polyline(latlngs,{color:'#4f9eff',weight:12,opacity:0.15}).addTo(mainMap);
-  const poly=L.polyline(latlngs,{color:'#4f9eff',weight:5,opacity:1,dashArray:null,lineCap:'round',lineJoin:'round'}).addTo(mainMap);
-  // Animated dash overlay for direction
-  const dash=L.polyline(latlngs,{color:'#fff',weight:2,opacity:0.6,dashArray:'10,15',lineCap:'round'}).addTo(mainMap);
-  const mA=L.marker(from,{icon:pinIcon('A','#3dd68c'),zIndexOffset:100}).addTo(mainMap);
-  const mB=L.marker(to,{icon:pinIcon('B','#f87171'),zIndexOffset:100}).addTo(mainMap);
-  currentLayers=[shadow,glow,poly,dash,mA,mB];
-  setTimeout(()=>{
-    mainMap.invalidateSize();
-    mainMap.fitBounds(poly.getBounds(),{padding:[50,50]});
-  },80);
-  if(miles!==undefined) document.getElementById('mainMapInfo').textContent=miles.toFixed(1)+' mi · ~'+dur;
+function showRouteMap(from,to,coords,miles,dur){
+  // Handled by Google Maps only
 }
 
 function closeMap(){} // map is always visible
 
 async function showHistMap(tripId){
   const trip=trips.find(t=>t.id===tripId);
-  if(!trip)return;
-  document.getElementById('mapEmpty').style.display='none';
-  // Switch to log view so the map panel is visible
+  if(!trip||!trip.from||!trip.to)return;
+  // Switch to log view
   const navLog=document.getElementById('nav-log');
   if(navLog){
     document.querySelectorAll('.np').forEach(b=>b.classList.remove('on'));
@@ -920,41 +890,9 @@ async function showHistMap(tripId){
     document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
     document.getElementById('view-log').classList.add('on');
   }
-  initMainMap();
-  try{
-    let coords, fromLL, toLL;
-    if(trip.coords&&trip.fromLatLng&&trip.toLatLng){
-      coords=trip.coords; fromLL=trip.fromLatLng; toLL=trip.toLatLng;
-    } else {
-      toast('Loading route…');
-      const[[fLng,fLat],[tLng,tLat]]=await Promise.all([geocode(trip.from),geocode(trip.to)]);
-      const r=await fetch(`https://router.project-osrm.org/route/v1/driving/${fLng},${fLat};${tLng},${tLat}?overview=full&geometries=geojson`);
-      const d=await r.json();
-      if(d.code!=='Ok'||!d.routes?.length)throw new Error('No route');
-      coords=d.routes[0].geometry.coordinates;
-      fromLL=[fLat,fLng]; toLL=[tLat,tLng];
-      trip.coords=coords; trip.fromLatLng=fromLL; trip.toLatLng=toLL;
-      save();
-    }
-    clearMapLayers();
-    const latlngs=coords.map(c=>[c[1],c[0]]);
-    // Use Google Maps if available, otherwise Leaflet
-    if(googleReady&&googleMap&&trip.from&&trip.to){
-      showRouteOnGoogleMap(trip.from,trip.to,trip.miles,fmt(trip.date)+(trip.purpose?' · '+trip.purpose:''));
-    } else {
-      const latlngs=coords.map(c=>[c[1],c[0]]);
-      clearMapLayers();
-      const shadow=L.polyline(latlngs,{color:'#000',weight:14,opacity:0.2}).addTo(mainMap);
-      const glow=L.polyline(latlngs,{color:'#4f9eff',weight:12,opacity:0.15}).addTo(mainMap);
-      const poly=L.polyline(latlngs,{color:'#4f9eff',weight:5,opacity:1,lineCap:'round',lineJoin:'round'}).addTo(mainMap);
-      const dash=L.polyline(latlngs,{color:'#fff',weight:2,opacity:0.6,dashArray:'10,15',lineCap:'round'}).addTo(mainMap);
-      const mA=L.marker(fromLL,{icon:pinIcon('A','#3dd68c'),zIndexOffset:100}).addTo(mainMap);
-      const mB=L.marker(toLL,{icon:pinIcon('B','#f87171'),zIndexOffset:100}).addTo(mainMap);
-      currentLayers=[shadow,glow,poly,dash,mA,mB];
-      setTimeout(()=>{mainMap.invalidateSize();mainMap.fitBounds(poly.getBounds(),{padding:[50,50]});},80);
-      document.getElementById('mainMapInfo').textContent=trip.miles+' mi · '+fmt(trip.date)+(trip.purpose?' · '+trip.purpose:'');
-    }
-  }catch(e){toast('⚠ Could not load route map');}
+  if(!googleReady||!googleMap){toast('⚠ Map not ready');return;}
+  document.getElementById('mapEmpty').style.display='none';
+  showRouteOnGoogleMap(trip.from,trip.to,trip.miles,fmt(trip.date)+(trip.purpose?' · '+trip.purpose:''));
 }
 
 function useDist(t){
