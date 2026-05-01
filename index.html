@@ -12,6 +12,7 @@
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD1REmxJ-CNJDzJoeeQzqoT3GcbZz-9Q74&libraries=places,geometry&callback=initGoogleMaps" async defer></script>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 <style>
 :root {
   --bg:#080b0f; --bg2:#0d1117; --surface:#111720; --surface2:#161e2a; --surface3:#1c2535;
@@ -216,6 +217,20 @@ tfoot td{padding:8px 8px;font-weight:600;font-family:'JetBrains Mono',monospace;
   .mode-btn{padding:7px 16px;border-radius:var(--r);font-size:13px;font-weight:500;cursor:pointer;font-family:'Inter',sans-serif;border:1px solid var(--border2);background:var(--surface2);color:var(--text2);transition:all .15s;}
   .mode-btn:hover{background:var(--surface3);color:var(--text);}
   .mode-btn.active{background:var(--accent);color:#fff;border-color:transparent;}
+
+  .a-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);padding:14px 16px;display:flex;flex-direction:column;gap:4px;}
+  .a-card-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);}
+  .a-card-value{font-size:22px;font-weight:700;color:var(--text);font-family:'JetBrains Mono',monospace;}
+  .a-card-sub{font-size:11px;color:var(--text3);}
+  .a-bar-wrap{display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;min-width:0;}
+  .a-bar{width:100%;border-radius:4px 4px 0 0;background:var(--accent);transition:height .3s;cursor:pointer;min-height:2px;}
+  .a-bar:hover{background:var(--accent2);filter:brightness(1.2);}
+  .a-bar-label{font-size:9px;color:var(--text3);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%;}
+  .a-bar-val{font-size:9px;color:var(--text2);font-weight:600;}
+  .a-cat-row{display:flex;align-items:center;gap:10px;}
+  .a-cat-bar{height:8px;border-radius:4px;background:var(--accent);transition:width .4s;}
+  .a-cat-label{font-size:12px;color:var(--text2);white-space:nowrap;min-width:130px;}
+  .a-cat-val{font-size:12px;color:var(--text);font-weight:600;margin-left:auto;font-family:'JetBrains Mono',monospace;white-space:nowrap;}
 </style>
 </head>
 <body>
@@ -243,6 +258,7 @@ tfoot td{padding:8px 8px;font-weight:600;font-family:'JetBrains Mono',monospace;
   <nav class="nav-pills">
     <button class="np on" id="nav-log">Log Trip</button>
     <button class="np" id="nav-hist">History</button>
+    <button class="np" id="nav-analytics">Analytics</button>
     <button class="np" id="nav-set">Settings</button>
   </nav>
 </div>
@@ -412,7 +428,52 @@ tfoot td{padding:8px 8px;font-weight:600;font-family:'JetBrains Mono',monospace;
       <div class="table-wrap"><div id="htable"></div></div>
     </div>
 
-    <div class="view" id="view-set">
+    <div class="view" id="view-analytics">
+  <div style="padding:20px;display:flex;flex-direction:column;gap:20px;">
+    <!-- Period selector -->
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+      <select id="aPeriod" style="background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:13px;padding:7px 10px;font-family:'Inter',sans-serif;">
+        <option value="month">By Month</option>
+        <option value="quarter">By Quarter</option>
+        <option value="half">By Half Year</option>
+        <option value="year">By Year</option>
+      </select>
+      <select id="aYear" style="background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:13px;padding:7px 10px;font-family:'Inter',sans-serif;">
+        <option value="">All years</option>
+      </select>
+      <button class="btn btn-primary" id="aShareBtn" style="margin-left:auto">↗ Share Report</button>
+    </div>
+    <!-- Summary cards -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;" id="aCards"></div>
+    <!-- Chart -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);padding:20px;">
+      <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);margin-bottom:16px" id="aChartTitle">Miles per Period</div>
+      <div id="aChart" style="display:flex;align-items:flex-end;gap:8px;height:160px;"></div>
+    </div>
+    <!-- Category breakdown -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);padding:20px;">
+      <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);margin-bottom:16px">By Category</div>
+      <div id="aCats" style="display:flex;flex-direction:column;gap:8px;"></div>
+    </div>
+    <!-- Share modal -->
+    <div id="shareModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:999;align-items:center;justify-content:center;">
+      <div style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r3);padding:28px;width:360px;display:flex;flex-direction:column;gap:16px;">
+        <div style="font-size:16px;font-weight:600;color:var(--text)">Share Mileage Report</div>
+        <button class="btn" id="shareUrlBtn" style="justify-content:flex-start;gap:10px">🔗 Copy Web App Link</button>
+        <button class="btn" id="shareQrBtn" style="justify-content:flex-start;gap:10px">📱 Show QR Code</button>
+        <button class="btn" id="shareCsvBtn" style="justify-content:flex-start;gap:10px">📄 Export CSV Report</button>
+        <button class="btn" id="sharePdfBtn" style="justify-content:flex-start;gap:10px">🖨 Print / Save as PDF</button>
+        <div id="qrContainer" style="display:none;text-align:center;padding:12px;background:white;border-radius:var(--r2);">
+          <div id="qrCode"></div>
+          <div style="font-size:11px;color:#666;margin-top:8px">Scan to open Milo</div>
+        </div>
+        <button class="btn" id="shareCloseBtn">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="view" id="view-set">
       <div class="settings-grid">
         <div class="sc">
           <h3>Business info</h3>
@@ -1142,7 +1203,120 @@ function importCSV(event){
   reader.readAsText(file);
 }
 
-// Expose all functions to global window scope to bypass lockdown extensions
+// ── ANALYTICS ────────────────────────────────────────────────
+function renderAnalytics(){
+  const period=document.getElementById('aPeriod').value;
+  const filterYear=document.getElementById('aYear').value;
+
+  // Populate year dropdown
+  const years=[...new Set(trips.map(t=>yr(t.date)))].sort().reverse();
+  const aYear=document.getElementById('aYear');
+  const curY=aYear.value;
+  aYear.innerHTML='<option value="">All years</option>'+years.map(y=>`<option value="${y}"${curY==y?' selected':''}>${y}</option>`).join('');
+
+  let fl=filterYear?trips.filter(t=>yr(t.date)==filterYear):[...trips];
+
+  // Summary cards
+  const totalMi=fl.reduce((s,t)=>s+parseFloat(t.miles||0),0);
+  const totalVal=fl.reduce((s,t)=>s+parseFloat(t.miles||0)*rate(t.date),0);
+  const avgMi=fl.length?totalMi/fl.length:0;
+  const months=[...new Set(fl.map(t=>t.date.slice(0,7)))].length||1;
+  const cards=document.getElementById('aCards');
+  cards.innerHTML=`
+    <div class="a-card"><div class="a-card-label">Total Miles</div><div class="a-card-value">${totalMi.toFixed(0)}</div><div class="a-card-sub">${fl.length} trips</div></div>
+    <div class="a-card"><div class="a-card-label">Deductible Value</div><div class="a-card-value" style="color:var(--green)">$${totalVal.toFixed(0)}</div><div class="a-card-sub">at IRS rate</div></div>
+    <div class="a-card"><div class="a-card-label">Avg per Trip</div><div class="a-card-value">${avgMi.toFixed(1)}</div><div class="a-card-sub">miles</div></div>
+    <div class="a-card"><div class="a-card-label">Monthly Avg</div><div class="a-card-value">${(totalMi/months).toFixed(0)}</div><div class="a-card-sub">miles/month</div></div>
+  `;
+
+  // Group by period
+  function getPeriodKey(date){
+    const [y,m]=date.split('-');
+    if(period==='month')return y+'-'+m;
+    if(period==='quarter'){const q=Math.ceil(parseInt(m)/3);return y+' Q'+q;}
+    if(period==='half'){const h=parseInt(m)<=6?'H1':'H2';return y+' '+h;}
+    return y;
+  }
+  const grouped={};
+  fl.forEach(t=>{
+    const k=getPeriodKey(t.date);
+    if(!grouped[k])grouped[k]={miles:0,value:0,count:0};
+    grouped[k].miles+=parseFloat(t.miles||0);
+    grouped[k].value+=parseFloat(t.miles||0)*rate(t.date);
+    grouped[k].count++;
+  });
+  const keys=Object.keys(grouped).sort();
+  const maxMi=Math.max(...keys.map(k=>grouped[k].miles),1);
+
+  // Chart
+  document.getElementById('aChartTitle').textContent='Miles per '+(period==='month'?'Month':period==='quarter'?'Quarter':period==='half'?'Half Year':'Year');
+  const chart=document.getElementById('aChart');
+  chart.innerHTML=keys.map(k=>{
+    const pct=grouped[k].miles/maxMi*100;
+    return `<div class="a-bar-wrap" title="${grouped[k].miles.toFixed(0)} mi · $${grouped[k].value.toFixed(0)}">
+      <div class="a-bar-val">${grouped[k].miles.toFixed(0)}</div>
+      <div class="a-bar" style="height:${Math.max(pct,1)}%"></div>
+      <div class="a-bar-label">${k.replace(/\d{4}-/,'').replace(/^(\d{4}) /,'')}</div>
+    </div>`;
+  }).join('');
+
+  // Category breakdown
+  const catGroups={};
+  fl.forEach(t=>{
+    const c=t.category||'Other';
+    if(!catGroups[c])catGroups[c]={miles:0,value:0};
+    catGroups[c].miles+=parseFloat(t.miles||0);
+    catGroups[c].value+=parseFloat(t.miles||0)*rate(t.date);
+  });
+  const catKeys=Object.keys(catGroups).sort((a,b)=>catGroups[b].miles-catGroups[a].miles);
+  const maxCat=Math.max(...catKeys.map(k=>catGroups[k].miles),1);
+  document.getElementById('aCats').innerHTML=catKeys.map(k=>`
+    <div class="a-cat-row">
+      <div class="a-cat-label">${k}</div>
+      <div style="flex:1;background:var(--surface2);border-radius:4px;height:8px;overflow:hidden;">
+        <div class="a-cat-bar" style="width:${catGroups[k].miles/maxCat*100}%"></div>
+      </div>
+      <div class="a-cat-val">${catGroups[k].miles.toFixed(1)} mi · $${catGroups[k].value.toFixed(0)}</div>
+    </div>
+  `).join('');
+}
+
+// ── SHARE ─────────────────────────────────────────────────────
+function openShareModal(){
+  document.getElementById('shareModal').style.display='flex';
+  document.getElementById('qrContainer').style.display='none';
+}
+function closeShareModal(){
+  document.getElementById('shareModal').style.display='none';
+}
+function shareUrl(){
+  const url='https://jordoncissna.github.io/mileage-tracker';
+  navigator.clipboard.writeText(url).then(()=>toast('Link copied ✓')).catch(()=>toast('URL: '+url));
+  closeShareModal();
+}
+function shareQr(){
+  const qrEl=document.getElementById('qrCode');
+  qrEl.innerHTML='';
+  try{
+    new QRCode(qrEl,{text:'https://jordoncissna.github.io/mileage-tracker',width:180,height:180,colorDark:'#000',colorLight:'#fff'});
+    document.getElementById('qrContainer').style.display='block';
+  }catch(e){toast('QR library not loaded');}
+}
+function shareCsv(){doExport();closeShareModal();}
+function sharePdf(){
+  window.print();
+  closeShareModal();
+}
+
+window.renderAnalytics=renderAnalytics;
+window.openShareModal=openShareModal;
+window.closeShareModal=closeShareModal;
+window.shareUrl=shareUrl;
+window.shareQr=shareQr;
+window.shareCsv=shareCsv;
+window.sharePdf=sharePdf;
+
+// ── Expose all functions to global window scope to bypass lockdown extensions
 // Dark/Light mode
 const DARK_MAP_STYLES=[
   {elementType:'geometry',stylers:[{color:'#1a2030'}]},
@@ -1342,7 +1516,18 @@ window.addEventListener('DOMContentLoaded',function(){
 
   document.getElementById('nav-log').addEventListener('click',function(){switchNav('log',this);});
   document.getElementById('nav-hist').addEventListener('click',function(){switchNav('hist',this);});
+  document.getElementById('nav-analytics').addEventListener('click',function(){switchNav('analytics',this);renderAnalytics();});
   document.getElementById('nav-set').addEventListener('click',function(){switchNav('set',this);});
+  // Share modal
+  document.getElementById('aShareBtn').addEventListener('click',openShareModal);
+  document.getElementById('shareCloseBtn').addEventListener('click',closeShareModal);
+  document.getElementById('shareUrlBtn').addEventListener('click',shareUrl);
+  document.getElementById('shareQrBtn').addEventListener('click',shareQr);
+  document.getElementById('shareCsvBtn').addEventListener('click',shareCsv);
+  document.getElementById('sharePdfBtn').addEventListener('click',sharePdf);
+  document.getElementById('aPeriod').addEventListener('change',renderAnalytics);
+  document.getElementById('aYear').addEventListener('change',renderAnalytics);
+  document.getElementById('shareModal').addEventListener('click',function(e){if(e.target===this)closeShareModal();});
   var cb=document.getElementById('collapseBtn');
   if(cb)cb.addEventListener('click',toggleSidebar);
   var mc=document.getElementById('mapCloseBtn');
