@@ -245,6 +245,7 @@ tfoot td{padding:8px 8px;font-weight:600;font-family:'JetBrains Mono',monospace;
     <div class="auth-error" id="authError"></div>
     <button class="btn btn-primary" id="authBtn" style="width:100%;justify-content:center">Sign in</button>
     <div class="auth-toggle" id="authToggle">Don't have an account? Sign up</div>
+    <div class="auth-toggle" id="forgotToggle" style="margin-top:6px;font-size:12px">Forgot password?</div>
   </div>
 </div>
 
@@ -1547,6 +1548,34 @@ window.addEventListener('DOMContentLoaded',function(){
     document.getElementById('authSub').textContent=isSignUp?'Create an account to get started':'Sign in to sync your trips across all devices';
     document.getElementById('authToggle').textContent=isSignUp?'Already have an account? Sign in':"Don't have an account? Sign up";
   });
+
+document.getElementById('forgotToggle').addEventListener('click',async()=>{
+  const email=document.getElementById('emailInput').value.trim();
+  if(!email){
+    const err=document.getElementById('authErr');
+    err.textContent='Enter your email above first';
+    err.style.display='block';
+    return;
+  }
+  const btn=document.getElementById('forgotToggle');
+  const orig=btn.textContent;
+  btn.textContent='Sending...';
+  try{
+    const{error}=await supa.auth.resetPasswordForEmail(email,{redirectTo:window.location.href});
+    if(error)throw error;
+    const err=document.getElementById('authErr');
+    err.style.color='#3dd68c';
+    err.textContent='✓ Check your email for a reset link';
+    err.style.display='block';
+    btn.textContent='Email sent';
+    setTimeout(()=>{btn.textContent=orig;err.style.color='';err.style.display='none';},6000);
+  }catch(e){
+    const err=document.getElementById('authErr');
+    err.textContent=e.message;
+    err.style.display='block';
+    btn.textContent=orig;
+  }
+});
 });
 </script>
 </body>
