@@ -1116,7 +1116,12 @@ function switchNav(name,el){
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
   document.getElementById('view-'+name).classList.add('on');
   if(name==='hist')renderH();
-
+  // Auto-collapse fullwidth when going back to Log Trip
+  if(name==='log'&&document.body.classList.contains('fullwidth-history')){
+    document.body.classList.remove('fullwidth-history');
+    const btn=document.getElementById('fullWidthBtn');
+    if(btn)btn.innerHTML='⛶ Expand';
+  }
 }
 
 let tt;
