@@ -1116,11 +1116,12 @@ function switchNav(name,el){
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
   document.getElementById('view-'+name).classList.add('on');
   if(name==='hist')renderH();
-  // Auto-collapse fullwidth when going back to Log Trip
-  if(name==='log'&&document.body.classList.contains('fullwidth-history')){
+  if(name==='analytics'&&typeof renderAnalytics==='function')renderAnalytics();
+  // Auto-expand fullwidth for History and Analytics
+  if(name==='hist'||name==='analytics'){
+    document.body.classList.add('fullwidth-history');
+  } else {
     document.body.classList.remove('fullwidth-history');
-    const btn=document.getElementById('fullWidthBtn');
-    if(btn)btn.innerHTML='⛶ Expand';
   }
 }
 
