@@ -501,6 +501,20 @@ tfoot td{padding:8px 8px;font-weight:600;font-family:'JetBrains Mono',monospace;
 <div class="view" id="view-set">
       <div class="settings-grid">
         <div class="sc">
+          <h3>Account</h3>
+          <div style="font-size:12px;color:var(--text2);margin-bottom:14px">Change your password without needing email recovery.</div>
+          <div class="field" style="margin-bottom:10px">
+            <span class="field-label">New password</span>
+            <input type="password" id="newPwd" placeholder="At least 6 characters" autocomplete="new-password"/>
+          </div>
+          <div class="field" style="margin-bottom:14px">
+            <span class="field-label">Confirm new password</span>
+            <input type="password" id="newPwd2" placeholder="Repeat password" autocomplete="new-password"/>
+          </div>
+          <button class="btn btn-primary" id="changePwdBtn" style="width:100%">Change Password</button>
+          <div id="changePwdMsg" style="font-size:12px;margin-top:10px;display:none"></div>
+        </div>
+        <div class="sc">
           <h3>Business info</h3>
           <div class="field" style="margin-bottom:10px"><span class="field-label">Business name</span><input type="text" id="sBiz" placeholder="Your S-Corp name"/></div>
           <div class="field" style="margin-bottom:10px"><span class="field-label">Vehicle</span><input type="text" id="sVehicle" placeholder="e.g. Tesla Model 3"/></div>
@@ -1403,6 +1417,35 @@ function updateSortIndicators(){
 window.sortBy=sortBy;
 window.updateSortIndicators=updateSortIndicators;
 
+
+// ── CHANGE PASSWORD ──────────────────────────────────────────
+async function changePassword(){
+  const p1=document.getElementById('newPwd').value;
+  const p2=document.getElementById('newPwd2').value;
+  const msg=document.getElementById('changePwdMsg');
+  msg.style.display='block';
+  if(!p1||!p2){msg.style.color='var(--red)';msg.textContent='Enter and confirm your new password';return;}
+  if(p1.length<6){msg.style.color='var(--red)';msg.textContent='Password must be at least 6 characters';return;}
+  if(p1!==p2){msg.style.color='var(--red)';msg.textContent='Passwords do not match';return;}
+  const btn=document.getElementById('changePwdBtn');
+  btn.disabled=true;btn.textContent='Updating...';
+  try{
+    const{error}=await supa.auth.updateUser({password:p1});
+    if(error)throw error;
+    msg.style.color='var(--green)';
+    msg.textContent='✓ Password updated successfully';
+    document.getElementById('newPwd').value='';
+    document.getElementById('newPwd2').value='';
+    setTimeout(()=>{msg.style.display='none';},5000);
+  }catch(e){
+    msg.style.color='var(--red)';
+    msg.textContent=e.message;
+  }finally{
+    btn.disabled=false;btn.textContent='Change Password';
+  }
+}
+window.changePassword=changePassword;
+
 // ── TRIP DETAIL MODAL ─────────────────────────────────────────
 function showTripDetail(tripId){
   const trip=trips.find(t=>t.id===tripId);
@@ -1783,6 +1826,9 @@ window.addEventListener('DOMContentLoaded',function(){
   document.getElementById('aPeriod').addEventListener('change',renderAnalytics);
   document.getElementById('aYear').addEventListener('change',renderAnalytics);
   document.getElementById('shareModal').addEventListener('click',function(e){if(e.target===this)closeShareModal();});
+  // Change password
+  const changePwdBtn=document.getElementById('changePwdBtn');
+  if(changePwdBtn)changePwdBtn.addEventListener('click',changePassword);
   // Trip detail modal close handlers
   const tdCloseBtn=document.getElementById('tdCloseBtn');
   if(tdCloseBtn)tdCloseBtn.addEventListener('click',closeTripDetail);
