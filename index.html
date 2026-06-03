@@ -566,6 +566,326 @@ body.fullwidth-history .resize-handle{display:none!important;}
 #view-set .settings-grid{grid-template-columns:1fr 1fr;gap:16px;}
 @media (max-width: 1100px){#view-set .settings-grid{grid-template-columns:1fr;}}
 
+
+/* ===== SETTINGS REDESIGNED ===== */
+#view-set{padding:24px;overflow-y:auto;}
+
+/* Hero banner at top */
+.settings-hero{
+  background:linear-gradient(135deg,rgba(79,158,255,0.08),rgba(124,77,255,0.08));
+  border:1px solid rgba(79,158,255,0.15);
+  border-radius:18px;
+  padding:24px 28px;
+  margin-bottom:20px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:24px;
+  flex-wrap:wrap;
+  position:relative;
+  overflow:hidden;
+}
+.settings-hero::before{
+  content:'';
+  position:absolute;
+  top:-50%;
+  right:-10%;
+  width:300px;
+  height:300px;
+  background:radial-gradient(circle,rgba(79,158,255,0.15),transparent 70%);
+  pointer-events:none;
+}
+.settings-hero-greeting{position:relative;z-index:1;}
+.settings-hero-title{font-size:24px;font-weight:700;color:var(--text);letter-spacing:-0.02em;margin-bottom:4px;}
+.settings-hero-sub{font-size:13px;color:var(--text2);}
+.settings-hero-stats{display:flex;gap:32px;position:relative;z-index:1;}
+.settings-hero-stat-label{font-size:10px;text-transform:uppercase;letter-spacing:0.08em;font-weight:600;color:var(--text3);margin-bottom:4px;}
+.settings-hero-stat-value{font-size:20px;font-weight:700;color:var(--text);font-family:'JetBrains Mono',monospace;}
+
+/* 3-column grid for cards on wide screens */
+.settings-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(340px,1fr));
+  gap:16px;
+}
+
+/* Card upgrades */
+.sc{
+  position:relative;
+  background:linear-gradient(180deg,var(--surface),var(--surface2));
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:20px;
+  transition:all 0.2s;
+}
+.sc:hover{border-color:var(--border2);transform:translateY(-1px);box-shadow:0 8px 24px rgba(0,0,0,0.15);}
+.sc h3{margin-top:14px;}
+
+.sc-icon{
+  width:40px;
+  height:40px;
+  border-radius:10px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:20px;
+  box-shadow:0 4px 12px rgba(0,0,0,0.25);
+  margin-bottom:4px;
+}
+
+/* Save button styled */
+#view-set button.btn-primary{
+  background:linear-gradient(180deg,var(--accent),#3a8be8);
+  box-shadow:0 4px 12px rgba(79,158,255,0.25);
+  border:none;
+  transition:all 0.15s;
+}
+#view-set button.btn-primary:hover{transform:translateY(-1px);box-shadow:0 6px 16px rgba(79,158,255,0.35);}
+
+
+/* ===== ANALYTICS REDESIGNED ===== */
+.analytics-container{padding:24px;display:flex;flex-direction:column;gap:20px;max-width:1400px;margin:0 auto;}
+
+/* Hero banner */
+.analytics-hero{
+  position:relative;
+  background:linear-gradient(135deg,#1a2538 0%,#0e1626 100%);
+  border:1px solid rgba(79,158,255,0.2);
+  border-radius:18px;
+  padding:32px 36px;
+  overflow:hidden;
+  box-shadow:0 12px 36px rgba(0,0,0,0.3);
+}
+.analytics-hero-bg{
+  position:absolute;
+  inset:0;
+  background:radial-gradient(circle at 80% 20%,rgba(79,158,255,0.2),transparent 60%),
+             radial-gradient(circle at 20% 80%,rgba(61,214,140,0.15),transparent 60%);
+  pointer-events:none;
+}
+.analytics-hero-content{position:relative;z-index:1;}
+.analytics-hero-eyebrow{
+  font-size:11px;
+  font-weight:700;
+  letter-spacing:0.15em;
+  color:var(--accent);
+  margin-bottom:16px;
+}
+.analytics-hero-stats{
+  display:flex;
+  gap:32px;
+  align-items:center;
+  flex-wrap:wrap;
+}
+.analytics-hero-stat{}
+.analytics-hero-stat-value{
+  font-size:42px;
+  font-weight:800;
+  font-family:'JetBrains Mono',monospace;
+  color:var(--text);
+  letter-spacing:-0.02em;
+  line-height:1;
+  margin-bottom:8px;
+}
+.analytics-hero-stat-label{
+  font-size:12px;
+  text-transform:uppercase;
+  letter-spacing:0.08em;
+  color:var(--text3);
+  font-weight:600;
+}
+.analytics-hero-divider{
+  width:1px;
+  height:48px;
+  background:linear-gradient(180deg,transparent,rgba(255,255,255,0.15),transparent);
+}
+
+/* Filters */
+.analytics-filters{
+  display:flex;
+  gap:12px;
+  align-items:center;
+  flex-wrap:wrap;
+}
+.analytics-filter-label{
+  font-size:12px;
+  color:var(--text3);
+  font-weight:600;
+  text-transform:uppercase;
+  letter-spacing:0.08em;
+}
+.analytics-select{
+  background:var(--surface2);
+  border:1px solid var(--border2);
+  border-radius:10px;
+  color:var(--text);
+  font-size:13px;
+  padding:8px 14px;
+  font-family:'Inter',sans-serif;
+  cursor:pointer;
+}
+
+/* Stat cards row */
+.analytics-stat-cards{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+  gap:14px;
+}
+
+/* General card */
+.analytics-card{
+  background:linear-gradient(180deg,var(--surface),var(--surface2));
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:24px;
+  transition:border-color 0.2s;
+}
+.analytics-card:hover{border-color:var(--border2);}
+.analytics-card-header{margin-bottom:20px;}
+.analytics-card-title{
+  font-size:15px;
+  font-weight:700;
+  color:var(--text);
+  margin-bottom:4px;
+}
+.analytics-card-sub{
+  font-size:12px;
+  color:var(--text3);
+}
+
+/* Chart improvements */
+.analytics-chart{
+  display:flex;
+  align-items:flex-end;
+  gap:10px;
+  height:200px;
+  width:100%;
+  overflow-x:auto;
+  padding-bottom:8px;
+  position:relative;
+}
+.analytics-chart::-webkit-scrollbar{height:6px;}
+.analytics-chart::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
+
+/* 2-column row */
+.analytics-row-2col{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:20px;
+}
+@media (max-width: 900px){
+  .analytics-row-2col{grid-template-columns:1fr;}
+}
+
+/* Categories list */
+.analytics-cats{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+
+/* Enhanced wrapper */
+.analytics-enhanced-wrapper{
+  display:flex;
+  flex-direction:column;
+  gap:16px;
+}
+
+
+/* Chart bars premium look */
+.a-bar-wrap{
+  flex:1;
+  min-width:40px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:6px;
+  cursor:pointer;
+  position:relative;
+}
+.a-bar-wrap:hover .a-bar{
+  background:linear-gradient(180deg,#7ab8ff,#4f9eff)!important;
+  box-shadow:0 0 0 2px rgba(79,158,255,0.3),0 0 16px rgba(79,158,255,0.4);
+}
+.a-bar-wrap:hover .a-bar-val{color:var(--accent);transform:translateY(-2px);}
+.a-bar{
+  background:linear-gradient(180deg,rgba(79,158,255,0.85),rgba(79,158,255,0.4))!important;
+  border-radius:6px 6px 0 0;
+  width:100%;
+  transition:all 0.2s ease;
+  box-shadow:0 -4px 12px rgba(79,158,255,0.15);
+  position:relative;
+}
+.a-bar::after{
+  content:'';
+  position:absolute;
+  top:0;
+  left:0;
+  right:0;
+  height:2px;
+  background:rgba(255,255,255,0.4);
+  border-radius:6px 6px 0 0;
+}
+.a-bar-val{
+  font-size:11px;
+  font-weight:700;
+  color:var(--text);
+  font-family:'JetBrains Mono',monospace;
+  transition:all 0.15s;
+}
+.a-bar-label{
+  font-size:11px;
+  color:var(--text3);
+  white-space:nowrap;
+  font-weight:500;
+}
+
+/* Stat cards (a-card) — premium upgrade */
+.a-card{
+  background:linear-gradient(180deg,var(--surface),var(--surface2));
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:18px 20px;
+  transition:all 0.2s;
+  position:relative;
+  overflow:hidden;
+}
+.a-card::before{
+  content:'';
+  position:absolute;
+  top:0;
+  left:0;
+  right:0;
+  height:2px;
+  background:linear-gradient(90deg,var(--accent),transparent);
+  opacity:0.5;
+}
+.a-card:hover{
+  border-color:var(--accent);
+  transform:translateY(-2px);
+  box-shadow:0 8px 24px rgba(79,158,255,0.12);
+}
+.a-card-label{
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:0.08em;
+  font-weight:600;
+  color:var(--text3);
+  margin-bottom:8px;
+}
+.a-card-value{
+  font-size:26px;
+  font-weight:700;
+  font-family:'JetBrains Mono',monospace;
+  color:var(--text);
+  letter-spacing:-0.02em;
+  margin-bottom:4px;
+}
+.a-card-sub{
+  font-size:11px;
+  color:var(--text3);
+}
+
 </style>
 </head>
 <body>
@@ -1080,34 +1400,87 @@ body.fullwidth-history .resize-handle{display:none!important;}
     </div>
 
     <div class="view" id="view-analytics">
-  <div style="padding:20px;display:flex;flex-direction:column;gap:20px;">
-    <!-- Period selector -->
-    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-      <select id="aPeriod" style="background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:13px;padding:7px 10px;font-family:'Inter',sans-serif;">
+  <div class="analytics-container">
+    <!-- Hero banner -->
+    <div class="analytics-hero">
+      <div class="analytics-hero-bg"></div>
+      <div class="analytics-hero-content">
+        <div class="analytics-hero-eyebrow">YEAR TO DATE</div>
+        <div class="analytics-hero-stats">
+          <div class="analytics-hero-stat">
+            <div class="analytics-hero-stat-value" id="aHeroMiles">0</div>
+            <div class="analytics-hero-stat-label">Miles tracked</div>
+          </div>
+          <div class="analytics-hero-divider"></div>
+          <div class="analytics-hero-stat">
+            <div class="analytics-hero-stat-value" id="aHeroDeduction" style="color:#3dd68c">$0</div>
+            <div class="analytics-hero-stat-label">Deduction earned</div>
+          </div>
+          <div class="analytics-hero-divider"></div>
+          <div class="analytics-hero-stat">
+            <div class="analytics-hero-stat-value" id="aHeroProjected">$0</div>
+            <div class="analytics-hero-stat-label">Projected EOY</div>
+          </div>
+        </div>
+      </div>
+      <button class="btn btn-primary" id="aShareBtn" style="position:absolute;top:20px;right:20px;z-index:2;">↗ Share Report</button>
+    </div>
+
+    <!-- Filter controls -->
+    <div class="analytics-filters">
+      <label class="analytics-filter-label">View:</label>
+      <select id="aPeriod" class="analytics-select">
         <option value="month">By Month</option>
         <option value="quarter">By Quarter</option>
         <option value="half">By Half Year</option>
         <option value="year">By Year</option>
       </select>
-      <select id="aYear" style="background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:13px;padding:7px 10px;font-family:'Inter',sans-serif;">
+      <select id="aYear" class="analytics-select">
         <option value="">All years</option>
       </select>
-      <button class="btn btn-primary" id="aShareBtn" style="margin-left:auto">↗ Share Report</button>
     </div>
-    <!-- Summary cards -->
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;" id="aCards"></div>
-    <!-- Chart -->
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);padding:20px;">
-      <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);margin-bottom:16px" id="aChartTitle">Miles per Period</div>
-      <div id="aChart" style="display:flex;align-items:flex-end;gap:8px;height:160px;width:100%;overflow-x:auto;padding-bottom:4px;"></div>
+
+    <!-- Summary stat cards -->
+    <div class="analytics-stat-cards" id="aCards"></div>
+
+    <!-- Main chart -->
+    <div class="analytics-card">
+      <div class="analytics-card-header">
+        <div class="analytics-card-title" id="aChartTitle">Miles per Period</div>
+        <div class="analytics-card-sub">Track your progress over time</div>
+      </div>
+      <div id="aChart" class="analytics-chart"></div>
     </div>
-    <!-- Category breakdown -->
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);padding:20px;">
-      <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);margin-bottom:16px">By Category</div>
-      <div id="aCats" style="display:flex;flex-direction:column;gap:8px;"></div>
+
+    <!-- 2-column row -->
+    <div class="analytics-row-2col">
+      <!-- Category breakdown -->
+      <div class="analytics-card">
+        <div class="analytics-card-header">
+          <div class="analytics-card-title">By Category</div>
+          <div class="analytics-card-sub">Where your miles go</div>
+        </div>
+        <div id="aCats" class="analytics-cats"></div>
+      </div>
+      <!-- Enhanced section -->
+      <div id="aEnhanced" class="analytics-enhanced-wrapper"></div>
     </div>
-    <!-- Enhanced analytics sections (YTD, projection, top destinations, DOW) -->
-    <div id="aEnhanced" style="display:flex;flex-direction:column;gap:20px;"></div>
+
+    <!-- Share modal -->
+    <div id="shareModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:999;align-items:center;justify-content:center;">
+      <div style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r3);padding:28px;width:360px;display:flex;flex-direction:column;gap:16px;">
+        <div style="font-size:16px;font-weight:600;color:var(--text)">Share Mileage Report</div>
+        <button class="btn" id="shareUrlBtn" style="justify-content:flex-start;gap:10px">🔗 Copy Web App Link</button>
+        <button class="btn" id="shareQrBtn" style="justify-content:flex-start;gap:10px">📱 Show QR Code</button>
+        <button class="btn" id="shareCsvBtn" style="justify-content:flex-start;gap:10px">📄 Export CSV Report</button>
+        <button class="btn" id="sharePdfBtn" style="justify-content:flex-start;gap:10px">🖨 Print / Save as PDF</button>
+        <div id="qrContainer" style="display:none;text-align:center;padding:12px;background:white;border-radius:var(--r2);">
+          <div id="qrCode"></div>
+          <div style="font-size:11px;color:#666;margin-top:8px">Scan to open Milo</div>
+        </div>
+        <button class="btn" id="shareCloseBtn">Close</button>
+      </div>
+    </div>
 
     <!-- Share modal -->
     <div id="shareModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:999;align-items:center;justify-content:center;">
@@ -1129,8 +1502,28 @@ body.fullwidth-history .resize-handle{display:none!important;}
 </div>
 
 <div class="view" id="view-set">
+      <div class="settings-hero">
+        <div class="settings-hero-greeting">
+          <div class="settings-hero-title" id="settingsHelloName">Welcome back</div>
+          <div class="settings-hero-sub" id="settingsHelloEmail"></div>
+        </div>
+        <div class="settings-hero-stats">
+          <div class="settings-hero-stat">
+            <div class="settings-hero-stat-label">Member since</div>
+            <div class="settings-hero-stat-value" id="settingsMemberSince">—</div>
+          </div>
+          <div class="settings-hero-stat">
+            <div class="settings-hero-stat-label">Total trips logged</div>
+            <div class="settings-hero-stat-value" id="settingsTotalTrips">0</div>
+          </div>
+          <div class="settings-hero-stat">
+            <div class="settings-hero-stat-label">Total deduction (YTD)</div>
+            <div class="settings-hero-stat-value" id="settingsTotalDeduction">$0</div>
+          </div>
+        </div>
+      </div>
       <div class="settings-grid">
-        <div class="sc">
+        <div class="sc"><div class="sc-icon" style="background:linear-gradient(135deg,#4f9eff,#7c4dff)">🔐</div>
           <h3>Account</h3>
           <div style="font-size:12px;color:var(--text2);margin-bottom:14px">Change your password without needing email recovery.</div>
           <div class="field" style="margin-bottom:10px">
@@ -1144,7 +1537,7 @@ body.fullwidth-history .resize-handle{display:none!important;}
           <button class="btn btn-primary" id="changePwdBtn" style="width:100%">Change Password</button>
           <div id="changePwdMsg" style="font-size:12px;margin-top:10px;display:none"></div>
         </div>
-        <div class="sc">
+        <div class="sc"><div class="sc-icon" style="background:linear-gradient(135deg,#3dd68c,#22b574)">🏢</div>
           <h3>Business info</h3>
           <div class="field" style="margin-bottom:10px"><span class="field-label">Business name</span><input type="text" id="sBiz" placeholder="Your S-Corp name"/></div>
           <div class="field" style="margin-bottom:10px"><span class="field-label">Vehicle</span><input type="text" id="sVehicle" placeholder="e.g. Tesla Model 3"/></div>
@@ -1158,7 +1551,7 @@ body.fullwidth-history .resize-handle{display:none!important;}
           </div>
           <span style="font-size:11px;color:var(--text3)">Pre-fills From on every new trip</span>
         </div>
-        <div class="sc">
+        <div class="sc"><div class="sc-icon" style="background:linear-gradient(135deg,#f59e0b,#f97316)">🗺️</div>
           <h3>Distance calculation</h3>
           <div style="font-size:12px;color:var(--text2);line-height:1.8;margin-bottom:14px">
             Uses <strong style="color:var(--text)">Google Maps</strong> for routing and display.<br>
@@ -1171,8 +1564,28 @@ body.fullwidth-history .resize-handle{display:none!important;}
           </div>
         </div>
       </div>
+      <div class="settings-hero">
+        <div class="settings-hero-greeting">
+          <div class="settings-hero-title" id="settingsHelloName">Welcome back</div>
+          <div class="settings-hero-sub" id="settingsHelloEmail"></div>
+        </div>
+        <div class="settings-hero-stats">
+          <div class="settings-hero-stat">
+            <div class="settings-hero-stat-label">Member since</div>
+            <div class="settings-hero-stat-value" id="settingsMemberSince">—</div>
+          </div>
+          <div class="settings-hero-stat">
+            <div class="settings-hero-stat-label">Total trips logged</div>
+            <div class="settings-hero-stat-value" id="settingsTotalTrips">0</div>
+          </div>
+          <div class="settings-hero-stat">
+            <div class="settings-hero-stat-label">Total deduction (YTD)</div>
+            <div class="settings-hero-stat-value" id="settingsTotalDeduction">$0</div>
+          </div>
+        </div>
+      </div>
       <div class="settings-grid">
-        <div class="sc">
+        <div class="sc"><div class="sc-icon" style="background:linear-gradient(135deg,#ec4899,#db2777)">📋</div>
           <h3>IRS mileage rates</h3>
           <div class="g2" style="margin-bottom:10px">
             <div class="field"><span class="field-label">2026</span><div class="iw"><input type="number" id="r2026" step="0.001" value="0.700"/><span class="isuf">$/mi</span></div></div>
@@ -1183,7 +1596,7 @@ body.fullwidth-history .resize-handle{display:none!important;}
             <div class="field"><span class="field-label">2023</span><div class="iw"><input type="number" id="r2023" step="0.001" value="0.655"/><span class="isuf">$/mi</span></div></div>
           </div>
         </div>
-        <div class="sc">
+        <div class="sc"><div class="sc-icon" style="background:linear-gradient(135deg,#06b6d4,#0891b2)">📦</div>
           <h3>Data</h3>
           <p style="font-size:12px;color:var(--text3);margin-bottom:14px;line-height:1.6">Export CSV to back up or share with your accountant. Import a CSV to restore trips.</p>
           <div style="display:flex;flex-direction:column;gap:8px">
@@ -1795,6 +2208,7 @@ function switchNav(name,el){
   // Auto-expand fullwidth for History and Analytics
   if(name==='hist'||name==='analytics'||name==='set'){
     document.body.classList.add('fullwidth-history');
+    if(name==='set'&&typeof updateSettingsHero==='function')updateSettingsHero();
   } else {
     document.body.classList.remove('fullwidth-history');
   }
@@ -1934,6 +2348,22 @@ function importCSV(event){
 
 // ── ANALYTICS ────────────────────────────────────────────────
 function renderAnalytics(){
+  // Populate hero stats (YTD only)
+  const thisYear=new Date().getFullYear().toString();
+  const ytdTrips=trips.filter(t=>t.date&&t.date.startsWith(thisYear));
+  const heroMiles=ytdTrips.reduce((s,t)=>s+parseFloat(t.miles||0),0);
+  const heroDeduction=ytdTrips.reduce((s,t)=>s+parseFloat(t.miles||0)*rate(t.date),0);
+  // Project EOY - based on YTD pace
+  const dayOfYear=Math.floor((new Date()-new Date(thisYear+'-01-01'))/86400000)+1;
+  const dailyRate=heroDeduction/Math.max(dayOfYear,1);
+  const projected=dailyRate*365;
+  const aHm=document.getElementById('aHeroMiles');
+  const aHd=document.getElementById('aHeroDeduction');
+  const aHp=document.getElementById('aHeroProjected');
+  if(aHm)aHm.textContent=heroMiles.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g,',');
+  if(aHd)aHd.textContent='$'+heroDeduction.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g,',');
+  if(aHp)aHp.textContent='$'+projected.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g,',');
+
   const period=document.getElementById('aPeriod').value;
   const filterYear=document.getElementById('aYear').value;
 
@@ -2093,6 +2523,46 @@ function initRightResize(){
   }catch(e){}
 }
 window.initRightResize=initRightResize;
+
+
+// ── SETTINGS HERO STATS ──────────────────────────────────────
+function updateSettingsHero(){
+  var nameEl=document.getElementById('settingsHelloName');
+  var emailEl=document.getElementById('settingsHelloEmail');
+  var memberEl=document.getElementById('settingsMemberSince');
+  var tripsEl=document.getElementById('settingsTotalTrips');
+  var dedEl=document.getElementById('settingsTotalDeduction');
+  // Greeting based on time
+  var h=new Date().getHours();
+  var greet=h<12?'Good morning':h<18?'Good afternoon':'Good evening';
+  if(nameEl){
+    var name=(typeof cfg!=='undefined'&&cfg.businessName)?cfg.businessName:'';
+    nameEl.textContent=greet+(name?', '+name.split(' ')[0]:'!');
+  }
+  if(emailEl&&typeof currentUser!=='undefined'&&currentUser){
+    emailEl.textContent=currentUser.email||'';
+  }
+  if(memberEl&&typeof currentUser!=='undefined'&&currentUser&&currentUser.created_at){
+    var d=new Date(currentUser.created_at);
+    memberEl.textContent=d.toLocaleString('en-US',{month:'short',year:'numeric'});
+  }
+  if(tripsEl&&typeof trips!=='undefined'){
+    tripsEl.textContent=trips.length.toString();
+  }
+  if(dedEl&&typeof trips!=='undefined'){
+    var ytd=new Date().getFullYear();
+    var total=0;
+    trips.forEach(function(t){
+      if(t.date&&t.date.startsWith(ytd.toString())){
+        var miles=parseFloat(t.miles||0);
+        var r=typeof rate==='function'?rate(t.date):0.7;
+        total+=miles*r;
+      }
+    });
+    dedEl.textContent='$'+total.toFixed(2);
+  }
+}
+window.updateSettingsHero=updateSettingsHero;
 
 // ── ONBOARDING FLOW ──────────────────────────────────────────
 var onboardCurrentScreen=1;
