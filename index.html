@@ -589,6 +589,32 @@ to{transform:translate(80px,80px);}}
     <div class="auth-toggle" id="forgotBackBtn" style="margin-top:12px">← Back to sign in</div>
   </div>
 
+  <!-- Password recovery card (shown when user clicks reset email link) -->
+  <div class="auth-card" id="recoveryCard" style="display:none">
+    <div class="auth-title">🔑 Set new password</div>
+    <div class="auth-sub">Choose a new password for your account. You'll be signed in automatically.</div>
+    <div class="auth-field">
+      <label>New password</label>
+      <div class="pwd-wrap">
+        <input type="password" id="recoveryPwd" placeholder="At least 8 characters" autocomplete="new-password"/>
+        <button type="button" class="pwd-toggle" id="recoveryPwdToggle" tabindex="-1" aria-label="Show password">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="auth-field">
+      <label>Confirm new password</label>
+      <div class="pwd-wrap">
+        <input type="password" id="recoveryPwd2" placeholder="Repeat password" autocomplete="new-password"/>
+        <button type="button" class="pwd-toggle" id="recoveryPwd2Toggle" tabindex="-1" aria-label="Show password">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="auth-error" id="recoveryError"></div>
+    <button class="btn btn-primary" id="recoverySaveBtn" style="width:100%;justify-content:center;margin-top:6px">Update password and sign in</button>
+  </div>
+
 </div>
 <!-- end authOverlay -->
 
@@ -2567,16 +2593,83 @@ function onSignedIn(user){
 }
 
 window.addEventListener('DOMContentLoaded',function(){
-  // Check existing session first
-  supa.auth.getSession().then(({data:{session}})=>{
-    if(session){
+  // === AUTH CALLBACK HANDLING ===
+  // Parse URL hash for auth callbacks (magic link, password recovery)
+  function parseAuthHash(){
+    var hash=window.location.hash;
+    if(!hash||hash.length<2)return null;
+    var params={};
+    hash.substring(1).split('&').forEach(function(p){
+      var kv=p.split('=');
+      if(kv.length===2)params[kv[0]]=decodeURIComponent(kv[1]);
+    });
+    return params;
+  }
+  var hashParams=parseAuthHash();
+  // Clean URL after parsing
+  if(hashParams&&hashParams.access_token){
+    history.replaceState(null,'',window.location.pathname+window.location.search);
+  }
+  // Check for error in hash (expired link, etc.)
+  if(hashParams&&hashParams.error){
+    setTimeout(function(){
+      var err=document.getElementById('authError');
+      if(err){
+        err.style.color='var(--red)';
+        err.textContent=decodeURIComponent(hashParams.error_description||hashParams.error||'Link expired or invalid').replace(/\+/g,' ');
+        err.style.display='block';
+      }
+    },300);
+  }
+
+  // Listen for auth state changes (handles magic link / recovery callbacks)
+  supa.auth.onAuthStateChange(function(event,session){
+    if(event==='PASSWORD_RECOVERY'){
+      // User clicked password reset link - show a UI to set new password
+      showPasswordRecoveryUI();
+    } else if(event==='SIGNED_IN'&&session){
+      onSignedIn(session.user);
+    } else if(event==='SIGNED_OUT'){
+      document.getElementById('authOverlay').style.display='flex';
+    }
+  });
+
+  // Check existing session
+  supa.auth.getSession().then(function(resp){
+    var session=resp&&resp.data?resp.data.session:null;
+    // If we just came from a recovery link, the type will be 'recovery'
+    if(hashParams&&hashParams.type==='recovery'){
+      // Wait for onAuthStateChange to fire PASSWORD_RECOVERY
+      // But also init UI in background
+      init();
+      setTimeout(function(){initMainMap();initResize();},200);
+    } else if(session){
       onSignedIn(session.user);
     } else {
       // No session - show login, still init UI
       init();
-      setTimeout(()=>{initMainMap();initResize();},200);
+      setTimeout(function(){initMainMap();initResize();},200);
     }
+  }).catch(function(e){
+    console.error('Session check failed',e);
+    // Fail safe - still show login UI
+    init();
+    setTimeout(function(){initMainMap();initResize();},200);
   });
+
+  // Password recovery UI handler
+  function showPasswordRecoveryUI(){
+    var overlay=document.getElementById('authOverlay');
+    var authCard=document.querySelector('.auth-card');
+    var forgotCard=document.getElementById('forgotCard');
+    var recoveryCard=document.getElementById('recoveryCard');
+    overlay.style.display='flex';
+    if(authCard)authCard.style.display='none';
+    if(forgotCard)forgotCard.style.display='none';
+    if(recoveryCard)recoveryCard.style.display='flex';
+  }
+  window.showPasswordRecoveryUI=showPasswordRecoveryUI;
+
   document.getElementById('signOutBtn').addEventListener('click',signOut);
   // Setup autocomplete if Google already loaded
   if(typeof google!=='undefined'&&google.maps){initGoogleMaps();}
@@ -2771,6 +2864,61 @@ if(_aPwd)_aPwd.addEventListener('input',function(){
     if(_aForgot)_aForgot.style.display='block';
   }
   if(_fBack)_fBack.addEventListener('click',backToSignIn);
+  // Recovery card handlers
+  var _recPwd=document.getElementById('recoveryPwd');
+  var _recPwd2=document.getElementById('recoveryPwd2');
+  var _recErr=document.getElementById('recoveryError');
+  var _recSave=document.getElementById('recoverySaveBtn');
+  // Password show/hide for recovery
+  function makeRecPwdToggle(btnId,inpId){
+    var btn=document.getElementById(btnId);
+    var inp=document.getElementById(inpId);
+    if(!btn||!inp)return;
+    var eyeOpen='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+    var eyeClosed='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+    btn.addEventListener('click',function(){
+      if(inp.type==='password'){inp.type='text';btn.innerHTML=eyeClosed;}
+      else{inp.type='password';btn.innerHTML=eyeOpen;}
+    });
+  }
+  makeRecPwdToggle('recoveryPwdToggle','recoveryPwd');
+  makeRecPwdToggle('recoveryPwd2Toggle','recoveryPwd2');
+
+  if(_recSave)_recSave.addEventListener('click',async function(){
+    if(!_recPwd||!_recPwd2||!_recErr)return;
+    var p1=_recPwd.value;
+    var p2=_recPwd2.value;
+    _recErr.style.display='none';
+    if(!p1||!p2){_recErr.style.color='var(--red)';_recErr.textContent='Enter and confirm your new password';_recErr.style.display='block';return;}
+    if(p1.length<8){_recErr.style.color='var(--red)';_recErr.textContent='Password must be at least 8 characters';_recErr.style.display='block';return;}
+    if(!/[A-Z]/.test(p1)){_recErr.style.color='var(--red)';_recErr.textContent='Password must include an uppercase letter';_recErr.style.display='block';return;}
+    if(!/[a-z]/.test(p1)){_recErr.style.color='var(--red)';_recErr.textContent='Password must include a lowercase letter';_recErr.style.display='block';return;}
+    if(!/[0-9]/.test(p1)){_recErr.style.color='var(--red)';_recErr.textContent='Password must include a number';_recErr.style.display='block';return;}
+    if(p1!==p2){_recErr.style.color='var(--red)';_recErr.textContent='Passwords do not match';_recErr.style.display='block';return;}
+    _recSave.disabled=true;
+    _recSave.innerHTML='<span class="btn-spinner"></span>Updating...';
+    try{
+      var resp=await supa.auth.updateUser({password:p1});
+      if(resp.error)throw resp.error;
+      _recErr.style.color='var(--green)';
+      _recErr.textContent='✓ Password updated! Signing you in...';
+      _recErr.style.display='block';
+      // Get session and sign in
+      setTimeout(async function(){
+        var s=await supa.auth.getSession();
+        if(s&&s.data&&s.data.session){
+          onSignedIn(s.data.session.user);
+        }
+      },1000);
+    }catch(e){
+      _recErr.style.color='var(--red)';
+      _recErr.textContent=e.message||'Failed to update password';
+      _recErr.style.display='block';
+      _recSave.disabled=false;
+      _recSave.textContent='Update password and sign in';
+    }
+  });
+
   if(_fSend)_fSend.addEventListener('click',async function(){
     var email=_fEmail?_fEmail.value.trim():'';
     if(!email){
@@ -2786,7 +2934,7 @@ if(_aPwd)_aPwd.addEventListener('input',function(){
     _fSend.disabled=true;
     _fSend.innerHTML='<span class="btn-spinner"></span>Sending...';
     try{
-      var resp=await supa.auth.resetPasswordForEmail(email,{redirectTo:window.location.href});
+      var resp=await supa.auth.resetPasswordForEmail(email,{redirectTo:window.location.origin+window.location.pathname});
       if(resp.error)throw resp.error;
       if(_fErr){_fErr.style.color='var(--green)';_fErr.textContent='✓ Reset link sent! Check your email.';_fErr.style.display='block';}
       _fSend.textContent='✓ Sent';
