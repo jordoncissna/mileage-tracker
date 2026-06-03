@@ -886,6 +886,145 @@ body.fullwidth-history .resize-handle{display:none!important;}
   color:var(--text3);
 }
 
+
+/* ===== SETTINGS FULL-SCREEN FIX ===== */
+/* When view-set is active, take full available width by positioning fixed */
+body.fullwidth-history #view-set.on{
+  position:fixed;
+  top:52px; /* below topbar */
+  left:0;
+  right:0;
+  bottom:0;
+  background:var(--bg);
+  z-index:100;
+  overflow-y:auto;
+  padding:24px;
+}
+/* Also wrap settings in a max-width container for readability on huge screens */
+#view-set.on .settings-hero,
+#view-set.on .settings-grid{
+  max-width:1400px;
+  margin-left:auto;
+  margin-right:auto;
+}
+#view-set.on .settings-grid + .settings-grid,
+#view-set.on .settings-grid{
+  margin-bottom:16px;
+}
+
+
+/* ===== CHART BARS - PREMIUM SECOND PASS ===== */
+.a-bar-wrap{
+  flex:1;
+  min-width:50px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:8px;
+  cursor:pointer;
+  position:relative;
+  padding-top:24px; /* room for value above bar */
+}
+.a-bar-wrap:nth-child(odd) .a-bar{
+  background:linear-gradient(180deg,#4f9eff 0%,#3b82f6 40%,#1d4ed8 100%)!important;
+}
+.a-bar-wrap:nth-child(even) .a-bar{
+  background:linear-gradient(180deg,#7c4dff 0%,#6d28d9 40%,#5b21b6 100%)!important;
+}
+.a-bar-wrap:nth-child(3n) .a-bar{
+  background:linear-gradient(180deg,#3dd68c 0%,#22b574 40%,#15803d 100%)!important;
+}
+.a-bar-wrap:nth-child(5n) .a-bar{
+  background:linear-gradient(180deg,#fbbf24 0%,#f59e0b 40%,#d97706 100%)!important;
+}
+.a-bar{
+  border-radius:8px 8px 2px 2px!important;
+  width:100%;
+  transition:all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow:
+    0 4px 16px rgba(79,158,255,0.25),
+    inset 0 1px 0 rgba(255,255,255,0.25),
+    inset 0 -2px 0 rgba(0,0,0,0.15);
+  position:relative;
+  animation:barRiseIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+}
+.a-bar-wrap:nth-child(1) .a-bar{animation-delay:0.0s;}
+.a-bar-wrap:nth-child(2) .a-bar{animation-delay:0.05s;}
+.a-bar-wrap:nth-child(3) .a-bar{animation-delay:0.10s;}
+.a-bar-wrap:nth-child(4) .a-bar{animation-delay:0.15s;}
+.a-bar-wrap:nth-child(5) .a-bar{animation-delay:0.20s;}
+.a-bar-wrap:nth-child(6) .a-bar{animation-delay:0.25s;}
+.a-bar-wrap:nth-child(7) .a-bar{animation-delay:0.30s;}
+.a-bar-wrap:nth-child(8) .a-bar{animation-delay:0.35s;}
+.a-bar-wrap:nth-child(9) .a-bar{animation-delay:0.40s;}
+.a-bar-wrap:nth-child(10) .a-bar{animation-delay:0.45s;}
+.a-bar-wrap:nth-child(11) .a-bar{animation-delay:0.50s;}
+.a-bar-wrap:nth-child(12) .a-bar{animation-delay:0.55s;}
+@keyframes barRiseIn{
+  from{transform:scaleY(0);opacity:0;}
+  to{transform:scaleY(1);opacity:1;}
+}
+.a-bar{transform-origin:bottom;}
+.a-bar::after{
+  content:'';
+  position:absolute;
+  inset:0;
+  border-radius:8px 8px 2px 2px;
+  background:linear-gradient(180deg,rgba(255,255,255,0.2),transparent 40%);
+  pointer-events:none;
+}
+.a-bar-wrap:hover .a-bar{
+  transform:translateY(-4px) scaleY(1.02);
+  box-shadow:
+    0 12px 32px rgba(79,158,255,0.4),
+    inset 0 1px 0 rgba(255,255,255,0.4),
+    inset 0 -2px 0 rgba(0,0,0,0.1);
+  filter:brightness(1.1);
+}
+.a-bar-val{
+  position:absolute;
+  top:0;
+  font-size:13px;
+  font-weight:800;
+  color:var(--text);
+  font-family:'JetBrains Mono',monospace;
+  transition:all 0.2s;
+  text-shadow:0 1px 3px rgba(0,0,0,0.5);
+  letter-spacing:-0.01em;
+}
+.a-bar-wrap:hover .a-bar-val{
+  color:#fff;
+  transform:translateY(-2px) scale(1.1);
+}
+.a-bar-label{
+  font-size:11px;
+  color:var(--text2);
+  white-space:nowrap;
+  font-weight:600;
+  letter-spacing:0.02em;
+  text-transform:uppercase;
+}
+
+/* Make the analytics chart container have a subtle grid */
+.analytics-chart{
+  position:relative;
+  height:240px!important;
+  padding:32px 16px 12px 16px!important;
+  background:linear-gradient(180deg,transparent 0%,rgba(79,158,255,0.02) 50%,rgba(79,158,255,0.04) 100%);
+  border-radius:12px;
+}
+.analytics-chart::before{
+  content:'';
+  position:absolute;
+  inset:0;
+  background-image:
+    linear-gradient(to bottom, transparent 24%, rgba(255,255,255,0.04) 25%, transparent 26%),
+    linear-gradient(to bottom, transparent 49%, rgba(255,255,255,0.04) 50%, transparent 51%),
+    linear-gradient(to bottom, transparent 74%, rgba(255,255,255,0.04) 75%, transparent 76%);
+  pointer-events:none;
+  border-radius:12px;
+}
+
 </style>
 </head>
 <body>
@@ -1561,26 +1700,6 @@ body.fullwidth-history .resize-handle{display:none!important;}
           <div style="display:flex;gap:8px">
             <button class="mode-btn" id="modeDark" onclick="setMode('dark')">🌙 Dark</button>
             <button class="mode-btn" id="modeLight" onclick="setMode('light')">☀️ Light</button>
-          </div>
-        </div>
-      </div>
-      <div class="settings-hero">
-        <div class="settings-hero-greeting">
-          <div class="settings-hero-title" id="settingsHelloName">Welcome back</div>
-          <div class="settings-hero-sub" id="settingsHelloEmail"></div>
-        </div>
-        <div class="settings-hero-stats">
-          <div class="settings-hero-stat">
-            <div class="settings-hero-stat-label">Member since</div>
-            <div class="settings-hero-stat-value" id="settingsMemberSince">—</div>
-          </div>
-          <div class="settings-hero-stat">
-            <div class="settings-hero-stat-label">Total trips logged</div>
-            <div class="settings-hero-stat-value" id="settingsTotalTrips">0</div>
-          </div>
-          <div class="settings-hero-stat">
-            <div class="settings-hero-stat-label">Total deduction (YTD)</div>
-            <div class="settings-hero-stat-value" id="settingsTotalDeduction">$0</div>
           </div>
         </div>
       </div>
