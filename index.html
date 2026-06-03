@@ -42,7 +42,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
 .left-scroll{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:16px;}
 .left-scroll::-webkit-scrollbar{width:4px;}
 .left-scroll::-webkit-scrollbar-thumb{background:var(--surface3);border-radius:4px;}
-.right{width:360px;min-width:300px;max-width:420px;flex-shrink:0;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:16px;background:var(--bg);}
+.right{width:520px;min-width:320px;max-width:60vw;flex-shrink:0;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:16px;background:var(--bg);position:relative;}
   .map-panel{flex:2;min-width:300px;border-left:1px solid var(--border);border-right:1px solid var(--border);display:flex;flex-direction:column;background:var(--bg2);position:relative;overflow:hidden;}
   .map-panel-header{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--border);flex-shrink:0;}
   .map-panel-title{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;}
@@ -549,6 +549,23 @@ to{transform:translate(80px,80px);}}
   .onboard-subhead{font-size:14px!important;}
 }
 
+
+/* ===== FULL WIDTH HISTORY / ANALYTICS ===== */
+body.fullwidth-history .left,
+body.fullwidth-history .map-panel{display:none!important;}
+body.fullwidth-history .right{width:100%!important;max-width:none!important;flex:1!important;}
+body.fullwidth-history .resize-handle{display:none!important;}
+
+/* Make the right panel resizable on settings view */
+.right{width:520px;min-width:320px;max-width:60vw;position:relative;}
+.right-resize-handle{position:absolute;left:-3px;top:0;width:6px;height:100%;cursor:ew-resize;z-index:5;background:transparent;transition:background 0.15s;}
+.right-resize-handle:hover{background:rgba(79,158,255,0.3);}
+.right-resize-handle.dragging{background:rgba(79,158,255,0.5);}
+
+/* Settings layout fix - make it cleaner */
+#view-set .settings-grid{grid-template-columns:1fr 1fr;gap:16px;}
+@media (max-width: 1100px){#view-set .settings-grid{grid-template-columns:1fr;}}
+
 </style>
 </head>
 <body>
@@ -1020,6 +1037,7 @@ to{transform:translate(80px,80px);}}
 
 
   <div class="right" id="rightPanel" style="position:relative">
+  <div class="right-resize-handle" id="rightResize" title="Drag to resize"></div>
     <div style="width:6px;background:var(--border2);cursor:col-resize;position:absolute;left:-3px;top:0;bottom:0;z-index:50;transition:background .15s;" id="rightResize" onmouseenter="this.style.background='var(--accent)'" onmouseleave="this.style.background='var(--border2)'"></div>
 
     <div class="view on" id="view-log">
@@ -1775,7 +1793,7 @@ function switchNav(name,el){
   if(name==='hist')renderH();
   if(name==='analytics'&&typeof renderAnalytics==='function')renderAnalytics();
   // Auto-expand fullwidth for History and Analytics
-  if(name==='hist'||name==='analytics'){
+  if(name==='hist'||name==='analytics'||name==='set'){
     document.body.classList.add('fullwidth-history');
   } else {
     document.body.classList.remove('fullwidth-history');
@@ -2022,6 +2040,59 @@ function sharePdf(){
   closeShareModal();
 }
 
+
+
+// ── RIGHT PANEL RESIZE ─────────────────────────────────────────
+function initRightResize(){
+  var handle=document.getElementById('rightResize');
+  var right=document.querySelector('.right');
+  if(!handle||!right)return;
+  var isDragging=false;
+  var startX=0;
+  var startWidth=0;
+  
+  handle.addEventListener('mousedown',function(e){
+    isDragging=true;
+    startX=e.clientX;
+    startWidth=right.offsetWidth;
+    handle.classList.add('dragging');
+    document.body.style.cursor='ew-resize';
+    document.body.style.userSelect='none';
+    e.preventDefault();
+  });
+  
+  document.addEventListener('mousemove',function(e){
+    if(!isDragging)return;
+    var diff=startX-e.clientX;
+    var newWidth=startWidth+diff;
+    // Clamp to min/max
+    var maxW=window.innerWidth*0.7;
+    newWidth=Math.max(320,Math.min(maxW,newWidth));
+    right.style.width=newWidth+'px';
+    try{localStorage.setItem('milo-right-width',newWidth);}catch(e){}
+  });
+  
+  document.addEventListener('mouseup',function(){
+    if(isDragging){
+      isDragging=false;
+      handle.classList.remove('dragging');
+      document.body.style.cursor='';
+      document.body.style.userSelect='';
+    }
+  });
+  
+  // Restore saved width
+  try{
+    var saved=localStorage.getItem('milo-right-width');
+    if(saved){
+      var w=parseInt(saved,10);
+      if(w>=320&&w<=window.innerWidth*0.7){
+        right.style.width=w+'px';
+      }
+    }
+  }catch(e){}
+}
+window.initRightResize=initRightResize;
 
 // ── ONBOARDING FLOW ──────────────────────────────────────────
 var onboardCurrentScreen=1;
@@ -2588,7 +2659,7 @@ function onSignedIn(user){
   document.getElementById('authOverlay').style.display='none';
   document.getElementById('userEmail').textContent=user.email;
   init();
-  setTimeout(()=>{initMainMap();initResize();},200);
+  setTimeout(()=>{initMainMap();initResize();initRightResize();},200);
   loadFromSupabase();
 }
 
@@ -2642,19 +2713,19 @@ window.addEventListener('DOMContentLoaded',function(){
       // Wait for onAuthStateChange to fire PASSWORD_RECOVERY
       // But also init UI in background
       init();
-      setTimeout(function(){initMainMap();initResize();},200);
+      setTimeout(function(){initMainMap();initResize();initRightResize();},200);
     } else if(session){
       onSignedIn(session.user);
     } else {
       // No session - show login, still init UI
       init();
-      setTimeout(function(){initMainMap();initResize();},200);
+      setTimeout(function(){initMainMap();initResize();initRightResize();},200);
     }
   }).catch(function(e){
     console.error('Session check failed',e);
     // Fail safe - still show login UI
     init();
-    setTimeout(function(){initMainMap();initResize();},200);
+    setTimeout(function(){initMainMap();initResize();initRightResize();},200);
   });
 
   // Password recovery UI handler
