@@ -68,5 +68,33 @@ T('commute detected', isCommute(com) === true);
 T('override false deducts', deductibleValue(Object.assign({}, com, { isCommute: false })) > 0);
 T('personal rule suggests', suggestFor({ id: 24, from: '', to: '250 Gym Way, Layton, UT', purpose: '', category: 'Other Business' })?.cat === PERSONAL_CAT);
 
+// ===== HTML ESCAPING =====
+eval(grab('esc'));
+T('esc angle brackets', esc('<img onerror=x>') === '&lt;img onerror=x&gt;');
+T('esc quotes', esc('a "b" \'c\'') === 'a &quot;b&quot; &#39;c&#39;');
+T('esc ampersand', esc('A & B') === 'A &amp; B');
+T('esc null/undefined', esc(null) === '' && esc(undefined) === '');
+T('esc plain passthrough', esc('1113 S 4090 W, Syracuse, UT') === '1113 S 4090 W, Syracuse, UT');
+
+// ===== CSV CELL ESCAPING =====
+eval(grab('csvCell'));
+eval(grab('parseCsvLine'));
+T('csv doubles quotes', csvCell('Lunch at "The Grid"') === '"Lunch at ""The Grid"""');
+T('csv plain', csvCell('Client Meeting') === '"Client Meeting"');
+T('csv formula guarded', csvCell('=HYPERLINK("evil")') === '"\'=HYPERLINK(""evil"")"');
+T('csv negative-looking text guarded', csvCell('@cmd') === '"\'@cmd"');
+T('csv numbers not guarded', csvCell('-5.5') === '"-5.5"' && csvCell('15.0') === '"15.0"');
+T('csv null empty', csvCell(null) === '""');
+
+// ===== CSV LINE PARSING (round-trip) =====
+const cells = ['2026-06-10', 'Lunch at "The Grid"', 'a, b', 'plain'];
+const line = cells.map(csvCell).join(',');
+const parsed = parseCsvLine(line);
+T('round-trip quoted quote', parsed[1] === 'Lunch at "The Grid"');
+T('round-trip embedded comma', parsed[2] === 'a, b');
+T('round-trip plain', parsed[0] === '2026-06-10' && parsed[3] === 'plain');
+T('parse unquoted line', parseCsvLine('a,b,c').join('|') === 'a|b|c');
+T('parse empty cells', parseCsvLine('a,,c').length === 3 && parseCsvLine('a,,c')[1] === '');
+
 console.log(`\nrules.test.js: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

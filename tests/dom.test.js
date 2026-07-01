@@ -76,5 +76,21 @@ let tipThrew = false; try { window.__showTip({ clientX: 100, clientY: 100 }, 'Ja
 T('tooltip handler no throw', !tipThrew);
 T('tooltip populated', $('aChartTip').innerHTML.indexOf('mi') >= 0);
 
+// ===== XSS ESCAPING IN HISTORY =====
+$('tFromStreet').value = '<img src=x onerror="window.__pwned=1">'; $('tFromCity').value = 'Syracuse'; $('tFromState').value = 'UT';
+$('tToStreet').value = '789 Safe St'; $('tToCity').value = 'Lehi'; $('tToState').value = 'UT';
+$('tMiles').value = '5'; $('tPurpose').value = '<script>window.__pwned=1<\/script>'; $('tCat').selectedIndex = 0; $('tDate').value = '2026-06-15';
+window.__addTrip();
+window.__renderH();
+T('history escapes img tag', $('htable').innerHTML.indexOf('&lt;img') >= 0);
+T('no live img injected', !$('htable').querySelector('img[src="x"]'));
+T('no live script injected', !$('htable').querySelector('script'));
+T('escaped text still visible', $('htable').textContent.indexOf('<img src=x') >= 0);
+T('no script executed', !window.__pwned);
+
+// ===== SINGLE SHARE MODAL / RESIZE HANDLE =====
+T('one shareModal', document.querySelectorAll('#shareModal').length === 1);
+T('one rightResize', document.querySelectorAll('#rightResize').length === 1);
+
 console.log(`\ndom.test.js: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

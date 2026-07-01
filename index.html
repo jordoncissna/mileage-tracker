@@ -1525,7 +1525,6 @@ body.fullwidth-history #view-set.on{
 
   <div class="right" id="rightPanel" style="position:relative">
   <div class="right-resize-handle" id="rightResize" title="Drag to resize"></div>
-    <div style="width:6px;background:var(--border2);cursor:col-resize;position:absolute;left:-3px;top:0;bottom:0;z-index:50;transition:background .15s;" id="rightResize" onmouseenter="this.style.background='var(--accent)'" onmouseleave="this.style.background='var(--border2)'"></div>
 
     <div class="view on" id="view-log">
 <div class="hint-box" id="hintBox">
@@ -1633,22 +1632,6 @@ body.fullwidth-history #view-set.on{
       </div>
       <!-- Enhanced section -->
       <div id="aEnhanced" class="analytics-enhanced-wrapper"></div>
-    </div>
-
-    <!-- Share modal -->
-    <div id="shareModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:999;align-items:center;justify-content:center;">
-      <div style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r3);padding:28px;width:360px;display:flex;flex-direction:column;gap:16px;">
-        <div style="font-size:16px;font-weight:600;color:var(--text)">Share Mileage Report</div>
-        <button class="btn" id="shareUrlBtn" style="justify-content:flex-start;gap:10px">🔗 Copy Web App Link</button>
-        <button class="btn" id="shareQrBtn" style="justify-content:flex-start;gap:10px">📱 Show QR Code</button>
-        <button class="btn" id="shareCsvBtn" style="justify-content:flex-start;gap:10px">📄 Export CSV Report</button>
-        <button class="btn" id="sharePdfBtn" style="justify-content:flex-start;gap:10px">🖨 Print / Save as PDF</button>
-        <div id="qrContainer" style="display:none;text-align:center;padding:12px;background:white;border-radius:var(--r2);">
-          <div id="qrCode"></div>
-          <div style="font-size:11px;color:#666;margin-top:8px">Scan to open Milo</div>
-        </div>
-        <button class="btn" id="shareCloseBtn">Close</button>
-      </div>
     </div>
 
     <!-- Share modal -->
@@ -1994,12 +1977,12 @@ function renderRules(){
   if(!rules.length){box.innerHTML='<div style="font-size:12px;color:var(--text3)">No rules yet. Add one below.</div>';return;}
   box.innerHTML=rules.map(function(r){
     var conds=[];
-    if(r.from)conds.push('from \u201c'+r.from+'\u201d');
-    if(r.to)conds.push('to \u201c'+r.to+'\u201d');
-    if(r.kw)conds.push('purpose has \u201c'+r.kw+'\u201d');
+    if(r.from)conds.push('from \u201c'+esc(r.from)+'\u201d');
+    if(r.to)conds.push('to \u201c'+esc(r.to)+'\u201d');
+    if(r.kw)conds.push('purpose has \u201c'+esc(r.kw)+'\u201d');
     return '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--surface2);border-radius:10px">'+
-      '<div style="flex:1;min-width:0"><div style="font-size:13px;color:var(--text);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(r.name||conds.join(' + '))+'</div>'+
-      '<div style="font-size:11px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+conds.join(' + ')+' \u2192 <span style="color:#f59e0b">'+r.cat+'</span></div></div>'+
+      '<div style="flex:1;min-width:0"><div style="font-size:13px;color:var(--text);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(esc(r.name)||conds.join(' + '))+'</div>'+
+      '<div style="font-size:11px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+conds.join(' + ')+' \u2192 <span style="color:#f59e0b">'+esc(r.cat)+'</span></div></div>'+
       '<button class="btn btn-danger" onclick="delRule('+r.id+')">\u2715</button></div>';
   }).join('');
 }
@@ -2027,6 +2010,7 @@ window.addRule=addRule;
 window.delRule=delRule;
 
 function fmt(d){if(!d)return'';const p=d.split("-");return p[1]+'/'+p[2]+'/'+p[0].slice(2);}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
 function save(){localStorage.setItem(TK,JSON.stringify(trips));}
 
 // ── SUPABASE SYNC ─────────────────────────────────────────────
@@ -2573,9 +2557,9 @@ function renderH(){
     </tr></thead>
     <tbody>${fl.map(t=>`<tr style="cursor:pointer" onclick="showTripDetail(${t.id})">
       <td class="mono" style="white-space:nowrap;font-size:12px;color:var(--text2)">${fmt(t.date)}</td>
-      <td><div class="route-cell" title="${t.from||''}${t.from&&t.to?' → ':''}${t.to||''}">${t.from||''}${t.from&&t.to?' → ':''}${t.to||''}</div></td>
-      <td style="font-size:12px;color:var(--text2);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.purpose||'—'}</td>
-      <td><span class="pill ${pc(t.category)}">${t.category||''}</span>${isCommute(t)?'<span class="pill" style="background:rgba(167,139,250,0.15);color:#a78bfa;margin-left:4px;font-size:10px" title="Personal commute — not deductible">🏠 Commute</span>':''}${(function(){var s=suggestFor(t);return s?'<div style="margin-top:4px;display:flex;align-items:center;gap:4px;font-size:11px;color:#f59e0b;white-space:nowrap">💡 '+s.cat+'<button class="map-btn" style="padding:1px 7px" title="Apply" onclick="event.stopPropagation();acceptSuggestion('+t.id+','+s.id+')">✓</button><button class="map-btn" style="padding:1px 7px" title="Dismiss" onclick="event.stopPropagation();dismissSuggestion('+t.id+','+s.id+')">✕</button></div>':'';})()}</td>
+      <td><div class="route-cell" title="${esc(t.from)}${t.from&&t.to?' → ':''}${esc(t.to)}">${esc(t.from)}${t.from&&t.to?' → ':''}${esc(t.to)}</div></td>
+      <td style="font-size:12px;color:var(--text2);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.purpose)||'—'}</td>
+      <td><span class="pill ${pc(t.category)}">${esc(t.category)}</span>${isCommute(t)?'<span class="pill" style="background:rgba(167,139,250,0.15);color:#a78bfa;margin-left:4px;font-size:10px" title="Personal commute — not deductible">🏠 Commute</span>':''}${(function(){var s=suggestFor(t);return s?'<div style="margin-top:4px;display:flex;align-items:center;gap:4px;font-size:11px;color:#f59e0b;white-space:nowrap">💡 '+esc(s.cat)+'<button class="map-btn" style="padding:1px 7px" title="Apply" onclick="event.stopPropagation();acceptSuggestion('+t.id+','+s.id+')">✓</button><button class="map-btn" style="padding:1px 7px" title="Dismiss" onclick="event.stopPropagation();dismissSuggestion('+t.id+','+s.id+')">✕</button></div>':'';})()}</td>
       <td class="mono" style="text-align:right;font-weight:500">${parseFloat(t.miles||0).toFixed(1)}</td>
       <td class="mono" style="text-align:right;color:${(isCommute(t)&&cfg.commuteExclude)||isPersonal(t)?'var(--text3)':'var(--green)'}">${(isCommute(t)&&cfg.commuteExclude)||isPersonal(t)?'<span style="text-decoration:line-through;opacity:0.5">$'+(parseFloat(t.miles||0)*rate(t.date)).toFixed(2)+'</span> $0.00':'$'+(parseFloat(t.miles||0)*rate(t.date)).toFixed(2)}</td>
       <td style="display:flex;gap:6px;align-items:center">${t.from&&t.to?`<button class="map-btn" onclick="event.stopPropagation();showHistMap(${t.id})">🗺 View Route</button>`:''}
@@ -2590,6 +2574,23 @@ function renderH(){
   </table>`;
 }
 
+function csvCell(c){
+  var s=String(c==null?'':c);
+  if(/^[=+\-@\t\r]/.test(s)&&isNaN(parseFloat(s)))s="'"+s;
+  return '"'+s.replace(/"/g,'""')+'"';
+}
+function parseCsvLine(line){
+  var out=[],cur='',q=false;
+  for(var i=0;i<line.length;i++){
+    var ch=line[i];
+    if(q){if(ch==='"'){if(line[i+1]==='"'){cur+='"';i++;}else q=false;}else cur+=ch;}
+    else if(ch==='"')q=true;
+    else if(ch===','){out.push(cur);cur='';}
+    else cur+=ch;
+  }
+  out.push(cur);
+  return out;
+}
 function doExport(){
   const fy=document.getElementById('fYear')?document.getElementById('fYear').value:'';
   let fl=[...trips];if(fy)fl=fl.filter(t=>yr(t.date)==fy);
@@ -2597,7 +2598,7 @@ function doExport(){
   const rows=[['Date','From','To','Purpose','Category','Miles','Rate ($/mi)','Deductible Value','Commute','Vehicle']];
   fl.forEach(t=>{const r=rate(t.date);rows.push([t.date,t.from||'',t.to||'',t.purpose||'',t.category||'',
     parseFloat(t.miles||0).toFixed(1),r.toFixed(3),deductibleValue(t).toFixed(2),isCommute(t)?'Yes':'No',cfg.vehicle||'']);});
-  const csv=rows.map(r=>r.map(c=>'"'+c+'"').join(',')).join('\n');
+  const csv=rows.map(r=>r.map(csvCell).join(',')).join('\n');
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
   a.download='mileage'+(fy?'_'+fy:'')+'_'+((cfg.biz||'export').replace(/\s/g,'_'))+'.csv';
@@ -2722,7 +2723,7 @@ function importCSV(event){
   reader.onload=function(e){
     const lines=e.target.result.split(/[\r\n]+/).filter(l=>l.trim());
     if(lines.length<2){toast('⚠ Empty or invalid CSV');return;}
-    const headers=lines[0].split(",").map(h=>h.replace(/"/g,"").trim().toLowerCase());
+    const headers=parseCsvLine(lines[0]).map(h=>h.trim().toLowerCase());
     const dateIdx=headers.findIndex(h=>h==='date');
     const milesIdx=headers.findIndex(h=>h==='miles');
     const fromIdx=headers.findIndex(h=>h==='from');
@@ -2732,8 +2733,8 @@ function importCSV(event){
     if(dateIdx===-1||milesIdx===-1){toast('⚠ CSV must have Date and Miles columns');return;}
     let added=0,skipped=0;
     for(let i=1;i<lines.length;i++){
-      const cols=lines[i].match(/(".*?"|[^,]+)(?=,|$)/g)||lines[i].split(",");
-      const clean=c=>c?c.replace(/^"|"$/g,'').trim():'';
+      const cols=parseCsvLine(lines[i]);
+      const clean=c=>c?c.trim().replace(/^'(?=[=+\-@])/,''):'';
       const date=clean(cols[dateIdx]);
       const miles=parseFloat(clean(cols[milesIdx]));
       if(!date||isNaN(miles)||miles<=0){skipped++;continue;}
@@ -2871,7 +2872,7 @@ function renderAnalytics(){
     const col=catColor(k), pct=(catGroups[k].miles/maxCat*100);
     return `<div class="cat-row2">
       <div class="cat-dot" style="background:${col}"></div>
-      <div class="cat-name" title="${k}">${k}</div>
+      <div class="cat-name" title="${esc(k)}">${esc(k)}</div>
       <div class="cat-track"><div class="cat-fill" style="width:${pct.toFixed(1)}%;background:${col}"></div></div>
       <div class="cat-amt">${catGroups[k].miles.toFixed(0)} mi<span class="cat-amt-sub">$${catGroups[k].value.toFixed(0)}</span></div>
     </div>`;
@@ -3429,7 +3430,7 @@ function renderAnalyticsEnhanced(){
       <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);margin-bottom:16px">Top Destinations</div>
       ${topDests.length?topDests.map(([addr,d])=>`
         <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)">
-          <div style="font-size:13px;color:var(--text);max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${addr}">${addr}</div>
+          <div style="font-size:13px;color:var(--text);max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(addr)}">${esc(addr)}</div>
           <div style="display:flex;gap:14px;font-size:12px;font-family:'JetBrains Mono',monospace">
             <span style="color:var(--text2)">${d.count} trip${d.count!==1?'s':''}</span>
             <span style="color:var(--text)">${d.miles.toFixed(0)} mi</span>
