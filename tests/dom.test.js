@@ -1,0 +1,80 @@
+// DOM-level tests for Milo using jsdom, with Google Maps / Supabase stubbed
+// (those can't be reached in a test environment). Run: node dom.test.js
+const fs = require('fs');
+const path = require('path');
+const { JSDOM } = require('jsdom');
+
+const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+const dom = new JSDOM(html, { runScripts: 'outside-only', pretendToBeVisual: true, url: 'https://jordoncissna.github.io/mileage-tracker/' });
+const { window } = dom;
+const { document } = window;
+
+// ---- stub externals the inline script expects ----
+window.google = { maps: { places: { Autocomplete: function () { return { addListener() {}, getPlace() { return {}; } }; }, AutocompleteService: function () { this.getPlacePredictions = () => {}; } }, Geocoder: function () { this.geocode = () => {}; }, Map: function () { this.addListener = () => {}; }, Marker: function () {}, DirectionsService: function () { this.route = () => {}; }, DirectionsRenderer: function () { this.setMap = () => {}; }, LatLngBounds: function () { this.extend = () => {}; }, geometry: { spherical: { computeDistanceBetween: () => 1609 } }, event: { addListenerOnce: () => {} }, importLibrary: () => Promise.resolve({}) } };
+window.supabase = { createClient: () => ({ auth: { getSession: async () => ({ data: { session: null } }), onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }), signInWithPassword: async () => ({}), signUp: async () => ({}), signOut: async () => ({}) }, from: () => ({ select: () => ({ eq: () => ({ order: async () => ({ data: [], error: null }) }) }), insert: async () => ({ data: [{ id: 'x' }], error: null }), update: () => ({ eq: async () => ({ error: null }) }), delete: () => ({ eq: async () => ({ error: null }) }) }) }) };
+window.QRCode = function () {};
+window.initGoogleMaps = window.initGoogleMaps || function () {};
+window.alert = () => {}; window.confirm = () => true;
+
+const store = {};
+window.localStorage = { getItem: k => k in store ? store[k] : null, setItem: (k, v) => { store[k] = String(v); }, removeItem: k => { delete store[k]; }, clear: () => { for (const k in store) delete store[k]; } };
+
+const inline = html.match(/<script>([\s\S]*?)<\/script>/g).pop().replace(/^<script>/, '').replace(/<\/script>$/, '');
+const runner = new window.Function(inline + '\n;window.__clearF=clearF;window.__addTrip=addTrip;window.__trips=()=>trips;window.__renderH=renderH;window.__renderAnalytics=renderAnalytics;window.__showTip=showChartTip;');
+try { runner.call(window); } catch (e) { console.log('init threw (often benign):', e.message); }
+
+let pass = 0, fail = 0;
+const T = (n, c) => { c ? pass++ : (fail++, console.log('FAIL:', n)); };
+const $ = id => document.getElementById(id);
+
+// ===== CLEAR BUTTON =====
+['tFromStreet', 'tFromCity', 'tFromState', 'tToStreet', 'tToCity', 'tToState'].forEach(id => { $(id).value = 'SOMETHING'; });
+$('tMiles').value = '42'; $('tPurpose').value = 'client visit'; $('tCat').selectedIndex = 3;
+window.__clearF();
+['tFromStreet', 'tFromCity', 'tFromState', 'tToStreet', 'tToCity', 'tToState'].forEach(id => T('clear ' + id, $(id).value === ''));
+T('clear tMiles', $('tMiles').value === '');
+T('clear tPurpose', $('tPurpose').value === '');
+T('clear tCat resets', $('tCat').selectedIndex === 0);
+T('clear tDate set', $('tDate').value && $('tDate').value.length === 10);
+
+// ===== ADD TRIP =====
+const before = window.__trips().length;
+$('tFromStreet').value = '1113 S 4090 W'; $('tFromCity').value = 'Syracuse'; $('tFromState').value = 'UT';
+$('tToStreet').value = '456 Business Ave'; $('tToCity').value = 'Lehi'; $('tToState').value = 'UT';
+$('tMiles').value = '15'; $('tPurpose').value = 'meeting'; $('tCat').selectedIndex = 0; $('tDate').value = '2026-06-10';
+window.__addTrip();
+const t = window.__trips()[window.__trips().length - 1];
+T('addTrip appends', window.__trips().length === before + 1);
+T('from built', t && t.from.indexOf('1113') >= 0);
+T('to built', t && t.to.indexOf('456 Business Ave') >= 0);
+T('miles parsed', t && t.miles === 15);
+T('form cleared after save', $('tMiles').value === '');
+const c2 = window.__trips().length;
+$('tMiles').value = ''; window.__addTrip();
+T('blocks empty miles', window.__trips().length === c2);
+
+// ===== HISTORY =====
+let threw = false; try { window.__renderH(); } catch (e) { threw = true; }
+T('renderH no throw', !threw);
+T('history populated', $('htable').innerHTML.indexOf('Lehi') >= 0);
+
+// ===== ANALYTICS (modernized charts) =====
+['2026-01-05', '2026-03-12', '2026-05-20'].forEach((d, i) => {
+  $('tFromStreet').value = '1113 S 4090 W'; $('tFromCity').value = 'Syracuse'; $('tFromState').value = 'UT';
+  $('tToStreet').value = (100 + i) + ' Test Rd'; $('tToCity').value = 'Lehi'; $('tToState').value = 'UT';
+  $('tMiles').value = String(10 + i * 5); $('tPurpose').value = 'meeting'; $('tCat').selectedIndex = 0; $('tDate').value = d;
+  window.__addTrip();
+});
+let aThrew = false; try { window.__renderAnalytics(); } catch (e) { aThrew = true; console.log('analytics err:', e.message); }
+T('analytics no throw', !aThrew);
+T('chart is SVG', $('aChart').innerHTML.indexOf('<svg') >= 0);
+T('chart gradient bars', $('aChart').innerHTML.indexOf('url(#barGrad)') >= 0);
+T('chart gridlines', $('aChart').innerHTML.indexOf('chart-grid') >= 0);
+T('category bars colored', $('aCats').innerHTML.indexOf('cat-fill') >= 0);
+T('tooltip element present', !!$('aChartTip'));
+let tipThrew = false; try { window.__showTip({ clientX: 100, clientY: 100 }, 'Jan', 42, 29); } catch (e) { tipThrew = true; }
+T('tooltip handler no throw', !tipThrew);
+T('tooltip populated', $('aChartTip').innerHTML.indexOf('mi') >= 0);
+
+console.log(`\ndom.test.js: ${pass} passed, ${fail} failed`);
+process.exit(fail ? 1 : 0);
