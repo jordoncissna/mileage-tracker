@@ -96,5 +96,16 @@ T('round-trip plain', parsed[0] === '2026-06-10' && parsed[3] === 'plain');
 T('parse unquoted line', parseCsvLine('a,b,c').join('|') === 'a|b|c');
 T('parse empty cells', parseCsvLine('a,,c').length === 3 && parseCsvLine('a,,c')[1] === '');
 
+// ===== AXIS SCALING =====
+eval(grab('niceCeil'));
+T('niceCeil zero', niceCeil(0) === 1);
+T('niceCeil exact 1', niceCeil(1) === 1);
+T('niceCeil 7 -> 10', niceCeil(7) === 10);
+T('niceCeil 43 -> 50', niceCeil(43) === 50);
+T('niceCeil 180 -> 200', niceCeil(180) === 200);
+T('niceCeil 2400 -> 2500', niceCeil(2400) === 2500);
+T('niceCeil 999 -> 1000', niceCeil(999) === 1000);
+T('niceCeil negative -> 1', niceCeil(-5) === 1);
+
 console.log(`\nrules.test.js: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

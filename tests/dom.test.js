@@ -88,6 +88,20 @@ T('no live script injected', !$('htable').querySelector('script'));
 T('escaped text still visible', $('htable').textContent.indexOf('<img src=x') >= 0);
 T('no script executed', !window.__pwned);
 
+// ===== ANALYTICS V2 =====
+window.__renderAnalytics();
+T('cumulative chart renders SVG', $('aCum').innerHTML.indexOf('<svg') >= 0);
+T('cumulative current-year line drawn', $('aCum').innerHTML.indexOf('stroke="var(--accent)"') >= 0);
+T('cumulative crosshair present', !!$('aCum').querySelector('#cumXhair'));
+T('cumulative legend shows year', $('aCumLegend').textContent.indexOf(String(new Date().getFullYear())) >= 0);
+T('heatmap renders cells', $('aHeat').querySelectorAll('.hm-cell').length >= 365);
+T('heatmap has active cells', $('aHeat').innerHTML.indexOf('var(--hm') >= 0);
+T('split bar has segments', $('aSplit').querySelectorAll('.split-seg').length >= 1);
+T('split shows three rows', $('aSplit').querySelectorAll('.sr').length === 3);
+T('split deductible value shown', $('aSplit').textContent.indexOf('$') >= 0);
+T('insights render chips', $('aInsights').querySelectorAll('.insight-chip').length >= 1);
+T('period chart has y-axis ticks', $('aChart').querySelectorAll('.chart-ylabel').length >= 3);
+
 // ===== SINGLE SHARE MODAL / RESIZE HANDLE =====
 T('one shareModal', document.querySelectorAll('#shareModal').length === 1);
 T('one rightResize', document.querySelectorAll('#rightResize').length === 1);
