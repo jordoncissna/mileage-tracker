@@ -102,8 +102,8 @@ no longer a numbered-download step — edit `index.html` directly.
   look broken). Test on the live URL or a local server (`python3 -m http.server`).
 - Client-side keys: the Supabase anon key is public by design (RLS is the real
   protection); the Google Maps key must be HTTP-referrer restricted.
-- There is a known duplicate `shareModal` block in the analytics markup (same
-  `id` twice). Harmless but worth de-duping.
+- User-entered text (addresses, purpose, rule fields) must go through `esc()`
+  before being rendered via `innerHTML`; CSV cells must go through `csvCell()`.
 
 ## Roadmap
 
