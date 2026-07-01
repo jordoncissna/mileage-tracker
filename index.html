@@ -103,7 +103,7 @@ select option{background:#1a2030;}
 .filter-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
 .filter-bar select{width:auto;font-size:12px;padding:6px 10px;}
 
-.table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--r3);overflow:hidden;}
+.table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--r3);overflow-x:auto;overflow-y:hidden;}
 table{width:100%;border-collapse:collapse;font-size:12px;table-layout:auto;}
 thead th{padding:8px 8px;text-align:left;font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;border-bottom:1px solid var(--border);background:var(--bg2);}
 td{padding:8px 8px;border-bottom:1px solid var(--border);vertical-align:middle;}
@@ -123,7 +123,10 @@ tfoot td{padding:8px 8px;font-weight:600;font-family:'JetBrains Mono',monospace;
 .p-other     {background:rgba(139,149,168,0.1); color:#8b95a8;border:1px solid rgba(139,149,168,0.15);}
 .p-personal  {background:rgba(244,114,182,0.12);color:#f472b6;border:1px solid rgba(244,114,182,0.25);}
 
-.route-cell{font-size:11px;color:var(--text3);font-family:'JetBrains Mono',monospace;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.route-cell{font-size:11px;color:var(--text3);font-family:'JetBrains Mono',monospace;max-width:var(--route-w,140px);min-width:var(--route-w,140px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.col-resizer{position:absolute;top:0;right:-4px;width:9px;height:100%;cursor:col-resize;z-index:5;touch-action:none;}
+.col-resizer:hover,.col-resizer.dragging{background:linear-gradient(90deg,transparent 3px,var(--accent) 3px,var(--accent) 6px,transparent 6px);}
+th.sortable{position:relative;}
 .mono{font-family:'JetBrains Mono',monospace;}
 .empty{text-align:center;padding:60px 24px;color:var(--text3);font-size:13px;line-height:1.8;}
 
@@ -297,7 +300,7 @@ tfoot td{padding:8px 8px;font-weight:600;font-family:'JetBrains Mono',monospace;
   .trips-table td{padding:10px 12px;border-bottom:1px solid var(--border);font-size:13px;}
   .trips-table tr:hover td{background:var(--surface2);}
   .trips-table tfoot td{font-weight:700;border-top:2px solid var(--border2);border-bottom:none;}
-  .route-cell{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--text2);font-family:'JetBrains Mono',monospace;}
+  .route-cell{max-width:var(--route-w,200px);min-width:var(--route-w,200px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--text2);font-family:'JetBrains Mono',monospace;}
 
 /* Refined auth polish */
 
@@ -1026,6 +1029,29 @@ body.fullwidth-history #view-set.on{
   border-radius:12px;
 }
 
+
+/* ── Modernized analytics charts ─────────────────────────── */
+.analytics-card{position:relative;}
+.analytics-chart{display:block;height:auto;min-height:0;}
+.svg-chart{display:block;width:100%;height:auto;max-height:260px;overflow:visible;}
+.chart-grid{stroke:var(--border);stroke-width:1;stroke-dasharray:2 5;}
+.chart-bar{transition:opacity .15s ease;}
+.chart-barg{cursor:default;}
+.chart-barg:hover .chart-bar{opacity:.8;}
+.chart-xlabel{fill:var(--text3);font-size:11px;font-family:'JetBrains Mono',monospace;}
+.chart-empty{padding:36px 12px;text-align:center;color:var(--text3);font-size:13px;}
+.chart-tooltip{position:absolute;pointer-events:none;opacity:0;transition:opacity .12s ease;background:var(--surface3);border:1px solid var(--border2);border-radius:9px;padding:7px 11px;display:flex;flex-direction:column;gap:1px;z-index:30;box-shadow:0 8px 24px rgba(0,0,0,.45);white-space:nowrap;}
+.chart-tooltip .tip-period{font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);}
+.chart-tooltip .tip-mi{font-size:14px;font-weight:600;color:var(--text);font-family:'JetBrains Mono',monospace;}
+.chart-tooltip .tip-val{font-size:12px;color:var(--green);font-family:'JetBrains Mono',monospace;}
+.cat-row2{display:flex;align-items:center;gap:11px;padding:8px 0;}
+.cat-row2+.cat-row2{border-top:1px solid var(--border);}
+.cat-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+.cat-name{font-size:12px;color:var(--text2);width:118px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.cat-track{flex:1;height:8px;background:var(--surface2);border-radius:6px;overflow:hidden;min-width:40px;}
+.cat-fill{height:100%;border-radius:6px;transition:width .55s cubic-bezier(.4,0,.2,1);}
+.cat-amt{font-size:12px;color:var(--text);font-family:'JetBrains Mono',monospace;text-align:right;display:flex;flex-direction:column;line-height:1.25;min-width:58px;}
+.cat-amt .cat-amt-sub{font-size:10px;color:var(--text3);}
 </style>
 </head>
 <body>
@@ -1592,6 +1618,7 @@ body.fullwidth-history #view-set.on{
         <div class="analytics-card-sub">Track your progress over time</div>
       </div>
       <div id="aChart" class="analytics-chart"></div>
+      <div id="aChartTip" class="chart-tooltip"></div>
     </div>
 
     <!-- 2-column row -->
@@ -2060,6 +2087,8 @@ async function deleteFromSupabase(trip){
   }catch(e){console.error('Delete error:',e);}
 }
 function pc(cat){return PCLASS[cat]||'p-other';}
+const PCOLOR={'Office Visit':'#a78bfa','Blockchain Work':'#4f9eff','Team Meeting':'#3dd68c','Client Meeting':'#fbbf24','Business Errand':'#f87171','Conference / Event':'#63cadc','Bank / Finance':'#22c55e','Office Supplies':'#f97316','Other Business':'#8b95a8','Personal (Non-deductible)':'#f472b6'};
+function catColor(c){return PCOLOR[c]||'#8b95a8';}
 
 function init(){
   try{const r=localStorage.getItem(TK);if(r)trips=JSON.parse(r);}catch(e){}
@@ -2112,6 +2141,29 @@ function applySettings(){
   document.getElementById('sYear').textContent=new Date().getFullYear();
   renderRules();
 }
+// ── COLUMN RESIZE (Route) ────────────────────────────────────
+function applyRouteWidth(px){document.documentElement.style.setProperty('--route-w',px+'px');}
+(function(){try{var w=localStorage.getItem('ml3_routew');if(w)applyRouteWidth(parseInt(w,10));}catch(e){}})();
+function startColResize(e){
+  e.preventDefault();e.stopPropagation();
+  var handle=e.currentTarget;handle.classList.add('dragging');
+  var th=handle.closest('th');
+  var startX=e.clientX, startW=th.getBoundingClientRect().width;
+  function move(ev){
+    var w=Math.max(80,Math.min(700,startW+(ev.clientX-startX)));
+    applyRouteWidth(Math.round(w));
+  }
+  function up(){
+    document.removeEventListener('pointermove',move);
+    document.removeEventListener('pointerup',up);
+    handle.classList.remove('dragging');
+    var cur=getComputedStyle(document.documentElement).getPropertyValue('--route-w').trim();
+    try{localStorage.setItem('ml3_routew',parseInt(cur,10)||140);}catch(e){}
+  }
+  document.addEventListener('pointermove',move);
+  document.addEventListener('pointerup',up);
+}
+window.startColResize=startColResize;
 
 function saveSet(){
   cfg.rates[2026]=parseFloat(document.getElementById('r2026').value)||0.700;
@@ -2512,7 +2564,7 @@ function renderH(){
   box.innerHTML=sugBanner+`<table>
     <thead><tr>
       <th class="sortable" onclick="sortBy('date')">Date <span class="sort-ind" data-col="date"></span></th>
-      <th class="sortable" onclick="sortBy('route')">Route <span class="sort-ind" data-col="route"></span></th>
+      <th class="sortable" onclick="sortBy('route')">Route <span class="sort-ind" data-col="route"></span><span class="col-resizer" onclick="event.stopPropagation()" onpointerdown="startColResize(event)"></span></th>
       <th class="sortable" onclick="sortBy('purpose')">Purpose <span class="sort-ind" data-col="purpose"></span></th>
       <th class="sortable" onclick="sortBy('category')">Category <span class="sort-ind" data-col="category"></span></th>
       <th class="sortable" style="text-align:right" onclick="sortBy('miles')">Miles <span class="sort-ind" data-col="miles"></span></th>
@@ -2778,17 +2830,32 @@ function renderAnalytics(){
   // Chart
   document.getElementById('aChartTitle').textContent='Miles per '+(period==='month'?'Month':period==='quarter'?'Quarter':period==='half'?'Half Year':'Year');
   const chart=document.getElementById('aChart');
-  const chartH=140;
-  chart.innerHTML=keys.map(k=>{
-    const pct=grouped[k].miles/maxMi;
-    const barH=Math.max(Math.round(pct*chartH),4);
-    const label=k.replace(/^\d{4}-/,'').replace(/^(\d{4}) /,'');
-    return `<div class="a-bar-wrap" title="${grouped[k].miles.toFixed(0)} mi · $${grouped[k].value.toFixed(0)}">
-      <div class="a-bar-val">${grouped[k].miles.toFixed(0)}</div>
-      <div class="a-bar" style="height:${barH}px;width:100%;"></div>
-      <div class="a-bar-label">${label}</div>
-    </div>`;
-  }).join('');
+  if(!keys.length){
+    chart.innerHTML='<div class="chart-empty">No trips in this range yet — log one to see your trend.</div>';
+  }else{
+    const W=640,H=220,padL=12,padR=12,padT=18,padB=28;
+    const plotW=W-padL-padR, plotH=H-padT-padB;
+    const slot=plotW/keys.length;
+    const bw=Math.max(6,Math.min(slot*0.56,52));
+    let grid='';
+    [0,0.25,0.5,0.75,1].forEach(g=>{const y=padT+plotH*(1-g);grid+=`<line class="chart-grid" x1="${padL}" y1="${y.toFixed(1)}" x2="${W-padR}" y2="${y.toFixed(1)}"/>`;});
+    let bars='';
+    keys.forEach((k,i)=>{
+      const v=grouped[k].miles, val=grouped[k].value;
+      const bh=maxMi>0?Math.max((v/maxMi)*plotH,2):2;
+      const cx=padL+slot*i+slot/2;
+      const x=cx-bw/2, y=padT+plotH-bh;
+      const lbl=k.replace(/^\d{4}-/,'').replace(/^(\d{4}) /,'');
+      bars+=`<g class="chart-barg" onpointerenter="showChartTip(event,'${lbl}',${v.toFixed(0)},${val.toFixed(0)})" onpointermove="moveChartTip(event)" onpointerleave="hideChartTip()">`+
+        `<rect x="${(padL+slot*i).toFixed(1)}" y="${padT}" width="${slot.toFixed(1)}" height="${plotH}" fill="transparent"/>`+
+        `<rect class="chart-bar" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${bh.toFixed(1)}" rx="${Math.min(bw/2,6).toFixed(1)}" fill="url(#barGrad)"/>`+
+        `<text class="chart-xlabel" x="${cx.toFixed(1)}" y="${H-9}" text-anchor="middle">${lbl}</text>`+
+      `</g>`;
+    });
+    chart.innerHTML=`<svg viewBox="0 0 ${W} ${H}" class="svg-chart" role="img" aria-label="Miles per period">`+
+      `<defs><linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#5aa6ff"/><stop offset="100%" stop-color="#3d8ef0" stop-opacity="0.7"/></linearGradient></defs>`+
+      grid+bars+`</svg>`;
+  }
 
   // Category breakdown
   const catGroups={};
@@ -2800,16 +2867,32 @@ function renderAnalytics(){
   });
   const catKeys=Object.keys(catGroups).sort((a,b)=>catGroups[b].miles-catGroups[a].miles);
   const maxCat=Math.max(...catKeys.map(k=>catGroups[k].miles),1);
-  document.getElementById('aCats').innerHTML=catKeys.map(k=>`
-    <div class="a-cat-row">
-      <div class="a-cat-label">${k}</div>
-      <div style="flex:1;background:var(--surface2);border-radius:4px;height:8px;overflow:hidden;">
-        <div class="a-cat-bar" style="width:${catGroups[k].miles/maxCat*100}%"></div>
-      </div>
-      <div class="a-cat-val">${catGroups[k].miles.toFixed(1)} mi · $${catGroups[k].value.toFixed(0)}</div>
-    </div>
-  `).join('');
+  document.getElementById('aCats').innerHTML=catKeys.length?catKeys.map(k=>{
+    const col=catColor(k), pct=(catGroups[k].miles/maxCat*100);
+    return `<div class="cat-row2">
+      <div class="cat-dot" style="background:${col}"></div>
+      <div class="cat-name" title="${k}">${k}</div>
+      <div class="cat-track"><div class="cat-fill" style="width:${pct.toFixed(1)}%;background:${col}"></div></div>
+      <div class="cat-amt">${catGroups[k].miles.toFixed(0)} mi<span class="cat-amt-sub">$${catGroups[k].value.toFixed(0)}</span></div>
+    </div>`;
+  }).join(''):'<div class="chart-empty">No categories yet.</div>';
 }
+
+// ── CHART TOOLTIP ────────────────────────────
+function showChartTip(e,label,mi,val){
+  var tip=document.getElementById('aChartTip');if(!tip)return;
+  tip.innerHTML='<span class="tip-period">'+label+'</span><span class="tip-mi">'+Number(mi).toLocaleString()+' mi</span><span class="tip-val">$'+Number(val).toLocaleString()+'</span>';
+  tip.style.opacity='1';moveChartTip(e);
+}
+function moveChartTip(e){
+  var tip=document.getElementById('aChartTip');if(!tip||!tip.parentElement)return;
+  var r=tip.parentElement.getBoundingClientRect();
+  var x=e.clientX-r.left, y=e.clientY-r.top;
+  tip.style.left=Math.max(6,Math.min(x+12,r.width-tip.offsetWidth-6))+'px';
+  tip.style.top=Math.max(4,y-tip.offsetHeight-10)+'px';
+}
+function hideChartTip(){var tip=document.getElementById('aChartTip');if(tip)tip.style.opacity='0';}
+window.showChartTip=showChartTip;window.moveChartTip=moveChartTip;window.hideChartTip=hideChartTip;
 
 // ── SHARE ─────────────────────────────────────────────────────
 function openShareModal(){

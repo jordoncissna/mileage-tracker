@@ -1,0 +1,18 @@
+# Dependencies
+node_modules/
+tests/node_modules/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+
+# Local build artifacts / numbered downloads
+mileage-tracker_*.html
+*.log
+
+# Env / secrets (never commit real keys)
+.env
+.env.local
