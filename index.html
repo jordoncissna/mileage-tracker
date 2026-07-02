@@ -22,6 +22,9 @@
   --green:#3dd68c; --green-bg:rgba(61,214,140,0.08);
   --red:#f87171; --red-bg:rgba(248,113,113,0.08);
   --r:6px; --r2:10px; --r3:14px;
+  /* Analytics series colors — CVD-validated per mode; keep the trio's order */
+  --viz-biz:#3987e5; --viz-com:#c98500; --viz-per:#d55181;
+  --hm1:#184f95; --hm2:#1c5cab; --hm3:#2a78d6; --hm4:#5598e7; --hm5:#86b6ef;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column;overflow:hidden;}
@@ -52,10 +55,10 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
 .right::-webkit-scrollbar{width:4px;}
 .right::-webkit-scrollbar-thumb{background:var(--surface3);border-radius:4px;}
 
-.stats-bar{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border);border-radius:var(--r2);overflow:hidden;border:1px solid var(--border);flex-shrink:0;}
-.stat{background:var(--surface);padding:13px 14px;}
-.stat-label{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px;}
-.stat-val{font-family:'JetBrains Mono',monospace;font-size:19px;font-weight:500;color:var(--text);line-height:1;}
+.stats-bar{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:var(--border);border-radius:var(--r2);overflow:hidden;border:1px solid var(--border);flex-shrink:0;container-type:inline-size;}
+.stat{background:var(--surface);padding:13px 10px;min-width:0;}
+.stat-label{font-size:9px;font-size:clamp(8px,3.4cqw,10px);font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.stat-val{font-family:'JetBrains Mono',monospace;font-size:14px;font-size:clamp(11px,4.9cqw,19px);font-weight:500;color:var(--text);line-height:1;white-space:nowrap;}
 .stat-val.green{color:var(--green);}
 .stat-sub{font-size:10px;color:var(--text3);margin-top:4px;font-family:'JetBrains Mono',monospace;}
 
@@ -259,6 +262,8 @@ th.sortable{position:relative;}
     --accent:#2563eb; --accent2:#1d4ed8; --accent-glow:rgba(37,99,235,0.15); --accent-bg:rgba(37,99,235,0.08);
     --green:#059669; --green-bg:rgba(5,150,105,0.08);
     --red:#dc2626; --red-bg:rgba(220,38,38,0.08);
+    --viz-biz:#2a78d6; --viz-com:#eda100; --viz-per:#e87ba4;
+    --hm1:#cde2fb; --hm2:#9ec5f4; --hm3:#5598e7; --hm4:#2a78d6; --hm5:#184f95;
   }
   body.light .topbar{background:#fff;border-bottom:1px solid rgba(0,0,0,0.1);}
   body.light .left{background:#f8fafc;}
@@ -576,6 +581,7 @@ body.fullwidth-history .resize-handle{display:none!important;}
 
 /* Hero banner at top */
 .settings-hero{
+  flex-shrink:0;
   background:linear-gradient(135deg,rgba(79,158,255,0.08),rgba(124,77,255,0.08));
   border:1px solid rgba(79,158,255,0.15);
   border-radius:18px;
@@ -908,6 +914,7 @@ body.fullwidth-history #view-set.on{
 #view-set.on .settings-hero,
 #view-set.on .settings-grid{
   max-width:1400px;
+  width:100%;
   margin-left:auto;
   margin-right:auto;
 }
@@ -1034,7 +1041,40 @@ body.fullwidth-history #view-set.on{
 .analytics-card{position:relative;}
 .analytics-chart{display:block;height:auto;min-height:0;}
 .svg-chart{display:block;width:100%;height:auto;max-height:260px;overflow:visible;}
-.chart-grid{stroke:var(--border);stroke-width:1;stroke-dasharray:2 5;}
+.chart-grid{stroke:var(--border);stroke-width:1;}
+.chart-ylabel{fill:var(--text3);font-size:10px;font-family:'JetBrains Mono',monospace;}
+.viz-legend{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px;}
+.viz-legend .lg{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2);}
+.viz-legend .lg-line{width:14px;height:2px;border-radius:1px;}
+.viz-legend .lg-swatch{width:10px;height:10px;border-radius:3px;}
+.insight-strip{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0 0;}
+.insight-chip{display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--surface);border:1px solid var(--border);border-radius:999px;font-size:12.5px;color:var(--text2);}
+.insight-chip b{color:var(--text);font-weight:600;}
+.split-bar{display:flex;gap:2px;height:26px;border-radius:8px;overflow:hidden;margin:6px 0 14px;}
+.split-seg{min-width:3px;transition:width .5s cubic-bezier(.4,0,.2,1);}
+.split-rows .sr{display:flex;align-items:center;gap:10px;padding:7px 0;font-size:12.5px;color:var(--text2);}
+.split-rows .sr+.sr{border-top:1px solid var(--border);}
+.split-rows .sr-name{flex:1;}
+.split-rows .sr-val{font-family:'JetBrains Mono',monospace;color:var(--text);}
+.split-rows .sr-sub{font-family:'JetBrains Mono',monospace;color:var(--text3);min-width:70px;text-align:right;}
+.hm-lbl{fill:var(--text3);font-size:8.5px;font-family:'JetBrains Mono',monospace;}
+.quick-start{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:20px;z-index:6;pointer-events:none;}
+.qs-card{background:var(--surface);border:1px solid var(--border2);border-radius:var(--r3);padding:24px;max-width:380px;width:100%;display:flex;flex-direction:column;gap:12px;box-shadow:0 16px 48px rgba(0,0,0,.35);pointer-events:auto;}
+.qs-title{font-size:17px;font-weight:700;color:var(--text);}
+.qs-sub{font-size:12.5px;color:var(--text2);line-height:1.5;margin-top:-6px;}
+.qs-step{display:flex;gap:12px;align-items:flex-start;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;transition:opacity .3s;}
+.qs-step>div>b{display:block;font-size:13px;color:var(--text);font-weight:600;}
+.qs-step span{font-size:11.5px;color:var(--text3);line-height:1.45;}
+.qs-step span b{font-size:inherit;color:var(--text2);font-weight:600;}
+.qs-dot{width:22px;height:22px;flex-shrink:0;border-radius:50%;background:var(--accent-bg);color:var(--accent);border:1px solid var(--accent);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-top:1px;}
+.qs-step.done{opacity:.55;}
+.qs-step.done .qs-dot{background:var(--green-bg);color:var(--green);border-color:var(--green);}
+.qs-step.done .qs-dot::before{content:'✓';}
+.qs-step.done .qs-dot{font-size:0;}
+.qs-step.done .qs-dot::before{font-size:12px;}
+.qs-hint{font-size:11px;color:var(--text3);text-align:center;}
+.hm-cell{rx:2px;}
+.hm-cell:hover{stroke:var(--text2);stroke-width:1;}
 .chart-bar{transition:opacity .15s ease;}
 .chart-barg{cursor:default;}
 .chart-barg:hover .chart-bar{opacity:.8;}
@@ -1520,6 +1560,17 @@ body.fullwidth-history #view-set.on{
       Calculate a route to see it here.<br>
       <span style="font-size:12px;color:var(--text3)">Satellite view · powered by OpenStreetMap</span>
     </div>
+    <div class="quick-start" id="quickStart" style="display:none">
+      <div class="qs-card">
+        <div class="qs-title">Let’s log your first trip</div>
+        <div class="qs-sub">Three quick steps and Milo starts building your IRS-ready mileage log.</div>
+        <div class="qs-step" id="qsStep1"><span class="qs-dot">1</span><div><b>Where from?</b><span>Enter the starting street &amp; city on the left</span></div></div>
+        <div class="qs-step" id="qsStep2"><span class="qs-dot">2</span><div><b>Where to?</b><span>Enter the destination</span></div></div>
+        <div class="qs-step" id="qsStep3"><span class="qs-dot">3</span><div><b>Miles &amp; save</b><span>Hit <b>⊙ Calculate distance</b> (or type miles), then <b>Save trip</b></span></div></div>
+        <button class="btn btn-primary" onclick="fillSampleTrip()" style="margin-top:6px;width:100%">✨ Fill an example trip for me</button>
+        <div class="qs-hint">Uses your Home &amp; Office if they’re set in Settings.</div>
+      </div>
+    </div>
   </div>
 
 
@@ -1593,6 +1644,9 @@ body.fullwidth-history #view-set.on{
       <button class="btn btn-primary" id="aShareBtn" style="position:absolute;top:20px;right:20px;z-index:2;">↗ Share Report</button>
     </div>
 
+    <!-- Insights strip -->
+    <div class="insight-strip" id="aInsights"></div>
+
     <!-- Filter controls -->
     <div class="analytics-filters">
       <label class="analytics-filter-label">View:</label>
@@ -1620,6 +1674,17 @@ body.fullwidth-history #view-set.on{
       <div id="aChartTip" class="chart-tooltip"></div>
     </div>
 
+    <!-- Deduction pace -->
+    <div class="analytics-card">
+      <div class="analytics-card-header">
+        <div class="analytics-card-title" id="aCumTitle">Deduction Pace</div>
+        <div class="analytics-card-sub">Cumulative deductible value vs last year</div>
+      </div>
+      <div class="viz-legend" id="aCumLegend"></div>
+      <div id="aCum" class="analytics-chart"></div>
+      <div id="aCumTip" class="chart-tooltip"></div>
+    </div>
+
     <!-- 2-column row -->
     <div class="analytics-row-2col">
       <!-- Category breakdown -->
@@ -1632,6 +1697,25 @@ body.fullwidth-history #view-set.on{
       </div>
       <!-- Enhanced section -->
       <div id="aEnhanced" class="analytics-enhanced-wrapper"></div>
+    </div>
+
+    <!-- Deductible split -->
+    <div class="analytics-card">
+      <div class="analytics-card-header">
+        <div class="analytics-card-title">Where Your Miles Land</div>
+        <div class="analytics-card-sub">Deductible vs excluded, per IRS rules</div>
+      </div>
+      <div id="aSplit"></div>
+    </div>
+
+    <!-- Activity heatmap -->
+    <div class="analytics-card">
+      <div class="analytics-card-header">
+        <div class="analytics-card-title" id="aHeatTitle">Your Driving Year</div>
+        <div class="analytics-card-sub">Miles logged per day</div>
+      </div>
+      <div id="aHeat" class="analytics-chart" style="position:relative"></div>
+      <div id="aHeatTip" class="chart-tooltip"></div>
     </div>
 
     <!-- Share modal -->
@@ -1675,24 +1759,14 @@ body.fullwidth-history #view-set.on{
         </div>
       </div>
       <div class="settings-grid">
-        <div class="sc"><div class="sc-icon" style="background:linear-gradient(135deg,#4f9eff,#7c4dff)">🔐</div>
-          <h3>Account</h3>
-          <div style="font-size:12px;color:var(--text2);margin-bottom:14px">Change your password without needing email recovery.</div>
-          <div class="field" style="margin-bottom:10px">
-            <span class="field-label">New password</span>
-            <input type="password" id="newPwd" placeholder="At least 6 characters" autocomplete="new-password"/>
-          </div>
-          <div class="field" style="margin-bottom:14px">
-            <span class="field-label">Confirm new password</span>
-            <input type="password" id="newPwd2" placeholder="Repeat password" autocomplete="new-password"/>
-          </div>
-          <button class="btn btn-primary" id="changePwdBtn" style="width:100%">Change Password</button>
-          <div id="changePwdMsg" style="font-size:12px;margin-top:10px;display:none"></div>
-        </div>
         <div class="sc"><div class="sc-icon" style="background:linear-gradient(135deg,#3dd68c,#22b574)">🏢</div>
           <h3>Business info</h3>
           <div class="field" style="margin-bottom:10px"><span class="field-label">Business name</span><input type="text" id="sBiz" placeholder="Your S-Corp name"/></div>
           <div class="field" style="margin-bottom:10px"><span class="field-label">Vehicle</span><input type="text" id="sVehicle" placeholder="e.g. Tesla Model 3"/></div>
+        </div>
+        <div class="sc"><div class="sc-icon" style="background:linear-gradient(135deg,#63cadc,#0891b2)">📍</div>
+          <h3>Home &amp; office</h3>
+          <div style="font-size:12px;color:var(--text2);margin-bottom:14px">These two addresses pre-fill new trips and power the commute detection below.</div>
           <div class="field" style="margin-bottom:8px">
             <span class="field-label">🏠 Home address — Street</span>
             <input type="text" id="sHomeStreet" placeholder="123 Main St" autocomplete="off"/>
@@ -1713,31 +1787,6 @@ body.fullwidth-history #view-set.on{
           </div>
           <span style="font-size:11px;color:var(--text3)">Used to detect commute trips (Home ↔ Office)</span>
         </div>
-        <div class="sc"><div class="sc-icon" style="background:linear-gradient(135deg,#f59e0b,#f97316)">🗺️</div>
-          <h3>Distance calculation</h3>
-          <div style="font-size:12px;color:var(--text2);line-height:1.8;margin-bottom:14px">
-            Uses <strong style="color:var(--text)">Google Maps</strong> for routing and display.<br>
-            <span style="font-size:11px;color:var(--text3)">Requires internet when calculating.</span>
-          </div>
-          <h3 style="margin-top:4px">Appearance</h3>
-          <div style="display:flex;gap:8px">
-            <button class="mode-btn" id="modeDark" onclick="setMode('dark')">🌙 Dark</button>
-            <button class="mode-btn" id="modeLight" onclick="setMode('light')">☀️ Light</button>
-          </div>
-        </div>
-      </div>
-      <div class="settings-grid">
-        <div class="sc"><div class="sc-icon" style="background:linear-gradient(135deg,#ec4899,#db2777)">📋</div>
-          <h3>IRS mileage rates</h3>
-          <div class="g2" style="margin-bottom:10px">
-            <div class="field"><span class="field-label">2026</span><div class="iw"><input type="number" id="r2026" step="0.001" value="0.700"/><span class="isuf">$/mi</span></div></div>
-            <div class="field"><span class="field-label">2025</span><div class="iw"><input type="number" id="r2025" step="0.001" value="0.700"/><span class="isuf">$/mi</span></div></div>
-          </div>
-          <div class="g2">
-            <div class="field"><span class="field-label">2024</span><div class="iw"><input type="number" id="r2024" step="0.001" value="0.670"/><span class="isuf">$/mi</span></div></div>
-            <div class="field"><span class="field-label">2023</span><div class="iw"><input type="number" id="r2023" step="0.001" value="0.655"/><span class="isuf">$/mi</span></div></div>
-          </div>
-        </div>
         <div class="sc"><div class="sc-icon" style="background:linear-gradient(135deg,#a78bfa,#8b5cf6)">🚫</div>
           <h3>Commute exemption</h3>
           <div style="font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:14px">
@@ -1753,6 +1802,17 @@ body.fullwidth-history #view-set.on{
           </div>
           <div style="font-size:11px;color:var(--text3);line-height:1.5;background:rgba(167,139,250,0.08);border:1px solid rgba(167,139,250,0.2);border-radius:8px;padding:10px 12px;">
             <strong style="color:#a78bfa">📋 IRS §262:</strong> Commuting expenses between your home and main workplace are personal and non-deductible, even if you work during the commute.
+          </div>
+        </div>
+        <div class="sc"><div class="sc-icon" style="background:linear-gradient(135deg,#ec4899,#db2777)">📋</div>
+          <h3>IRS mileage rates</h3>
+          <div class="g2" style="margin-bottom:10px">
+            <div class="field"><span class="field-label">2026</span><div class="iw"><input type="number" id="r2026" step="0.001" value="0.700"/><span class="isuf">$/mi</span></div></div>
+            <div class="field"><span class="field-label">2025</span><div class="iw"><input type="number" id="r2025" step="0.001" value="0.700"/><span class="isuf">$/mi</span></div></div>
+          </div>
+          <div class="g2">
+            <div class="field"><span class="field-label">2024</span><div class="iw"><input type="number" id="r2024" step="0.001" value="0.670"/><span class="isuf">$/mi</span></div></div>
+            <div class="field"><span class="field-label">2023</span><div class="iw"><input type="number" id="r2023" step="0.001" value="0.655"/><span class="isuf">$/mi</span></div></div>
           </div>
         </div>
         <div class="sc"><div class="sc-icon" style="background:linear-gradient(135deg,#f59e0b,#d97706)">⚡</div>
@@ -1784,6 +1844,32 @@ body.fullwidth-history #view-set.on{
             <div style="font-size:11px;color:var(--text3);line-height:1.5">Fill at least one match condition. All filled conditions must match (addresses use the same fuzzy matching as commute detection).</div>
           </div>
         </div>
+        <div class="sc"><div class="sc-icon" style="background:linear-gradient(135deg,#f59e0b,#f97316)">🗺️</div>
+          <h3>Distance calculation</h3>
+          <div style="font-size:12px;color:var(--text2);line-height:1.8;margin-bottom:14px">
+            Uses <strong style="color:var(--text)">Google Maps</strong> for routing and display.<br>
+            <span style="font-size:11px;color:var(--text3)">Requires internet when calculating.</span>
+          </div>
+          <h3 style="margin-top:4px">Appearance</h3>
+          <div style="display:flex;gap:8px">
+            <button class="mode-btn" id="modeDark" onclick="setMode('dark')">🌙 Dark</button>
+            <button class="mode-btn" id="modeLight" onclick="setMode('light')">☀️ Light</button>
+          </div>
+        </div>
+        <div class="sc"><div class="sc-icon" style="background:linear-gradient(135deg,#4f9eff,#7c4dff)">🔐</div>
+          <h3>Account</h3>
+          <div style="font-size:12px;color:var(--text2);margin-bottom:14px">Change your password without needing email recovery.</div>
+          <div class="field" style="margin-bottom:10px">
+            <span class="field-label">New password</span>
+            <input type="password" id="newPwd" placeholder="At least 6 characters" autocomplete="new-password"/>
+          </div>
+          <div class="field" style="margin-bottom:14px">
+            <span class="field-label">Confirm new password</span>
+            <input type="password" id="newPwd2" placeholder="Repeat password" autocomplete="new-password"/>
+          </div>
+          <button class="btn btn-primary" id="changePwdBtn" style="width:100%">Change Password</button>
+          <div id="changePwdMsg" style="font-size:12px;margin-top:10px;display:none"></div>
+        </div>
         <div class="sc"><div class="sc-icon" style="background:linear-gradient(135deg,#06b6d4,#0891b2)">📦</div>
           <h3>Data</h3>
           <p style="font-size:12px;color:var(--text3);margin-bottom:14px;line-height:1.6">Export CSV to back up or share with your accountant. Import a CSV to restore trips.</p>
@@ -1796,10 +1882,8 @@ body.fullwidth-history #view-set.on{
           </div>
         </div>
       </div>
-      <div style="display:flex;gap:10px">
-        <button class="btn btn-primary" onclick="saveSet()">Save settings</button>
-        <button class="btn" onclick="doExport()">↓ Export all as CSV</button>
-        <label class="btn" style="cursor:pointer">↑ Import CSV<input type="file" accept=".csv" style="display:none" onchange="importCSV(event)"/></label>
+      <div style="display:flex;justify-content:flex-end;margin-top:4px">
+        <button class="btn btn-primary" onclick="saveSet()" style="min-width:180px">💾 Save settings</button>
       </div>
     </div>
 
@@ -2090,6 +2174,7 @@ function init(){
     if(stEl)stEl.value=parts[2]||'';
   }
   applySettings();updateSidebar();renderH();
+  setTimeout(updateQuickStart,600); // re-check after async field prefills settle
 }
 
 function applySettings(){
@@ -2183,7 +2268,45 @@ function updateSidebar(){
   document.getElementById('sM').textContent=mi.toFixed(1);
   document.getElementById('sV').textContent='$'+val.toFixed(2);
   document.getElementById('sT').textContent=ytd.length;
+  updateQuickStart();
 }
+
+// ── FIRST-TRIP QUICK START ──────────────────────────────────
+function updateQuickStart(){
+  var qs=document.getElementById('quickStart');if(!qs)return;
+  var vv=function(id){var el=document.getElementById(id);return el&&el.value.trim();};
+  var s1=!!(vv('tFromStreet')||vv('tFromCity'));
+  var s2=!!(vv('tToStreet')||vv('tToCity'));
+  var s3=parseFloat((document.getElementById('tMiles')||{}).value||0)>0;
+  var show=!trips.length&&!(s1&&s2&&s3);
+  qs.style.display=show?'flex':'none';
+  if(!show)return;
+  [[1,s1],[2,s2],[3,s3]].forEach(function(p){
+    var el=document.getElementById('qsStep'+p[0]);
+    if(el)el.classList.toggle('done',p[1]);
+  });
+}
+function fillSampleTrip(){
+  var set=function(id,val){var el=document.getElementById(id);if(el)el.value=val;};
+  var home=(cfg.home||'').split(',').map(function(s){return s.trim();});
+  var office=(cfg.office||'').split(',').map(function(s){return s.trim();});
+  set('tFromStreet',home[0]||'1113 S 4090 W');
+  set('tFromCity',home[1]||'Syracuse');
+  set('tFromState',((home[2]||'UT').replace(/[^A-Za-z]/g,'')||'UT').slice(0,2).toUpperCase());
+  set('tToStreet',office[0]||'2975 Executive Pkwy');
+  set('tToCity',office[1]||'Lehi');
+  set('tToState',((office[2]||'UT').replace(/[^A-Za-z]/g,'')||'UT').slice(0,2).toUpperCase());
+  set('tPurpose','Example — client meeting');
+  set('tMiles','12.4');
+  if(typeof buildAddr==='function')buildAddr();
+  updateQuickStart();
+  toast('Example filled in — review it, then hit Save trip');
+}
+window.fillSampleTrip=fillSampleTrip;
+['tFromStreet','tFromCity','tToStreet','tToCity','tMiles'].forEach(function(id){
+  var el=document.getElementById(id);
+  if(el)el.addEventListener('input',updateQuickStart);
+});
 
 let mainMap=null, histMapObj=null, currentLayers=[];
 
@@ -2221,7 +2344,7 @@ window.initGoogleMaps=function(){
   initGoogleMapPanel();
   // Apply saved mode to map after it loads
   setTimeout(()=>{
-    const savedMode=localStorage.getItem('ml_mode')||'dark';
+    const savedMode=localStorage.getItem('ml_mode')||'light';
     applyMapMode(savedMode);
   },500);
 };
@@ -2251,7 +2374,7 @@ function initGoogleMapPanel(){
   if(!googleReady||googleMap)return;
   const mapEl=document.getElementById('mainMap');
   if(!mapEl)return;
-  const savedMode=localStorage.getItem('ml_mode')||'dark';
+  const savedMode=localStorage.getItem('ml_mode')||'light';
   googleMap=new google.maps.Map(mapEl,{
     center:{lat:40.76,lng:-111.89},
     zoom:10,
@@ -2276,7 +2399,7 @@ function initGoogleMapPanel(){
     fullscreenControl:false,
   });
   // Apply saved mode immediately after map creation
-  const _savedMode=localStorage.getItem('ml_mode')||'dark';
+  const _savedMode=localStorage.getItem('ml_mode')||'light';
   setTimeout(()=>applyMapMode(_savedMode), 100);
 
   // Click to set handler
@@ -2624,15 +2747,15 @@ function switchNav(name,el){
   });
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
   document.getElementById('view-'+name).classList.add('on');
-  if(name==='hist')renderH();
-  if(name==='analytics'&&typeof renderAnalytics==='function')renderAnalytics();
-  // Auto-expand fullwidth for History and Analytics
+  // Auto-expand fullwidth first so charts measure the final layout width
   if(name==='hist'||name==='analytics'||name==='set'){
     document.body.classList.add('fullwidth-history');
     if(name==='set'&&typeof updateSettingsHero==='function')updateSettingsHero();
   } else {
     document.body.classList.remove('fullwidth-history');
   }
+  if(name==='hist')renderH();
+  if(name==='analytics'&&typeof renderAnalytics==='function')renderAnalytics();
 }
 
 let tt;
@@ -2793,6 +2916,15 @@ function renderAnalytics(){
   const aYear=document.getElementById('aYear');
   const curY=aYear.value;
   aYear.innerHTML='<option value="">All years</option>'+years.map(y=>`<option value="${y}"${curY==y?' selected':''}>${y}</option>`).join('');
+  // First visit defaults to the current year so charts read cleanly; user choice sticks after that
+  if(!aYear._defApplied){
+    aYear._defApplied=true;
+    const nowYr=String(new Date().getFullYear());
+    if(!curY&&years.map(String).indexOf(nowYr)>=0){
+      aYear.value=nowYr;
+      return renderAnalytics();
+    }
+  }
 
   let fl=filterYear?trips.filter(t=>yr(t.date)==filterYear):[...trips];
 
@@ -2834,26 +2966,35 @@ function renderAnalytics(){
   if(!keys.length){
     chart.innerHTML='<div class="chart-empty">No trips in this range yet — log one to see your trend.</div>';
   }else{
-    const W=640,H=220,padL=12,padR=12,padT=18,padB=28;
+    const W=Math.max(480,chart.clientWidth||640),H=220,padL=44,padR=12,padT=18,padB=28;
     const plotW=W-padL-padR, plotH=H-padT-padB;
     const slot=plotW/keys.length;
-    const bw=Math.max(6,Math.min(slot*0.56,52));
+    const bw=Math.max(6,Math.min(slot*0.56,24));
+    const yMax=niceCeil(maxMi);
     let grid='';
-    [0,0.25,0.5,0.75,1].forEach(g=>{const y=padT+plotH*(1-g);grid+=`<line class="chart-grid" x1="${padL}" y1="${y.toFixed(1)}" x2="${W-padR}" y2="${y.toFixed(1)}"/>`;});
+    [0,0.25,0.5,0.75,1].forEach(g=>{
+      const y=padT+plotH*(1-g);
+      grid+=`<line class="chart-grid" x1="${padL}" y1="${y.toFixed(1)}" x2="${W-padR}" y2="${y.toFixed(1)}"/>`;
+      grid+=`<text class="chart-ylabel" x="${padL-6}" y="${(y+3).toFixed(1)}" text-anchor="end">${Math.round(yMax*g).toLocaleString()}</text>`;
+    });
     let bars='';
+    const maxIdx=keys.reduce((m,k,i)=>grouped[k].miles>grouped[keys[m]].miles?i:m,0);
     keys.forEach((k,i)=>{
       const v=grouped[k].miles, val=grouped[k].value;
-      const bh=maxMi>0?Math.max((v/maxMi)*plotH,2):2;
+      const bh=Math.max((v/yMax)*plotH,2);
       const cx=padL+slot*i+slot/2;
       const x=cx-bw/2, y=padT+plotH-bh;
-      const lbl=k.replace(/^\d{4}-/,'').replace(/^(\d{4}) /,'');
+      const r=Math.min(4,bw/2,bh);
+      let lbl=k.replace(/^\d{4}-/,'').replace(/^(\d{4}) /,'');
+      if(/^\d{2}$/.test(lbl))lbl=MOS[parseInt(lbl,10)-1]||lbl;
       bars+=`<g class="chart-barg" onpointerenter="showChartTip(event,'${lbl}',${v.toFixed(0)},${val.toFixed(0)})" onpointermove="moveChartTip(event)" onpointerleave="hideChartTip()">`+
         `<rect x="${(padL+slot*i).toFixed(1)}" y="${padT}" width="${slot.toFixed(1)}" height="${plotH}" fill="transparent"/>`+
-        `<rect class="chart-bar" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${bh.toFixed(1)}" rx="${Math.min(bw/2,6).toFixed(1)}" fill="url(#barGrad)"/>`+
+        `<path class="chart-bar" d="M${x.toFixed(1)},${(y+bh).toFixed(1)} V${(y+r).toFixed(1)} Q${x.toFixed(1)},${y.toFixed(1)} ${(x+r).toFixed(1)},${y.toFixed(1)} H${(x+bw-r).toFixed(1)} Q${(x+bw).toFixed(1)},${y.toFixed(1)} ${(x+bw).toFixed(1)},${(y+r).toFixed(1)} V${(y+bh).toFixed(1)} Z" fill="url(#barGrad)"/>`+
+        (i===maxIdx&&v>0?`<text class="chart-ylabel" style="fill:var(--text2)" x="${cx.toFixed(1)}" y="${(y-5).toFixed(1)}" text-anchor="middle">${v.toFixed(0)}</text>`:'')+
         `<text class="chart-xlabel" x="${cx.toFixed(1)}" y="${H-9}" text-anchor="middle">${lbl}</text>`+
       `</g>`;
     });
-    chart.innerHTML=`<svg viewBox="0 0 ${W} ${H}" class="svg-chart" role="img" aria-label="Miles per period">`+
+    chart.innerHTML=`<svg viewBox="0 0 ${W} ${H}" class="svg-chart" style="height:${H}px" role="img" aria-label="Miles per period">`+
       `<defs><linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#5aa6ff"/><stop offset="100%" stop-color="#3d8ef0" stop-opacity="0.7"/></linearGradient></defs>`+
       grid+bars+`</svg>`;
   }
@@ -3457,10 +3598,213 @@ function renderAnalyticsEnhanced(){
   `;
 }
 
+// ── ANALYTICS V2 ────────────────────────────────────────────
+var MOS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function niceCeil(v){
+  if(!(v>0))return 1;
+  var p=Math.pow(10,Math.floor(Math.log(v)/Math.LN10));
+  var n=v/p;
+  return (n<=1?1:n<=2?2:n<=2.5?2.5:n<=5?5:10)*p;
+}
+function _vizTipMove(tip,e){
+  if(!tip||!tip.parentElement)return;
+  var r=tip.parentElement.getBoundingClientRect();
+  var x=e.clientX-r.left,y=e.clientY-r.top;
+  tip.style.left=Math.max(6,Math.min(x+12,r.width-tip.offsetWidth-6))+'px';
+  tip.style.top=Math.max(4,y-tip.offsetHeight-10)+'px';
+}
+
+function monthlyCumulative(year){
+  var sums=[0,0,0,0,0,0,0,0,0,0,0,0];
+  trips.forEach(function(t){
+    if(!t.date||t.date.slice(0,4)!==String(year))return;
+    var m=parseInt(t.date.slice(5,7),10)-1;
+    if(m>=0&&m<12)sums[m]+=deductibleValue(t);
+  });
+  var cum=[],run=0;
+  for(var m=0;m<12;m++){run+=sums[m];cum.push(run);}
+  return cum;
+}
+
+function renderCumulative(){
+  var box=document.getElementById('aCum');if(!box)return;
+  var fy=document.getElementById('aYear').value;
+  var yearA=fy||String(new Date().getFullYear());
+  var yearB=String(parseInt(yearA,10)-1);
+  var cumA=monthlyCumulative(yearA),cumB=monthlyCumulative(yearB);
+  var hasA=trips.some(function(t){return t.date&&t.date.slice(0,4)===yearA;});
+  var hasB=trips.some(function(t){return t.date&&t.date.slice(0,4)===yearB;});
+  var now=new Date();
+  var lastA=(parseInt(yearA,10)===now.getFullYear())?now.getMonth():11;
+  var title=document.getElementById('aCumTitle');if(title)title.textContent='Deduction Pace — '+yearA;
+  var legend=document.getElementById('aCumLegend');
+  if(!hasA&&!hasB){box.innerHTML='<div class="chart-empty">No trips in '+esc(yearA)+' yet — log one to start tracking your pace.</div>';if(legend)legend.innerHTML='';return;}
+  if(legend)legend.innerHTML='<span class="lg"><span class="lg-line" style="background:var(--accent)"></span>'+esc(yearA)+'</span>'+
+    (hasB?'<span class="lg"><span class="lg-line" style="background:var(--text3)"></span>'+esc(yearB)+'</span>':'');
+  var W=Math.max(480,box.clientWidth||640),H=200,padL=48,padR=70,padT=14,padB=24;
+  var plotW=W-padL-padR,plotH=H-padT-padB;
+  var yMax=niceCeil(Math.max(hasA?cumA[lastA]:0,hasB?cumB[11]:0));
+  var X=function(m){return padL+plotW*(m/11);};
+  var Y=function(v){return padT+plotH*(1-v/yMax);};
+  var grid='';
+  [0,0.5,1].forEach(function(g){
+    var y=padT+plotH*(1-g);
+    grid+='<line class="chart-grid" x1="'+padL+'" y1="'+y.toFixed(1)+'" x2="'+(W-padR)+'" y2="'+y.toFixed(1)+'"/>';
+    grid+='<text class="chart-ylabel" x="'+(padL-6)+'" y="'+(y+3).toFixed(1)+'" text-anchor="end">$'+Math.round(yMax*g).toLocaleString()+'</text>';
+  });
+  var xlbl='';
+  for(var m=0;m<12;m+=2)xlbl+='<text class="chart-xlabel" x="'+X(m).toFixed(1)+'" y="'+(H-6)+'" text-anchor="middle">'+MOS[m]+'</text>';
+  var lineB='',lineA='',area='';
+  if(hasB)lineB='<polyline fill="none" stroke="var(--text3)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" points="'+cumB.map(function(v,m){return X(m).toFixed(1)+','+Y(v).toFixed(1);}).join(' ')+'"/>';
+  if(hasA){
+    var ptsA=cumA.slice(0,lastA+1).map(function(v,m){return X(m).toFixed(1)+','+Y(v).toFixed(1);});
+    area='<polygon fill="var(--accent)" fill-opacity="0.1" points="'+X(0).toFixed(1)+','+Y(0).toFixed(1)+' '+ptsA.join(' ')+' '+X(lastA).toFixed(1)+','+Y(0).toFixed(1)+'"/>';
+    lineA='<polyline fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" points="'+ptsA.join(' ')+'"/>'+
+      '<circle cx="'+X(lastA).toFixed(1)+'" cy="'+Y(cumA[lastA]).toFixed(1)+'" r="4" fill="var(--accent)" stroke="var(--surface)" stroke-width="2"/>'+
+      '<text class="chart-ylabel" style="fill:var(--text);font-weight:600" x="'+(X(lastA)+9).toFixed(1)+'" y="'+(Y(cumA[lastA])+3.5).toFixed(1)+'">$'+Math.round(cumA[lastA]).toLocaleString()+'</text>';
+  }
+  var hits='';
+  for(var m2=0;m2<12;m2++){
+    var av=(hasA&&m2<=lastA)?Math.round(cumA[m2]):null;
+    var bv=hasB?Math.round(cumB[m2]):null;
+    hits+='<rect x="'+(X(m2)-plotW/22).toFixed(1)+'" y="'+padT+'" width="'+(plotW/11).toFixed(1)+'" height="'+plotH+'" fill="transparent" onpointerenter="showCumTip(event,\''+MOS[m2]+'\','+av+','+bv+','+X(m2).toFixed(1)+')" onpointermove="moveCumTip(event)" onpointerleave="hideCumTip()"/>';
+  }
+  box.innerHTML='<svg viewBox="0 0 '+W+' '+H+'" class="svg-chart" style="height:'+H+'px" role="img" aria-label="Cumulative deduction by month">'+grid+xlbl+area+lineB+lineA+
+    '<line id="cumXhair" y1="'+padT+'" y2="'+(padT+plotH)+'" stroke="var(--border2)" stroke-width="1" opacity="0"/>'+hits+'</svg>';
+  box._years=[yearA,yearB];
+}
+function showCumTip(e,mo,av,bv,x){
+  var box=document.getElementById('aCum'),tip=document.getElementById('aCumTip');if(!box||!tip)return;
+  var ys=box._years||['',''];
+  var rows='<span class="tip-period">'+mo+'</span>';
+  if(av!==null)rows+='<span class="tip-mi">$'+Number(av).toLocaleString()+' <span style="font-weight:400;color:var(--text3)">'+ys[0]+'</span></span>';
+  if(bv!==null)rows+='<span class="tip-val" style="color:var(--text2)">$'+Number(bv).toLocaleString()+' <span style="color:var(--text3)">'+ys[1]+'</span></span>';
+  tip.innerHTML=rows;tip.style.opacity='1';
+  var xh=box.querySelector('#cumXhair');if(xh){xh.setAttribute('x1',x);xh.setAttribute('x2',x);xh.setAttribute('opacity','1');}
+  _vizTipMove(tip,e);
+}
+function moveCumTip(e){_vizTipMove(document.getElementById('aCumTip'),e);}
+function hideCumTip(){
+  var tip=document.getElementById('aCumTip');if(tip)tip.style.opacity='0';
+  var box=document.getElementById('aCum');
+  var xh=box&&box.querySelector('#cumXhair');if(xh)xh.setAttribute('opacity','0');
+}
+
+function renderSplit(){
+  var box=document.getElementById('aSplit');if(!box)return;
+  var fy=document.getElementById('aYear').value;
+  var fl=fy?trips.filter(function(t){return yr(t.date)==fy;}):trips;
+  var biz=0,com=0,per=0,bizVal=0;
+  fl.forEach(function(t){
+    var mi=parseFloat(t.miles||0);
+    if(isPersonal(t))per+=mi;
+    else if(cfg.commuteExclude&&isCommute(t))com+=mi;
+    else{biz+=mi;bizVal+=deductibleValue(t);}
+  });
+  var tot=biz+com+per;
+  if(!tot){box.innerHTML='<div class="chart-empty">No trips yet.</div>';return;}
+  var seg=function(v,color,name){return v>0?'<div class="split-seg" style="width:'+(v/tot*100).toFixed(1)+'%;background:var(--viz-'+color+')" title="'+esc(name)+': '+v.toFixed(0)+' mi"></div>':'';};
+  box.innerHTML='<div class="split-bar">'+seg(biz,'biz','Deductible business')+seg(com,'com','Commute (excluded)')+seg(per,'per','Personal (excluded)')+'</div>'+
+    '<div class="split-rows">'+
+    '<div class="sr"><span class="lg-swatch" style="background:var(--viz-biz)"></span><span class="sr-name">Deductible business</span><span class="sr-sub">'+biz.toFixed(0)+' mi</span><span class="sr-val">$'+bizVal.toFixed(2)+'</span></div>'+
+    '<div class="sr"><span class="lg-swatch" style="background:var(--viz-com)"></span><span class="sr-name">Commute — excluded per IRS §262</span><span class="sr-sub">'+com.toFixed(0)+' mi</span><span class="sr-val" style="color:var(--text3)">$0.00</span></div>'+
+    '<div class="sr"><span class="lg-swatch" style="background:var(--viz-per)"></span><span class="sr-name">Personal — non-deductible</span><span class="sr-sub">'+per.toFixed(0)+' mi</span><span class="sr-val" style="color:var(--text3)">$0.00</span></div>'+
+    '</div>';
+}
+
+function renderHeatmap(){
+  var box=document.getElementById('aHeat');if(!box)return;
+  var fy=document.getElementById('aYear').value;
+  var year=parseInt(fy||new Date().getFullYear(),10);
+  var title=document.getElementById('aHeatTitle');if(title)title.textContent='Your Driving Year — '+year;
+  var byDay={},max=0;
+  trips.forEach(function(t){
+    if(!t.date||t.date.slice(0,4)!==String(year))return;
+    var mi=parseFloat(t.miles||0);
+    byDay[t.date]=(byDay[t.date]||0)+mi;
+    if(byDay[t.date]>max)max=byDay[t.date];
+  });
+  var padL=26,padT=14;
+  var jan1=new Date(year,0,1);
+  var offset=jan1.getDay();
+  var days=((year%4===0&&year%100!==0)||year%400===0)?366:365;
+  var weeks=Math.ceil((days+offset)/7);
+  var availW=Math.max(480,box.clientWidth||640);
+  var pitch=Math.max(9,Math.min(16,Math.floor((availW-padL-2)/weeks)));
+  var gap=2,cell=pitch-gap;
+  var W=padL+weeks*pitch+2,H=padT+7*pitch+4;
+  var cells='',monthLbl='';
+  for(var d=0;d<days;d++){
+    var dt=new Date(year,0,d+1);
+    var col=Math.floor((d+offset)/7),row=(d+offset)%7;
+    var iso=year+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
+    var v=byDay[iso]||0;
+    var fill=v>0?'var(--hm'+Math.min(5,Math.max(1,Math.ceil(v/max*5)))+')':'var(--surface3)';
+    if(dt.getDate()===1)monthLbl+='<text class="hm-lbl" x="'+(padL+col*pitch)+'" y="'+(padT-4)+'">'+MOS[dt.getMonth()]+'</text>';
+    cells+='<rect class="hm-cell" x="'+(padL+col*pitch)+'" y="'+(padT+row*pitch)+'" width="'+cell+'" height="'+cell+'" rx="2" fill="'+fill+'"'+
+      ' onpointerenter="showHeatTip(event,\''+MOS[dt.getMonth()]+' '+dt.getDate()+'\','+v.toFixed(1)+')" onpointermove="moveHeatTip(event)" onpointerleave="hideHeatTip()"/>';
+  }
+  var dayLbl='';
+  [['Mon',1],['Wed',3],['Fri',5]].forEach(function(p){
+    dayLbl+='<text class="hm-lbl" x="'+(padL-5)+'" y="'+(padT+p[1]*pitch+cell-2)+'" text-anchor="end">'+p[0].charAt(0)+'</text>';
+  });
+  box.innerHTML='<svg viewBox="0 0 '+W+' '+H+'" class="svg-chart" style="width:'+W+'px;max-width:100%" role="img" aria-label="Miles driven per day, '+year+'">'+monthLbl+dayLbl+cells+'</svg>';
+}
+function showHeatTip(e,label,mi){
+  var tip=document.getElementById('aHeatTip');if(!tip)return;
+  tip.innerHTML='<span class="tip-period">'+label+'</span><span class="tip-mi">'+(mi>0?Number(mi).toLocaleString()+' mi':'No trips')+'</span>';
+  tip.style.opacity='1';_vizTipMove(tip,e);
+}
+function moveHeatTip(e){_vizTipMove(document.getElementById('aHeatTip'),e);}
+function hideHeatTip(){var tip=document.getElementById('aHeatTip');if(tip)tip.style.opacity='0';}
+
+function renderInsights(){
+  var box=document.getElementById('aInsights');if(!box)return;
+  var now=new Date(),nowY=now.getFullYear();
+  var ytd=trips.filter(function(t){return t.date&&yr(t.date)===nowY;});
+  var chips=[];
+  var cut=(nowY-1)+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+  var prior=trips.filter(function(t){return t.date&&yr(t.date)===nowY-1&&t.date<=cut;});
+  if(prior.length){
+    var dNow=ytd.reduce(function(s,t){return s+deductibleValue(t);},0);
+    var dPri=prior.reduce(function(s,t){return s+deductibleValue(t);},0);
+    var diff=dNow-dPri;
+    chips.push((diff>=0?'▲ <b>$'+Math.abs(diff).toFixed(0)+'</b> ahead of':'▼ <b>$'+Math.abs(diff).toFixed(0)+'</b> behind')+' last year’s pace');
+  }
+  if(ytd.length>=3){
+    var dow=[0,0,0,0,0,0,0],names=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    ytd.forEach(function(t){dow[new Date(t.date+'T12:00').getDay()]+=parseFloat(t.miles||0);});
+    var bi=dow.indexOf(Math.max.apply(null,dow));
+    if(dow[bi]>0)chips.push('<b>'+names[bi]+'</b> is your biggest driving day');
+    var cats={},tot=0;
+    ytd.forEach(function(t){var c=t.category||'Other';var mi=parseFloat(t.miles||0);cats[c]=(cats[c]||0)+mi;tot+=mi;});
+    var top=Object.keys(cats).sort(function(a,b){return cats[b]-cats[a];})[0];
+    if(top&&tot>0)chips.push('<b>'+esc(top)+'</b> leads with '+Math.round(cats[top]/tot*100)+'% of miles');
+    var lg=ytd.reduce(function(a,t){return parseFloat(t.miles||0)>parseFloat(a.miles||0)?t:a;},ytd[0]);
+    if(lg&&parseFloat(lg.miles||0)>0)chips.push('Longest trip: <b>'+parseFloat(lg.miles).toFixed(0)+' mi</b> on '+fmt(lg.date));
+  }
+  box.innerHTML=chips.map(function(c){return '<div class="insight-chip">'+c+'</div>';}).join('');
+  box.style.display=chips.length?'flex':'none';
+}
+window.showCumTip=showCumTip;window.moveCumTip=moveCumTip;window.hideCumTip=hideCumTip;
+window.showHeatTip=showHeatTip;window.moveHeatTip=moveHeatTip;window.hideHeatTip=hideHeatTip;
+var _vizResizeT;
+window.addEventListener('resize',function(){
+  clearTimeout(_vizResizeT);
+  _vizResizeT=setTimeout(function(){
+    var v=document.getElementById('view-analytics');
+    if(v&&v.classList.contains('on'))renderAnalytics();
+  },200);
+});
+
 // Wrap renderAnalytics to also render enhanced section
 const _origRenderAnalytics=renderAnalytics;
 renderAnalytics=function(){
   _origRenderAnalytics();
+  renderInsights();
+  renderCumulative();
+  renderSplit();
+  renderHeatmap();
   renderAnalyticsEnhanced();
 };
 window.renderAnalytics=renderAnalytics;
@@ -3535,6 +3879,7 @@ function setMode(mode){
   setTimeout(()=>applyMapMode(mode),3000);
 }
 window.setMode=setMode;
+setMode(localStorage.getItem('ml_mode')||'light');
 window.applyMapMode=applyMapMode;
 window.switchNav=switchNav;
 window.calcDist=calcDist;
