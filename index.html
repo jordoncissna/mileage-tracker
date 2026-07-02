@@ -55,10 +55,10 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
 .right::-webkit-scrollbar{width:4px;}
 .right::-webkit-scrollbar-thumb{background:var(--surface3);border-radius:4px;}
 
-.stats-bar{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border);border-radius:var(--r2);overflow:hidden;border:1px solid var(--border);flex-shrink:0;}
-.stat{background:var(--surface);padding:13px 14px;}
-.stat-label{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px;}
-.stat-val{font-family:'JetBrains Mono',monospace;font-size:19px;font-weight:500;color:var(--text);line-height:1;}
+.stats-bar{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:var(--border);border-radius:var(--r2);overflow:hidden;border:1px solid var(--border);flex-shrink:0;container-type:inline-size;}
+.stat{background:var(--surface);padding:13px 10px;min-width:0;}
+.stat-label{font-size:9px;font-size:clamp(8px,3.4cqw,10px);font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.stat-val{font-family:'JetBrains Mono',monospace;font-size:14px;font-size:clamp(11px,4.9cqw,19px);font-weight:500;color:var(--text);line-height:1;white-space:nowrap;}
 .stat-val.green{color:var(--green);}
 .stat-sub{font-size:10px;color:var(--text3);margin-top:4px;font-family:'JetBrains Mono',monospace;}
 
@@ -581,6 +581,7 @@ body.fullwidth-history .resize-handle{display:none!important;}
 
 /* Hero banner at top */
 .settings-hero{
+  flex-shrink:0;
   background:linear-gradient(135deg,rgba(79,158,255,0.08),rgba(124,77,255,0.08));
   border:1px solid rgba(79,158,255,0.15);
   border-radius:18px;
@@ -913,6 +914,7 @@ body.fullwidth-history #view-set.on{
 #view-set.on .settings-hero,
 #view-set.on .settings-grid{
   max-width:1400px;
+  width:100%;
   margin-left:auto;
   margin-right:auto;
 }
@@ -1056,6 +1058,21 @@ body.fullwidth-history #view-set.on{
 .split-rows .sr-val{font-family:'JetBrains Mono',monospace;color:var(--text);}
 .split-rows .sr-sub{font-family:'JetBrains Mono',monospace;color:var(--text3);min-width:70px;text-align:right;}
 .hm-lbl{fill:var(--text3);font-size:8.5px;font-family:'JetBrains Mono',monospace;}
+.quick-start{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:20px;z-index:6;pointer-events:none;}
+.qs-card{background:var(--surface);border:1px solid var(--border2);border-radius:var(--r3);padding:24px;max-width:380px;width:100%;display:flex;flex-direction:column;gap:12px;box-shadow:0 16px 48px rgba(0,0,0,.35);pointer-events:auto;}
+.qs-title{font-size:17px;font-weight:700;color:var(--text);}
+.qs-sub{font-size:12.5px;color:var(--text2);line-height:1.5;margin-top:-6px;}
+.qs-step{display:flex;gap:12px;align-items:flex-start;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;transition:opacity .3s;}
+.qs-step>div>b{display:block;font-size:13px;color:var(--text);font-weight:600;}
+.qs-step span{font-size:11.5px;color:var(--text3);line-height:1.45;}
+.qs-step span b{font-size:inherit;color:var(--text2);font-weight:600;}
+.qs-dot{width:22px;height:22px;flex-shrink:0;border-radius:50%;background:var(--accent-bg);color:var(--accent);border:1px solid var(--accent);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-top:1px;}
+.qs-step.done{opacity:.55;}
+.qs-step.done .qs-dot{background:var(--green-bg);color:var(--green);border-color:var(--green);}
+.qs-step.done .qs-dot::before{content:'✓';}
+.qs-step.done .qs-dot{font-size:0;}
+.qs-step.done .qs-dot::before{font-size:12px;}
+.qs-hint{font-size:11px;color:var(--text3);text-align:center;}
 .hm-cell{rx:2px;}
 .hm-cell:hover{stroke:var(--text2);stroke-width:1;}
 .chart-bar{transition:opacity .15s ease;}
@@ -1543,6 +1560,17 @@ body.fullwidth-history #view-set.on{
       Calculate a route to see it here.<br>
       <span style="font-size:12px;color:var(--text3)">Satellite view · powered by OpenStreetMap</span>
     </div>
+    <div class="quick-start" id="quickStart" style="display:none">
+      <div class="qs-card">
+        <div class="qs-title">Let’s log your first trip</div>
+        <div class="qs-sub">Three quick steps and Milo starts building your IRS-ready mileage log.</div>
+        <div class="qs-step" id="qsStep1"><span class="qs-dot">1</span><div><b>Where from?</b><span>Enter the starting street &amp; city on the left</span></div></div>
+        <div class="qs-step" id="qsStep2"><span class="qs-dot">2</span><div><b>Where to?</b><span>Enter the destination</span></div></div>
+        <div class="qs-step" id="qsStep3"><span class="qs-dot">3</span><div><b>Miles &amp; save</b><span>Hit <b>⊙ Calculate distance</b> (or type miles), then <b>Save trip</b></span></div></div>
+        <button class="btn btn-primary" onclick="fillSampleTrip()" style="margin-top:6px;width:100%">✨ Fill an example trip for me</button>
+        <div class="qs-hint">Uses your Home &amp; Office if they’re set in Settings.</div>
+      </div>
+    </div>
   </div>
 
 
@@ -1731,24 +1759,14 @@ body.fullwidth-history #view-set.on{
         </div>
       </div>
       <div class="settings-grid">
-        <div class="sc"><div class="sc-icon" style="background:linear-gradient(135deg,#4f9eff,#7c4dff)">🔐</div>
-          <h3>Account</h3>
-          <div style="font-size:12px;color:var(--text2);margin-bottom:14px">Change your password without needing email recovery.</div>
-          <div class="field" style="margin-bottom:10px">
-            <span class="field-label">New password</span>
-            <input type="password" id="newPwd" placeholder="At least 6 characters" autocomplete="new-password"/>
-          </div>
-          <div class="field" style="margin-bottom:14px">
-            <span class="field-label">Confirm new password</span>
-            <input type="password" id="newPwd2" placeholder="Repeat password" autocomplete="new-password"/>
-          </div>
-          <button class="btn btn-primary" id="changePwdBtn" style="width:100%">Change Password</button>
-          <div id="changePwdMsg" style="font-size:12px;margin-top:10px;display:none"></div>
-        </div>
         <div class="sc"><div class="sc-icon" style="background:linear-gradient(135deg,#3dd68c,#22b574)">🏢</div>
           <h3>Business info</h3>
           <div class="field" style="margin-bottom:10px"><span class="field-label">Business name</span><input type="text" id="sBiz" placeholder="Your S-Corp name"/></div>
           <div class="field" style="margin-bottom:10px"><span class="field-label">Vehicle</span><input type="text" id="sVehicle" placeholder="e.g. Tesla Model 3"/></div>
+        </div>
+        <div class="sc"><div class="sc-icon" style="background:linear-gradient(135deg,#63cadc,#0891b2)">📍</div>
+          <h3>Home &amp; office</h3>
+          <div style="font-size:12px;color:var(--text2);margin-bottom:14px">These two addresses pre-fill new trips and power the commute detection below.</div>
           <div class="field" style="margin-bottom:8px">
             <span class="field-label">🏠 Home address — Street</span>
             <input type="text" id="sHomeStreet" placeholder="123 Main St" autocomplete="off"/>
@@ -1769,31 +1787,6 @@ body.fullwidth-history #view-set.on{
           </div>
           <span style="font-size:11px;color:var(--text3)">Used to detect commute trips (Home ↔ Office)</span>
         </div>
-        <div class="sc"><div class="sc-icon" style="background:linear-gradient(135deg,#f59e0b,#f97316)">🗺️</div>
-          <h3>Distance calculation</h3>
-          <div style="font-size:12px;color:var(--text2);line-height:1.8;margin-bottom:14px">
-            Uses <strong style="color:var(--text)">Google Maps</strong> for routing and display.<br>
-            <span style="font-size:11px;color:var(--text3)">Requires internet when calculating.</span>
-          </div>
-          <h3 style="margin-top:4px">Appearance</h3>
-          <div style="display:flex;gap:8px">
-            <button class="mode-btn" id="modeDark" onclick="setMode('dark')">🌙 Dark</button>
-            <button class="mode-btn" id="modeLight" onclick="setMode('light')">☀️ Light</button>
-          </div>
-        </div>
-      </div>
-      <div class="settings-grid">
-        <div class="sc"><div class="sc-icon" style="background:linear-gradient(135deg,#ec4899,#db2777)">📋</div>
-          <h3>IRS mileage rates</h3>
-          <div class="g2" style="margin-bottom:10px">
-            <div class="field"><span class="field-label">2026</span><div class="iw"><input type="number" id="r2026" step="0.001" value="0.700"/><span class="isuf">$/mi</span></div></div>
-            <div class="field"><span class="field-label">2025</span><div class="iw"><input type="number" id="r2025" step="0.001" value="0.700"/><span class="isuf">$/mi</span></div></div>
-          </div>
-          <div class="g2">
-            <div class="field"><span class="field-label">2024</span><div class="iw"><input type="number" id="r2024" step="0.001" value="0.670"/><span class="isuf">$/mi</span></div></div>
-            <div class="field"><span class="field-label">2023</span><div class="iw"><input type="number" id="r2023" step="0.001" value="0.655"/><span class="isuf">$/mi</span></div></div>
-          </div>
-        </div>
         <div class="sc"><div class="sc-icon" style="background:linear-gradient(135deg,#a78bfa,#8b5cf6)">🚫</div>
           <h3>Commute exemption</h3>
           <div style="font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:14px">
@@ -1809,6 +1802,17 @@ body.fullwidth-history #view-set.on{
           </div>
           <div style="font-size:11px;color:var(--text3);line-height:1.5;background:rgba(167,139,250,0.08);border:1px solid rgba(167,139,250,0.2);border-radius:8px;padding:10px 12px;">
             <strong style="color:#a78bfa">📋 IRS §262:</strong> Commuting expenses between your home and main workplace are personal and non-deductible, even if you work during the commute.
+          </div>
+        </div>
+        <div class="sc"><div class="sc-icon" style="background:linear-gradient(135deg,#ec4899,#db2777)">📋</div>
+          <h3>IRS mileage rates</h3>
+          <div class="g2" style="margin-bottom:10px">
+            <div class="field"><span class="field-label">2026</span><div class="iw"><input type="number" id="r2026" step="0.001" value="0.700"/><span class="isuf">$/mi</span></div></div>
+            <div class="field"><span class="field-label">2025</span><div class="iw"><input type="number" id="r2025" step="0.001" value="0.700"/><span class="isuf">$/mi</span></div></div>
+          </div>
+          <div class="g2">
+            <div class="field"><span class="field-label">2024</span><div class="iw"><input type="number" id="r2024" step="0.001" value="0.670"/><span class="isuf">$/mi</span></div></div>
+            <div class="field"><span class="field-label">2023</span><div class="iw"><input type="number" id="r2023" step="0.001" value="0.655"/><span class="isuf">$/mi</span></div></div>
           </div>
         </div>
         <div class="sc"><div class="sc-icon" style="background:linear-gradient(135deg,#f59e0b,#d97706)">⚡</div>
@@ -1840,6 +1844,32 @@ body.fullwidth-history #view-set.on{
             <div style="font-size:11px;color:var(--text3);line-height:1.5">Fill at least one match condition. All filled conditions must match (addresses use the same fuzzy matching as commute detection).</div>
           </div>
         </div>
+        <div class="sc"><div class="sc-icon" style="background:linear-gradient(135deg,#f59e0b,#f97316)">🗺️</div>
+          <h3>Distance calculation</h3>
+          <div style="font-size:12px;color:var(--text2);line-height:1.8;margin-bottom:14px">
+            Uses <strong style="color:var(--text)">Google Maps</strong> for routing and display.<br>
+            <span style="font-size:11px;color:var(--text3)">Requires internet when calculating.</span>
+          </div>
+          <h3 style="margin-top:4px">Appearance</h3>
+          <div style="display:flex;gap:8px">
+            <button class="mode-btn" id="modeDark" onclick="setMode('dark')">🌙 Dark</button>
+            <button class="mode-btn" id="modeLight" onclick="setMode('light')">☀️ Light</button>
+          </div>
+        </div>
+        <div class="sc"><div class="sc-icon" style="background:linear-gradient(135deg,#4f9eff,#7c4dff)">🔐</div>
+          <h3>Account</h3>
+          <div style="font-size:12px;color:var(--text2);margin-bottom:14px">Change your password without needing email recovery.</div>
+          <div class="field" style="margin-bottom:10px">
+            <span class="field-label">New password</span>
+            <input type="password" id="newPwd" placeholder="At least 6 characters" autocomplete="new-password"/>
+          </div>
+          <div class="field" style="margin-bottom:14px">
+            <span class="field-label">Confirm new password</span>
+            <input type="password" id="newPwd2" placeholder="Repeat password" autocomplete="new-password"/>
+          </div>
+          <button class="btn btn-primary" id="changePwdBtn" style="width:100%">Change Password</button>
+          <div id="changePwdMsg" style="font-size:12px;margin-top:10px;display:none"></div>
+        </div>
         <div class="sc"><div class="sc-icon" style="background:linear-gradient(135deg,#06b6d4,#0891b2)">📦</div>
           <h3>Data</h3>
           <p style="font-size:12px;color:var(--text3);margin-bottom:14px;line-height:1.6">Export CSV to back up or share with your accountant. Import a CSV to restore trips.</p>
@@ -1852,10 +1882,8 @@ body.fullwidth-history #view-set.on{
           </div>
         </div>
       </div>
-      <div style="display:flex;gap:10px">
-        <button class="btn btn-primary" onclick="saveSet()">Save settings</button>
-        <button class="btn" onclick="doExport()">↓ Export all as CSV</button>
-        <label class="btn" style="cursor:pointer">↑ Import CSV<input type="file" accept=".csv" style="display:none" onchange="importCSV(event)"/></label>
+      <div style="display:flex;justify-content:flex-end;margin-top:4px">
+        <button class="btn btn-primary" onclick="saveSet()" style="min-width:180px">💾 Save settings</button>
       </div>
     </div>
 
@@ -2146,6 +2174,7 @@ function init(){
     if(stEl)stEl.value=parts[2]||'';
   }
   applySettings();updateSidebar();renderH();
+  setTimeout(updateQuickStart,600); // re-check after async field prefills settle
 }
 
 function applySettings(){
@@ -2239,7 +2268,45 @@ function updateSidebar(){
   document.getElementById('sM').textContent=mi.toFixed(1);
   document.getElementById('sV').textContent='$'+val.toFixed(2);
   document.getElementById('sT').textContent=ytd.length;
+  updateQuickStart();
 }
+
+// ── FIRST-TRIP QUICK START ──────────────────────────────────
+function updateQuickStart(){
+  var qs=document.getElementById('quickStart');if(!qs)return;
+  var vv=function(id){var el=document.getElementById(id);return el&&el.value.trim();};
+  var s1=!!(vv('tFromStreet')||vv('tFromCity'));
+  var s2=!!(vv('tToStreet')||vv('tToCity'));
+  var s3=parseFloat((document.getElementById('tMiles')||{}).value||0)>0;
+  var show=!trips.length&&!(s1&&s2&&s3);
+  qs.style.display=show?'flex':'none';
+  if(!show)return;
+  [[1,s1],[2,s2],[3,s3]].forEach(function(p){
+    var el=document.getElementById('qsStep'+p[0]);
+    if(el)el.classList.toggle('done',p[1]);
+  });
+}
+function fillSampleTrip(){
+  var set=function(id,val){var el=document.getElementById(id);if(el)el.value=val;};
+  var home=(cfg.home||'').split(',').map(function(s){return s.trim();});
+  var office=(cfg.office||'').split(',').map(function(s){return s.trim();});
+  set('tFromStreet',home[0]||'1113 S 4090 W');
+  set('tFromCity',home[1]||'Syracuse');
+  set('tFromState',((home[2]||'UT').replace(/[^A-Za-z]/g,'')||'UT').slice(0,2).toUpperCase());
+  set('tToStreet',office[0]||'2975 Executive Pkwy');
+  set('tToCity',office[1]||'Lehi');
+  set('tToState',((office[2]||'UT').replace(/[^A-Za-z]/g,'')||'UT').slice(0,2).toUpperCase());
+  set('tPurpose','Example — client meeting');
+  set('tMiles','12.4');
+  if(typeof buildAddr==='function')buildAddr();
+  updateQuickStart();
+  toast('Example filled in — review it, then hit Save trip');
+}
+window.fillSampleTrip=fillSampleTrip;
+['tFromStreet','tFromCity','tToStreet','tToCity','tMiles'].forEach(function(id){
+  var el=document.getElementById(id);
+  if(el)el.addEventListener('input',updateQuickStart);
+});
 
 let mainMap=null, histMapObj=null, currentLayers=[];
 
@@ -2277,7 +2344,7 @@ window.initGoogleMaps=function(){
   initGoogleMapPanel();
   // Apply saved mode to map after it loads
   setTimeout(()=>{
-    const savedMode=localStorage.getItem('ml_mode')||'dark';
+    const savedMode=localStorage.getItem('ml_mode')||'light';
     applyMapMode(savedMode);
   },500);
 };
@@ -2307,7 +2374,7 @@ function initGoogleMapPanel(){
   if(!googleReady||googleMap)return;
   const mapEl=document.getElementById('mainMap');
   if(!mapEl)return;
-  const savedMode=localStorage.getItem('ml_mode')||'dark';
+  const savedMode=localStorage.getItem('ml_mode')||'light';
   googleMap=new google.maps.Map(mapEl,{
     center:{lat:40.76,lng:-111.89},
     zoom:10,
@@ -2332,7 +2399,7 @@ function initGoogleMapPanel(){
     fullscreenControl:false,
   });
   // Apply saved mode immediately after map creation
-  const _savedMode=localStorage.getItem('ml_mode')||'dark';
+  const _savedMode=localStorage.getItem('ml_mode')||'light';
   setTimeout(()=>applyMapMode(_savedMode), 100);
 
   // Click to set handler
@@ -2849,6 +2916,15 @@ function renderAnalytics(){
   const aYear=document.getElementById('aYear');
   const curY=aYear.value;
   aYear.innerHTML='<option value="">All years</option>'+years.map(y=>`<option value="${y}"${curY==y?' selected':''}>${y}</option>`).join('');
+  // First visit defaults to the current year so charts read cleanly; user choice sticks after that
+  if(!aYear._defApplied){
+    aYear._defApplied=true;
+    const nowYr=String(new Date().getFullYear());
+    if(!curY&&years.map(String).indexOf(nowYr)>=0){
+      aYear.value=nowYr;
+      return renderAnalytics();
+    }
+  }
 
   let fl=filterYear?trips.filter(t=>yr(t.date)==filterYear):[...trips];
 
@@ -3803,6 +3879,7 @@ function setMode(mode){
   setTimeout(()=>applyMapMode(mode),3000);
 }
 window.setMode=setMode;
+setMode(localStorage.getItem('ml_mode')||'light');
 window.applyMapMode=applyMapMode;
 window.switchNav=switchNav;
 window.calcDist=calcDist;

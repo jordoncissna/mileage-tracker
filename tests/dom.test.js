@@ -102,6 +102,24 @@ T('split deductible value shown', $('aSplit').textContent.indexOf('$') >= 0);
 T('insights render chips', $('aInsights').querySelectorAll('.insight-chip').length >= 1);
 T('period chart has y-axis ticks', $('aChart').querySelectorAll('.chart-ylabel').length >= 3);
 
+// ===== LIGHT MODE DEFAULT =====
+T('defaults to light mode', document.body.classList.contains('light'));
+
+// ===== QUICK START =====
+T('quick start hidden once trips exist', $('quickStart').style.display === 'none');
+T('fillSampleTrip exposed', typeof window.fillSampleTrip === 'function');
+T('quick start has 3 steps', document.querySelectorAll('.qs-step').length === 3);
+
+// ===== SETTINGS FLOW =====
+const h3s = [...document.querySelectorAll('#view-set .sc h3')].map(h => h.textContent.trim().split(' ')[0]);
+T('settings starts with business', h3s[0] === 'Business');
+T('locations precede commute', h3s.indexOf('Home') >= 0 && h3s.indexOf('Home') < h3s.findIndex(t => t === 'Commute'));
+T('account near the end', h3s.findIndex(t => t === 'Account') > h3s.findIndex(t => t === 'Auto-classify'));
+T('single save button', [...document.querySelectorAll('#view-set button')].filter(b => b.textContent.indexOf('Save settings') >= 0).length === 1);
+
+// ===== ANALYTICS YEAR DEFAULT =====
+T('year filter defaults to current year', $('aYear').value === String(new Date().getFullYear()));
+
 // ===== SINGLE SHARE MODAL / RESIZE HANDLE =====
 T('one shareModal', document.querySelectorAll('#shareModal').length === 1);
 T('one rightResize', document.querySelectorAll('#rightResize').length === 1);
