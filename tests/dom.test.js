@@ -120,6 +120,16 @@ T('single save button', [...document.querySelectorAll('#view-set button')].filte
 // ===== ANALYTICS YEAR DEFAULT =====
 T('year filter defaults to current year', $('aYear').value === String(new Date().getFullYear()));
 
+// ===== WELCOME TOUR =====
+T('8 onboarding screens', document.querySelectorAll('.onboard-screen').length === 8);
+T('8 progress dots', document.querySelectorAll('#onboardDots .onboard-dot').length === 8);
+T('no fake location-permission screen', html.indexOf('Allow "Milo" to use') < 0);
+T('no fake notification screen', html.indexOf('Send You Notifications') < 0);
+T('install screen present', html.indexOf('Put Milo on your phone') >= 0);
+T('tour triggers on first login', html.indexOf("localStorage.getItem('milo-onboarding-complete')") >= 0 && html.match(/function onSignedIn[\s\S]{0,700}startOnboarding/));
+T('tour replay in settings', html.indexOf('Replay the welcome tour') >= 0);
+T('startOnboarding exposed', typeof window.startOnboarding === 'function');
+
 // ===== SINGLE SHARE MODAL / RESIZE HANDLE =====
 T('one shareModal', document.querySelectorAll('#shareModal').length === 1);
 T('one rightResize', document.querySelectorAll('#rightResize').length === 1);

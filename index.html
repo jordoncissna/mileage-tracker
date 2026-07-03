@@ -346,6 +346,9 @@ to{transform:translate(80px,80px);}}
 /* ===== ONBOARDING FLOW ===== */
 .onboard-overlay{position:fixed;inset:0;background:linear-gradient(135deg, #0a0f1a 0%, #0e1626 50%, #0a0f1a 100%);z-index:10000;display:none;flex-direction:column;overflow:hidden;}
 .onboard-overlay.active{display:flex;}
+/* The tour is a branded dark splash — pin dark-theme tokens so it stays
+   legible when the app itself is in light mode */
+.onboard-overlay{--text:#e8edf5;--text2:#8b95a8;--text3:#6b7891;--surface:#111720;--surface2:#161e2a;--surface3:#1c2535;--border:rgba(255,255,255,0.06);--border2:rgba(255,255,255,0.1);--accent:#4f9eff;--accent-bg:rgba(79,158,255,0.08);--green:#3dd68c;--green-bg:rgba(61,214,140,0.08);}
 .onboard-overlay::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 30% 20%, rgba(79,158,255,0.12), transparent 40%),radial-gradient(circle at 70% 80%, rgba(124,77,255,0.10), transparent 40%);pointer-events:none;animation:authBgDrift 20s ease-in-out infinite;}
 
 .onboard-top{display:flex;justify-content:space-between;align-items:center;padding:20px 24px;position:relative;z-index:2;}
@@ -1326,65 +1329,28 @@ body:not(.light) .offline-pill{color:#fbbf24;}
       </div>
     </div>
 
-    <!-- Screen 7: Location Permission -->
+    <!-- Screen 7: Install on your phone (PWA) -->
     <div class="onboard-screen" data-screen="7">
-      <div class="onboard-phone">
-        <div class="onboard-phone-frame">
-          <div class="onboard-phone-screen">
-            <div class="onboard-mock-perm">
-              <div class="onboard-mock-perm-icon">📍</div>
-              <div class="onboard-mock-perm-title">Allow "Milo" to use<br/>your location?</div>
-              <div class="onboard-mock-perm-desc">Milo needs background location to automatically detect when you start and stop driving.</div>
-              <div class="onboard-mock-perm-btns">
-                <div class="onboard-mock-perm-btn-primary">Allow Always</div>
-                <div class="onboard-mock-perm-btn">Allow While Using App</div>
-                <div class="onboard-mock-perm-btn-deny">Don't Allow</div>
-              </div>
-            </div>
-          </div>
-        </div>
+      <div class="onboard-visual">
+        <div class="onboard-visual-bg"></div>
+        <div class="onboard-visual-emoji">📱</div>
       </div>
-      <div class="onboard-headline">Enable location access</div>
-      <div class="onboard-subhead">Choose <strong style="color:var(--accent)">"Allow Always"</strong> so Milo can track trips even when the app is closed.</div>
-      <div class="onboard-info-box">
-        <div class="onboard-info-icon">🔒</div>
-        <div class="onboard-info-text">Your location is only used for trip tracking. We never share or sell your data.</div>
-      </div>
-    </div>
-
-    <!-- Screen 8: Notifications Permission -->
-    <div class="onboard-screen" data-screen="8">
-      <div class="onboard-phone">
-        <div class="onboard-phone-frame">
-          <div class="onboard-phone-screen">
-            <div class="onboard-mock-perm">
-              <div class="onboard-mock-perm-icon">🔔</div>
-              <div class="onboard-mock-perm-title">"Milo" Would Like to<br/>Send You Notifications</div>
-              <div class="onboard-mock-perm-desc">Notifications may include alerts, sounds, and icon badges.</div>
-              <div class="onboard-mock-perm-btns">
-                <div class="onboard-mock-perm-btn">Don't Allow</div>
-                <div class="onboard-mock-perm-btn-primary">Allow</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="onboard-headline">Enable notifications</div>
-      <div class="onboard-subhead">Get reminded to classify trips, weekly summaries, and tax-time recap.</div>
+      <div class="onboard-headline">Put Milo on your phone</div>
+      <div class="onboard-subhead">Install it like an app — it opens instantly and <strong style="color:var(--accent)">works offline</strong>, so you can log trips with zero signal. Changes sync when you reconnect.</div>
       <div class="onboard-feature-list">
         <div class="onboard-feature-item">
-          <div class="onboard-feature-icon">🚗</div>
-          <div class="onboard-feature-text"><strong>Trip recap</strong><span>Each trip ends with a summary card</span></div>
+          <div class="onboard-feature-icon">🍎</div>
+          <div class="onboard-feature-text"><strong>iPhone</strong><span>Open Milo in Safari → Share → Add to Home Screen</span></div>
         </div>
         <div class="onboard-feature-item">
-          <div class="onboard-feature-icon">📊</div>
-          <div class="onboard-feature-text"><strong>Weekly summary</strong><span>Total miles and deductions every Monday</span></div>
+          <div class="onboard-feature-icon">🤖</div>
+          <div class="onboard-feature-text"><strong>Android</strong><span>Open Milo in Chrome → ⋮ menu → Add to Home screen</span></div>
         </div>
       </div>
     </div>
 
-    <!-- Screen 9: All Set -->
-    <div class="onboard-screen" data-screen="9">
+    <!-- Screen 8: All Set -->
+    <div class="onboard-screen" data-screen="8">
       <div class="onboard-visual">
         <div class="onboard-visual-bg"></div>
         <div class="onboard-visual-emoji">🚀</div>
@@ -1407,7 +1373,6 @@ body:not(.light) .offline-pill{color:#fbbf24;}
   <div class="onboard-bottom">
     <div class="onboard-dots" id="onboardDots">
       <div class="onboard-dot active"></div>
-      <div class="onboard-dot"></div>
       <div class="onboard-dot"></div>
       <div class="onboard-dot"></div>
       <div class="onboard-dot"></div>
@@ -1876,6 +1841,7 @@ body:not(.light) .offline-pill{color:#fbbf24;}
           </div>
           <button class="btn btn-primary" id="changePwdBtn" style="width:100%">Change Password</button>
           <div id="changePwdMsg" style="font-size:12px;margin-top:10px;display:none"></div>
+          <button class="btn" onclick="startOnboarding()" style="width:100%;margin-top:10px">↻ Replay the welcome tour</button>
         </div>
         <div class="sc"><div class="sc-icon" style="background:linear-gradient(135deg,#06b6d4,#0891b2)">📦</div>
           <h3>Data</h3>
@@ -3198,7 +3164,7 @@ window.updateSettingsHero=updateSettingsHero;
 
 // ── ONBOARDING FLOW ──────────────────────────────────────────
 var onboardCurrentScreen=1;
-var ONBOARD_TOTAL=9;
+var ONBOARD_TOTAL=8;
 var onboardDemoClassified=false;
 var onboardDemoPicked=null;
 
@@ -3242,7 +3208,6 @@ function updateOnboardScreen(){
     else if(onboardCurrentScreen===5)cta.textContent='Save and continue';
     else if(onboardCurrentScreen===6)cta.textContent='Save and continue';
     else if(onboardCurrentScreen===7)cta.textContent='Got it';
-    else if(onboardCurrentScreen===8)cta.textContent='Got it';
     else cta.textContent='Continue';
     // Disable CTA on demo screen until user classifies
     if(onboardCurrentScreen===3&&!onboardDemoClassified){
@@ -4009,6 +3974,16 @@ function onSignedIn(user){
   init();
   setTimeout(()=>{initMainMap();initResize();initRightResize();},200);
   loadFromSupabase();
+  // First login on this device: run the welcome tour. (Signup with instant
+  // session also triggers it explicitly; the flag makes that a no-op here.)
+  try{
+    if(!localStorage.getItem('milo-onboarding-complete')){
+      setTimeout(function(){
+        var ov=document.getElementById('onboardOverlay');
+        if(ov&&!ov.classList.contains('active'))startOnboarding();
+      },700);
+    }
+  }catch(e){}
 }
 
 window.addEventListener('DOMContentLoaded',function(){
