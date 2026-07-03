@@ -123,6 +123,7 @@ cache.
 
 - [x] Commute exemption (§262)
 - [x] Auto-classify rules
+- [x] Offline-capable PWA (works without signal; trips sync on reconnect)
 - [ ] Tax-ready PDF reports (audit-defensible IRS export)
 - [ ] Receipt capture (photo attached to a trip)
 
