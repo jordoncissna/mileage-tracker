@@ -13,7 +13,13 @@ Live: https://jordoncissna.github.io/mileage-tracker
 
 ## Architecture (read before editing)
 
-- **One file:** `index.html`. Structure inside it, in order:
+- **App logic is one file** (`index.html`), plus a thin PWA layer:
+  `manifest.webmanifest`, `sw.js` (service worker: network-first navigations,
+  stale-while-revalidate for icons + the jsdelivr CDN scripts; never touches
+  googleapis/supabase.co traffic), and `icons/`. Bump the `CACHE` name in
+  `sw.js` only if you change the caching strategy — HTML updates flow through
+  automatically via network-first.
+- **`index.html`** structure, in order:
   - external `<script>` tags: Google Maps JS API, Supabase JS, qrcode
   - a single large `<style>` block
   - the `<body>` markup (nav, trip entry, history, analytics, settings, modals)
@@ -110,7 +116,8 @@ no longer a numbered-download step — edit `index.html` directly.
 - [x] Commute exemption
 - [x] Auto-classify rules
 - [x] Modernized analytics charts
-- [ ] Tax-ready PDF reports (audit-defensible IRS export)
+- [x] Offline-capable PWA (service worker, manifest, offline trip sync-on-reconnect)
+- [x] Tax-ready PDF reports (audit-defensible IRS export)
 - [ ] Receipt capture (photo attached to a trip)
 - [ ] Persist commute override + rules to Supabase (currently local only)
 

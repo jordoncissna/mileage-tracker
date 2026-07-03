@@ -107,5 +107,48 @@ T('niceCeil 2400 -> 2500', niceCeil(2400) === 2500);
 T('niceCeil 999 -> 1000', niceCeil(999) === 1000);
 T('niceCeil negative -> 1', niceCeil(-5) === 1);
 
+// ===== PWA FILES =====
+const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'manifest.webmanifest'), 'utf8'));
+T('manifest has name', manifest.name && manifest.short_name === 'Milo');
+T('manifest relative start_url', manifest.start_url === './' && manifest.scope === './');
+T('manifest standalone', manifest.display === 'standalone');
+T('manifest has 3 icons incl maskable', manifest.icons.length === 3 && manifest.icons.some(i => i.purpose === 'maskable'));
+manifest.icons.forEach(i => T('icon exists: ' + i.src, fs.existsSync(path.join(__dirname, '..', i.src))));
+T('apple touch icon exists', fs.existsSync(path.join(__dirname, '..', 'icons/apple-touch-icon.png')));
+const sw = fs.readFileSync(path.join(__dirname, '..', 'sw.js'), 'utf8');
+T('sw handles install/activate/fetch', ['install', 'activate', 'fetch'].every(ev => sw.indexOf("addEventListener('" + ev + "'") >= 0));
+T('sw never caches supabase API', sw.indexOf('supabase.co') >= 0);
+T('index links manifest', html.indexOf('rel="manifest"') >= 0);
+T('index registers sw', html.indexOf("serviceWorker.register('sw.js')") >= 0 || html.indexOf('serviceWorker.register("sw.js")') >= 0);
+T('supabase client is guarded', html.indexOf('window.supabase&&window.supabase.createClient') >= 0);
+T('offline unsynced trips preserved', html.indexOf('trips.filter(t=>!t.supaId)') >= 0);
+
+// ===== TAX REPORT =====
+eval(grab('fmt'));
+eval(grab('yr'));
+eval(grab('rate'));
+cfg.rates = { 2026: 0.70, 2025: 0.70 };
+cfg.biz = 'Ridgeline Management Group';
+cfg.vehicle = 'Tesla';
+let trips = [
+  { id: 1, date: '2026-03-10', miles: 10, from: '456 Business Ave, Lehi, UT', to: '90 S Main St, Farmington, UT', purpose: 'Met <b>client</b> re: contract', category: 'Client Meeting' },
+  { id: 2, date: '2026-01-05', miles: 12, from: '1113 S 4090 W, Syracuse, UT', to: '500 Main St, Farmington, UT', purpose: 'to office', category: 'Office Visit' },
+  { id: 3, date: '2026-05-02', miles: 5, from: '', to: '250 Gym Way', purpose: 'gym', category: PERSONAL_CAT },
+];
+cfg.office = '500 Main St, Farmington, UT';
+eval(grab('buildTaxReportHTML'));
+const rpt = buildTaxReportHTML(2026);
+T('report titled with year', rpt.indexOf('Tax Year 2026') >= 0);
+T('report shows business name', rpt.indexOf('Ridgeline Management Group') >= 0);
+T('report deduction total $7.00', rpt.indexOf('$7.00') >= 0);
+T('commute marked excluded', rpt.indexOf('Commute §262') >= 0);
+T('personal marked excluded', rpt.indexOf('(Personal)') >= 0);
+T('report escapes user HTML', rpt.indexOf('&lt;b&gt;client&lt;/b&gt;') >= 0 && rpt.indexOf('<b>client</b>') < 0);
+T('chronological order', rpt.indexOf('01/05/26') < rpt.indexOf('03/10/26'));
+T('signature block present', rpt.indexOf('Taxpayer signature') >= 0);
+T('274(d) substantiation note', rpt.indexOf('§274(d)') >= 0 || rpt.indexOf('274(d)') >= 0);
+T('empty year message', buildTaxReportHTML(2019).indexOf('No trips recorded') >= 0);
+T('miles totals correct', rpt.indexOf('27.0') >= 0 && rpt.indexOf('10.0') >= 0);
+
 console.log(`\nrules.test.js: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
