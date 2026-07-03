@@ -130,6 +130,24 @@ T('tour triggers on first login', html.indexOf("localStorage.getItem('milo-onboa
 T('tour replay in settings', html.indexOf('Replay the welcome tour') >= 0);
 T('startOnboarding exposed', typeof window.startOnboarding === 'function');
 
+// ===== DEMO CLASSIFY: PERSONAL OPTION =====
+T('4 demo category buttons', document.querySelectorAll('.onboard-demo-cat').length === 4);
+T('personal demo option present', !!document.querySelector('.onboard-demo-cat[data-cat="Personal (Non-deductible)"]'));
+window.startOnboarding();
+window.onboardDemoClassify('Personal (Non-deductible)');
+T('personal pick teaches $0', $('demoSuccessText').textContent.indexOf('$0') >= 0);
+T('demo locks after pick (by design)', (window.onboardDemoClassify('Client Meeting'), $('demoSuccessText').textContent.indexOf('$0') >= 0));
+window.startOnboarding();
+window.onboardDemoClassify('Client Meeting');
+T('business pick shows value', $('demoSuccessText').textContent.indexOf('$8.68') >= 0);
+document.getElementById('onboardOverlay').classList.remove('active');
+
+// ===== CONFETTI =====
+T('confetti exposed', typeof window.fireConfetti === 'function');
+let confettiThrew = false; try { window.fireConfetti(); } catch (e) { confettiThrew = true; }
+T('confetti no throw', !confettiThrew);
+T('confetti on completion not skip', /if\(skipReason!=='skip'\)fireConfetti\(\)/.test(html));
+
 // ===== SINGLE SHARE MODAL / RESIZE HANDLE =====
 T('one shareModal', document.querySelectorAll('#shareModal').length === 1);
 T('one rightResize', document.querySelectorAll('#rightResize').length === 1);

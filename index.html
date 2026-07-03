@@ -1245,10 +1245,11 @@ body:not(.light) .offline-pill{color:#fbbf24;}
           <button class="onboard-demo-cat" data-cat="Office Visit">🏢 Office Visit</button>
           <button class="onboard-demo-cat" data-cat="Client Meeting">🤝 Client Meeting</button>
           <button class="onboard-demo-cat" data-cat="Business Errand">🛠 Business Errand</button>
+          <button class="onboard-demo-cat" data-cat="Personal (Non-deductible)">🏠 Personal — not deductible</button>
         </div>
         <div class="onboard-demo-success" id="demoSuccess">
           <div class="onboard-demo-check">✓</div>
-          <div>Nice! Trip classified as <span id="demoCatPicked"></span></div>
+          <div id="demoSuccessText">Nice! Trip classified as <span id="demoCatPicked"></span></div>
         </div>
       </div>
     </div>
@@ -3189,8 +3190,50 @@ function closeOnboarding(skipReason){
   if(skipReason!=='skip'&&typeof addSampleTrip==='function'){
     addSampleTrip();
   }
+  if(skipReason!=='skip')fireConfetti();
   try{localStorage.setItem('milo-onboarding-complete','1');}catch(e){}
 }
+
+function fireConfetti(){
+  try{
+    if(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+    var c=document.createElement('canvas');
+    c.style.cssText='position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:2000';
+    c.width=window.innerWidth;c.height=window.innerHeight;
+    document.body.appendChild(c);
+    var ctx=c.getContext('2d');
+    var colors=['#4f9eff','#3dd68c','#fbbf24','#f472b6','#a78bfa','#f97316'];
+    var P=[];
+    for(var i=0;i<160;i++){
+      P.push({
+        x:c.width/2+(Math.random()-0.5)*c.width*0.4,
+        y:c.height*0.32,
+        vx:(Math.random()-0.5)*12,
+        vy:-(Math.random()*11+5),
+        s:Math.random()*7+4,
+        r:Math.random()*Math.PI,
+        vr:(Math.random()-0.5)*0.3,
+        col:colors[i%colors.length]
+      });
+    }
+    var t0=Date.now();
+    (function tick(){
+      var el=Date.now()-t0;
+      ctx.clearRect(0,0,c.width,c.height);
+      ctx.globalAlpha=Math.max(0,1-el/2400);
+      P.forEach(function(p){
+        p.x+=p.vx;p.y+=p.vy;p.vy+=0.25;p.vx*=0.99;p.r+=p.vr;
+        ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.r);
+        ctx.fillStyle=p.col;
+        ctx.fillRect(-p.s/2,-p.s/2,p.s,p.s*0.62);
+        ctx.restore();
+      });
+      if(el<2600)requestAnimationFrame(tick);
+      else if(c.parentNode)c.parentNode.removeChild(c);
+    })();
+  }catch(e){}
+}
+window.fireConfetti=fireConfetti;
 
 function updateOnboardScreen(){
   document.querySelectorAll('.onboard-screen').forEach(function(s){
@@ -3255,10 +3298,14 @@ function onboardDemoClassify(category){
     if(b.getAttribute('data-cat')===category)b.classList.add('picked');
     else b.style.opacity='0.4';
   });
-  // Show success
+  // Show success — Personal doubles as a mini-lesson on deductibility
   var demoSuccess=document.getElementById('demoSuccess');
-  var demoCatPicked=document.getElementById('demoCatPicked');
-  if(demoCatPicked)demoCatPicked.textContent=category;
+  var demoTxt=document.getElementById('demoSuccessText');
+  if(demoTxt){
+    demoTxt.innerHTML=category==='Personal (Non-deductible)'
+      ?'Got it — Personal trips stay on your log but count <b>$0</b> toward your deduction.'
+      :'Nice! Trip classified as <b>'+esc(category)+'</b> — <b>$8.68</b> deductible.';
+  }
   if(demoSuccess)demoSuccess.classList.add('show');
   // Enable continue
   updateOnboardScreen();
