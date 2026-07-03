@@ -123,5 +123,32 @@ T('index registers sw', html.indexOf("serviceWorker.register('sw.js')") >= 0 || 
 T('supabase client is guarded', html.indexOf('window.supabase&&window.supabase.createClient') >= 0);
 T('offline unsynced trips preserved', html.indexOf('trips.filter(t=>!t.supaId)') >= 0);
 
+// ===== TAX REPORT =====
+eval(grab('fmt'));
+eval(grab('yr'));
+eval(grab('rate'));
+cfg.rates = { 2026: 0.70, 2025: 0.70 };
+cfg.biz = 'Ridgeline Management Group';
+cfg.vehicle = 'Tesla';
+let trips = [
+  { id: 1, date: '2026-03-10', miles: 10, from: '456 Business Ave, Lehi, UT', to: '90 S Main St, Farmington, UT', purpose: 'Met <b>client</b> re: contract', category: 'Client Meeting' },
+  { id: 2, date: '2026-01-05', miles: 12, from: '1113 S 4090 W, Syracuse, UT', to: '500 Main St, Farmington, UT', purpose: 'to office', category: 'Office Visit' },
+  { id: 3, date: '2026-05-02', miles: 5, from: '', to: '250 Gym Way', purpose: 'gym', category: PERSONAL_CAT },
+];
+cfg.office = '500 Main St, Farmington, UT';
+eval(grab('buildTaxReportHTML'));
+const rpt = buildTaxReportHTML(2026);
+T('report titled with year', rpt.indexOf('Tax Year 2026') >= 0);
+T('report shows business name', rpt.indexOf('Ridgeline Management Group') >= 0);
+T('report deduction total $7.00', rpt.indexOf('$7.00') >= 0);
+T('commute marked excluded', rpt.indexOf('Commute §262') >= 0);
+T('personal marked excluded', rpt.indexOf('(Personal)') >= 0);
+T('report escapes user HTML', rpt.indexOf('&lt;b&gt;client&lt;/b&gt;') >= 0 && rpt.indexOf('<b>client</b>') < 0);
+T('chronological order', rpt.indexOf('01/05/26') < rpt.indexOf('03/10/26'));
+T('signature block present', rpt.indexOf('Taxpayer signature') >= 0);
+T('274(d) substantiation note', rpt.indexOf('§274(d)') >= 0 || rpt.indexOf('274(d)') >= 0);
+T('empty year message', buildTaxReportHTML(2019).indexOf('No trips recorded') >= 0);
+T('miles totals correct', rpt.indexOf('27.0') >= 0 && rpt.indexOf('10.0') >= 0);
+
 console.log(`\nrules.test.js: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

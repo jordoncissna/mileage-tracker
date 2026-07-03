@@ -1585,6 +1585,7 @@ body:not(.light) .offline-pill{color:#fbbf24;}
         </select>
         <div style="flex:1"></div>
         <button class="btn" onclick="doExport()">↓ Export CSV</button>
+        <button class="btn" onclick="openTaxReport()">🧾 Tax Report</button>
         <label class="btn" style="cursor:pointer">↑ Import<input type="file" accept=".csv" style="display:none" onchange="importCSV(event)"/></label>
       </div>
       <div class="table-wrap"><div id="htable"></div></div>
@@ -1698,7 +1699,7 @@ body:not(.light) .offline-pill{color:#fbbf24;}
         <button class="btn" id="shareUrlBtn" style="justify-content:flex-start;gap:10px">🔗 Copy Web App Link</button>
         <button class="btn" id="shareQrBtn" style="justify-content:flex-start;gap:10px">📱 Show QR Code</button>
         <button class="btn" id="shareCsvBtn" style="justify-content:flex-start;gap:10px">📄 Export CSV Report</button>
-        <button class="btn" id="sharePdfBtn" style="justify-content:flex-start;gap:10px">🖨 Print / Save as PDF</button>
+        <button class="btn" id="sharePdfBtn" style="justify-content:flex-start;gap:10px">🧾 Tax-Ready PDF Report</button>
         <div id="qrContainer" style="display:none;text-align:center;padding:12px;background:white;border-radius:var(--r2);">
           <div id="qrCode"></div>
           <div style="font-size:11px;color:#666;margin-top:8px">Scan to open Milo</div>
@@ -3066,8 +3067,85 @@ function shareQr(){
   }catch(e){toast('QR library not loaded');}
 }
 function shareCsv(){doExport();closeShareModal();}
+function buildTaxReportHTML(year){
+  var y=String(year);
+  var fl=trips.filter(function(t){return t.date&&t.date.slice(0,4)===y;})
+    .sort(function(a,b){return (a.date||'').localeCompare(b.date||'');});
+  var bizMi=0,comMi=0,perMi=0,ded=0,rows='';
+  fl.forEach(function(t){
+    var mi=parseFloat(t.miles||0);
+    var r=rate(t.date);
+    var v=deductibleValue(t);
+    var excl='';
+    if(isPersonal(t)){perMi+=mi;excl='Personal';}
+    else if(cfg.commuteExclude&&isCommute(t)){comMi+=mi;excl='Commute §262';}
+    else{bizMi+=mi;ded+=v;}
+    rows+='<tr>'+
+      '<td>'+fmt(t.date)+'</td>'+
+      '<td>'+esc(t.from)+'</td>'+
+      '<td>'+esc(t.to)+'</td>'+
+      '<td>'+esc(t.purpose)+'</td>'+
+      '<td>'+esc(t.category)+'</td>'+
+      '<td class="num">'+mi.toFixed(1)+'</td>'+
+      '<td class="num">'+(excl?'—':r.toFixed(3))+'</td>'+
+      '<td class="num">'+(excl?'0.00 <span class="excl">('+excl+')</span>':v.toFixed(2))+'</td>'+
+    '</tr>';
+  });
+  var yRate=cfg.rates[parseInt(y,10)]||rate(y+'-06-01');
+  var gen=new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
+  return '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Mileage Deduction Report — '+esc(y)+'</title><style>'+
+    '@page{size:letter;margin:0.75in;}'+
+    'body{font-family:Georgia,"Times New Roman",serif;color:#111;font-size:11.5px;line-height:1.45;margin:0;}'+
+    'h1{font-size:19px;margin:0 0 2px;}h2{font-size:13px;margin:22px 0 8px;border-bottom:1px solid #999;padding-bottom:3px;}'+
+    '.meta{color:#444;margin-bottom:4px;}'+
+    'table{width:100%;border-collapse:collapse;margin-top:6px;}'+
+    'thead{display:table-header-group;}'+
+    'th{text-align:left;font-size:9.5px;text-transform:uppercase;letter-spacing:.04em;border-bottom:1.5px solid #111;padding:4px 6px;}'+
+    'td{border-bottom:0.5px solid #bbb;padding:4px 6px;vertical-align:top;}'+
+    'tr{page-break-inside:avoid;}'+
+    '.num{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;}'+
+    'th.num{text-align:right;}'+
+    '.excl{color:#666;font-size:9px;}'+
+    '.sumtable td{border:none;padding:3px 6px;}'+
+    '.sumtable .lbl{color:#444;}'+
+    '.sumtable .tot td{border-top:1.5px solid #111;font-weight:bold;}'+
+    '.legal{font-size:9.5px;color:#444;margin-top:6px;}'+
+    '.sig{margin-top:36px;display:flex;gap:40px;}'+
+    '.sig div{flex:1;border-top:1px solid #111;padding-top:4px;font-size:10px;color:#444;}'+
+    'tfoot td{border-top:1.5px solid #111;font-weight:bold;}'+
+    '.foot{margin-top:26px;font-size:9px;color:#777;}'+
+    '</style></head><body>'+
+    '<h1>Mileage Log &amp; Deduction Report — Tax Year '+esc(y)+'</h1>'+
+    '<div class="meta">'+(cfg.biz?'Prepared for: <b>'+esc(cfg.biz)+'</b> · ':'')+(cfg.vehicle?'Vehicle: '+esc(cfg.vehicle)+' · ':'')+'Generated '+gen+' · Method: IRS Standard Mileage Rate</div>'+
+    '<h2>Summary</h2>'+
+    '<table class="sumtable">'+
+    '<tr><td class="lbl">Business miles (deductible)</td><td class="num">'+bizMi.toFixed(1)+' mi</td><td class="lbl">at $'+Number(yRate).toFixed(3)+'/mi</td><td class="num">$'+ded.toFixed(2)+'</td></tr>'+
+    '<tr><td class="lbl">Commute miles — excluded per IRS §262</td><td class="num">'+comMi.toFixed(1)+' mi</td><td class="lbl"></td><td class="num">$0.00</td></tr>'+
+    '<tr><td class="lbl">Personal miles — non-deductible</td><td class="num">'+perMi.toFixed(1)+' mi</td><td class="lbl"></td><td class="num">$0.00</td></tr>'+
+    '<tr class="tot"><td>Total deduction claimed ('+fl.length+' trips)</td><td class="num">'+(bizMi+comMi+perMi).toFixed(1)+' mi</td><td></td><td class="num">$'+ded.toFixed(2)+'</td></tr>'+
+    '</table>'+
+    '<div class="legal">Substantiation: each entry below records the date, origin, destination, business purpose, and mileage required by IRC §274(d) for vehicle expense deductions under §162. Commuting between the taxpayer’s residence and regular workplace is treated as a personal expense per §262 and Treas. Reg. §1.262-1(b)(5), and is excluded from the deduction above.</div>'+
+    '<h2>Trip Log</h2>'+
+    '<table><thead><tr><th>Date</th><th>From</th><th>To</th><th>Business Purpose</th><th>Category</th><th class="num">Miles</th><th class="num">Rate $/mi</th><th class="num">Deduction $</th></tr></thead>'+
+    '<tbody>'+(rows||'<tr><td colspan="8" style="text-align:center;color:#777">No trips recorded for '+esc(y)+'</td></tr>')+'</tbody>'+
+    '<tfoot><tr><td colspan="5">Totals</td><td class="num">'+(bizMi+comMi+perMi).toFixed(1)+'</td><td></td><td class="num">'+ded.toFixed(2)+'</td></tr></tfoot></table>'+
+    '<div class="sig"><div>Taxpayer signature</div><div>Date</div></div>'+
+    '<div class="foot">This report was generated from contemporaneous records kept in Milo (Ridgeline Management Group LLC). It is a recordkeeping document, not tax advice.</div>'+
+    '</body></html>';
+}
+function openTaxReport(year){
+  var aY=document.getElementById('aYear');
+  var fY=document.getElementById('fYear');
+  var y=year||(aY&&aY.value)||(fY&&fY.value)||String(new Date().getFullYear());
+  var w=window.open('','_blank');
+  if(!w){toast('⚠ Allow pop-ups to open the report');return;}
+  w.document.write(buildTaxReportHTML(y));
+  w.document.close();
+  setTimeout(function(){try{w.focus();w.print();}catch(e){}},350);
+}
+window.openTaxReport=openTaxReport;
 function sharePdf(){
-  window.print();
+  openTaxReport();
   closeShareModal();
 }
 

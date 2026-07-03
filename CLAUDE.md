@@ -117,7 +117,7 @@ no longer a numbered-download step — edit `index.html` directly.
 - [x] Auto-classify rules
 - [x] Modernized analytics charts
 - [x] Offline-capable PWA (service worker, manifest, offline trip sync-on-reconnect)
-- [ ] Tax-ready PDF reports (audit-defensible IRS export)
+- [x] Tax-ready PDF reports (audit-defensible IRS export)
 - [ ] Receipt capture (photo attached to a trip)
 - [ ] Persist commute override + rules to Supabase (currently local only)
 
