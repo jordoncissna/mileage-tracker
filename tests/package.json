@@ -4,9 +4,10 @@
   "private": true,
   "description": "Test harness for the Milo mileage tracker (index.html).",
   "scripts": {
-    "test": "node rules.test.js && node dom.test.js",
+    "test": "node rules.test.js && node dom.test.js && node auth.test.js",
     "test:rules": "node rules.test.js",
-    "test:dom": "node dom.test.js"
+    "test:dom": "node dom.test.js",
+    "test:auth": "node auth.test.js"
   },
   "devDependencies": {
     "jsdom": "^24.0.0"

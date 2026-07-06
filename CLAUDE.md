@@ -85,6 +85,9 @@ cd tests && npm install && npm test
 - `tests/dom.test.js` — DOM-level tests via jsdom with Google/Supabase stubbed
   (Clear button, add-trip flow, analytics render). Externals can't be reached in
   a test env, so they are stubbed.
+- `tests/auth.test.js` — auth-flow tests (Supabase email+password: signup
+  validation, login, GoTrue session events incl. TOKEN_REFRESHED/SIGNED_OUT,
+  error mapping via `authErrorMessage()`) against a controllable Supabase stub.
 
 **Always run both suites after changing logic or DOM.** Add a test when you add
 a feature.
