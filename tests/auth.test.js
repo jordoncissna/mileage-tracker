@@ -22,8 +22,9 @@ const behavior = {
   signIn: { data: null, error: { message: 'stub: no behavior set' } },  // overridden per test
   signUp: { data: null, error: { message: 'stub: no behavior set' } },
   getSession: { data: { session: null }, error: null },
+  oauth: { data: null, error: { message: 'stub: no behavior set' } },
 };
-const calls = { signIn: 0, signUp: 0, signOut: 0, reset: 0 };
+const calls = { signIn: 0, signUp: 0, signOut: 0, reset: 0, oauth: 0, oauthProvider: null };
 let authCb = null; // captured onAuthStateChange callback → lets tests fire GoTrue events
 
 window.supabase = {
@@ -32,6 +33,7 @@ window.supabase = {
       getSession: async () => behavior.getSession,
       onAuthStateChange: (cb) => { authCb = cb; return { data: { subscription: { unsubscribe() {} } } }; },
       signInWithPassword: async () => { calls.signIn++; return behavior.signIn; },
+      signInWithOAuth: async (opts) => { calls.oauth++; calls.oauthProvider = opts && opts.provider; return behavior.oauth; },
       signUp: async () => { calls.signUp++; return behavior.signUp; },
       signOut: async () => { calls.signOut++; return { error: null }; },
       resetPasswordForEmail: async () => { calls.reset++; return { data: {}, error: null }; },
@@ -146,6 +148,18 @@ const SESSION = { user: USER, access_token: 'jwt-a', refresh_token: 'rt-1', expi
   // ===== PASSWORD RECOVERY =====
   authCb('PASSWORD_RECOVERY', SESSION);
   T('recovery event shows recovery card', $('recoveryCard') && $('recoveryCard').style.display === 'flex');
+
+  // ===== OAUTH (social sign-in) =====
+  T('social buttons in markup', document.querySelectorAll('.auth-social-btn').length === 3);
+  T('socialSignIn exposed', typeof window.socialSignIn === 'function');
+  behavior.oauth = { data: null, error: { message: 'Unsupported provider: provider is not enabled' } };
+  await window.socialSignIn('google');
+  T('oauth passes provider through', calls.oauth === 1 && calls.oauthProvider === 'google');
+  T('disabled provider → friendly setup message', errText().indexOf('isn’t set up yet') >= 0 || errText().indexOf('not set up yet') >= 0);
+  behavior.oauth = { data: { url: 'https://accounts.google.com/o/oauth2/auth?...' }, error: null };
+  $('authError').style.display = 'none'; $('authError').textContent = '';
+  await window.socialSignIn('google');
+  T('oauth success shows no error', $('authError').textContent === '');
 
   // ===== ERROR MAPPER (unit) =====
   T('authErrorMessage exists', typeof window.__authErrorMessage === 'function');

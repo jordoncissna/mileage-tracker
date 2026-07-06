@@ -1101,6 +1101,55 @@ body:not(.light) .offline-pill{color:#fbbf24;}
 .cat-fill{height:100%;border-radius:6px;transition:width .55s cubic-bezier(.4,0,.2,1);}
 .cat-amt{font-size:12px;color:var(--text);font-family:'JetBrains Mono',monospace;text-align:right;display:flex;flex-direction:column;line-height:1.25;min-width:58px;}
 .cat-amt .cat-amt-sub{font-size:10px;color:var(--text3);}
+
+/* ── AUTH REDESIGN: night-city glass (pins dark tokens; photo-swappable bg) ── */
+.auth-overlay{
+  --text:#eef2f8;--text2:#c3cbd8;--text3:#8f9aae;--red:#ff8484;
+  background:
+    radial-gradient(ellipse 60% 38% at 22% 96%, rgba(255,166,66,0.28), transparent 60%),
+    radial-gradient(ellipse 70% 40% at 82% 92%, rgba(255,140,50,0.22), transparent 60%),
+    radial-gradient(ellipse 90% 55% at 50% 115%, rgba(244,120,32,0.18), transparent 65%),
+    radial-gradient(ellipse 120% 65% at 50% -12%, #17263e 0%, #0e1830 45%, #080f1f 75%, #05080f 100%) !important;
+}
+.auth-overlay::before{
+  background:
+    radial-gradient(1px 1px at 12% 18%, rgba(255,255,255,.7), transparent 55%),
+    radial-gradient(1px 1px at 31% 9%, rgba(255,255,255,.5), transparent 55%),
+    radial-gradient(1.5px 1.5px at 47% 22%, rgba(255,255,255,.6), transparent 55%),
+    radial-gradient(1px 1px at 64% 12%, rgba(255,255,255,.45), transparent 55%),
+    radial-gradient(1px 1px at 79% 24%, rgba(255,255,255,.6), transparent 55%),
+    radial-gradient(1.5px 1.5px at 90% 8%, rgba(255,255,255,.5), transparent 55%),
+    radial-gradient(ellipse 45% 26% at 8% 70%, rgba(20,32,52,.9), transparent 70%),
+    radial-gradient(ellipse 50% 30% at 94% 66%, rgba(18,29,48,.9), transparent 70%) !important;
+  animation:none !important;
+}
+.auth-overlay .auth-card{
+  background:linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.06)) !important;
+  backdrop-filter:blur(26px) saturate(1.25) !important;
+  -webkit-backdrop-filter:blur(26px) saturate(1.25) !important;
+  border:1px solid rgba(255,255,255,0.22) !important;
+  box-shadow:0 30px 80px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.04) inset !important;
+}
+.auth-overlay .auth-brand{text-transform:uppercase;letter-spacing:.22em;color:#eef2f8;}
+.auth-overlay .auth-tagline,.auth-overlay .auth-sub{color:#c3cbd8;}
+.auth-overlay label{color:#dbe2ec !important;}
+.auth-overlay input{background:rgba(10,16,28,0.45) !important;border-color:rgba(255,255,255,0.18) !important;color:#eef2f8 !important;}
+.auth-overlay input::placeholder{color:#8f9aae;}
+.auth-overlay .btn-primary{background:linear-gradient(180deg,#3a76ad,#2c5f8f) !important;border-color:rgba(255,255,255,0.15) !important;}
+.auth-overlay .btn-primary:hover{background:linear-gradient(180deg,#4383bd,#33699c) !important;}
+.auth-overlay .auth-toggle{color:#c3cbd8;}
+.auth-overlay .auth-toggle:hover{color:#fff;}
+.auth-field.fi-mail input,.auth-field.fi-lock input{padding-left:38px;background-repeat:no-repeat;background-position:12px center;background-size:16px;}
+.auth-field.fi-mail input{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a8b3c7' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='2' y='4' width='20' height='16' rx='2'/%3E%3Cpath d='m2 7 10 6 10-6'/%3E%3C/svg%3E");}
+.auth-field.fi-lock input{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a8b3c7' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='11' width='18' height='11' rx='2'/%3E%3Cpath d='M7 11V7a5 5 0 0 1 10 0v4'/%3E%3C/svg%3E");}
+.auth-divider{display:flex;align-items:center;gap:12px;color:#8f9aae;font-size:12px;margin:2px 0;}
+.auth-divider::before,.auth-divider::after{content:'';flex:1;height:1px;background:rgba(255,255,255,0.18);}
+.auth-social{display:flex;justify-content:center;gap:16px;}
+.auth-social-btn{width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,0.92);border:1px solid rgba(255,255,255,0.3);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform .12s ease,box-shadow .12s ease;padding:0;}
+.auth-social-btn:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,0.35);}
+.auth-social-btn svg{width:20px;height:20px;display:block;}
+.auth-forgot{text-align:right;font-size:12px;color:#c3cbd8;cursor:pointer;margin-top:-8px;text-decoration:underline;text-underline-offset:2px;}
+.auth-forgot:hover{color:#fff;}
 </style>
 </head>
 <body>
@@ -1114,14 +1163,20 @@ body:not(.light) .offline-pill{color:#fbbf24;}
       <div class="auth-tagline">Premium Mileage Tracking</div>
     </div>
     <div class="auth-sub" id="authSub">Sign in to sync your trips across all devices</div>
-    <div class="auth-field"><label>Email</label><input type="email" id="authEmail" placeholder="you@example.com"/></div>
-    <div class="auth-field"><label>Password</label><div class="pwd-wrap"><input type="password" id="authPassword" placeholder="Password"/><button type="button" class="pwd-toggle" id="authPwdToggle" tabindex="-1" aria-label="Show password"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></div></div>
+    <div class="auth-field fi-mail"><label>Email</label><input type="email" id="authEmail" placeholder="you@example.com"/></div>
+    <div class="auth-field fi-lock"><label>Password</label><div class="pwd-wrap"><input type="password" id="authPassword" placeholder="Password"/><button type="button" class="pwd-toggle" id="authPwdToggle" tabindex="-1" aria-label="Show password"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></div></div>
     <div class="auth-field" id="confirmPasswordField" style="display:none"><label>Confirm Password</label><div class="pwd-wrap"><input type="password" id="authPasswordConfirm" placeholder="Repeat password"/><button type="button" class="pwd-toggle" id="authPwd2Toggle" tabindex="-1" aria-label="Show password"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></div></div>
     <div id="pwdStrength" style="display:none;font-size:11px;padding:8px 12px;border-radius:8px;background:rgba(0,0,0,0.25);line-height:1.5;"></div>
     <div class="auth-error" id="authError"></div>
+    <div class="auth-forgot" id="forgotToggle">Forgot Password?</div>
     <button class="btn btn-primary" id="authBtn" style="width:100%;justify-content:center">Sign in</button>
+    <div class="auth-divider"><span>Or continue with</span></div>
+    <div class="auth-social">
+      <button class="auth-social-btn" onclick="socialSignIn('google')" aria-label="Continue with Google" title="Continue with Google"><svg viewBox="0 0 24 24"><path fill="#4285F4" d="M23.5 12.27c0-.85-.08-1.66-.22-2.45H12v4.64h6.45a5.52 5.52 0 0 1-2.39 3.62v3h3.87c2.26-2.09 3.57-5.17 3.57-8.81z"/><path fill="#34A853" d="M12 24c3.24 0 5.96-1.07 7.93-2.91l-3.87-3c-1.07.72-2.44 1.15-4.06 1.15-3.12 0-5.77-2.11-6.71-4.95H1.29v3.1A11.99 11.99 0 0 0 12 24z"/><path fill="#FBBC05" d="M5.29 14.29a7.2 7.2 0 0 1 0-4.58v-3.1H1.29a12.01 12.01 0 0 0 0 10.78l4-3.1z"/><path fill="#EA4335" d="M12 4.77c1.76 0 3.34.6 4.58 1.79l3.44-3.44C17.95 1.19 15.24 0 12 0A11.99 11.99 0 0 0 1.29 6.61l4 3.1C6.23 6.87 8.88 4.77 12 4.77z"/></svg></button>
+      <button class="auth-social-btn" onclick="socialSignIn('facebook')" aria-label="Continue with Facebook" title="Continue with Facebook"><svg viewBox="0 0 24 24"><path fill="#1877F2" d="M24 12a12 12 0 1 0-13.88 11.85v-8.38H7.08V12h3.04V9.36c0-3 1.79-4.67 4.53-4.67 1.31 0 2.68.24 2.68.24v2.95h-1.51c-1.49 0-1.95.92-1.95 1.87V12h3.32l-.53 3.47h-2.79v8.38A12 12 0 0 0 24 12z"/></svg></button>
+      <button class="auth-social-btn" onclick="socialSignIn('apple')" aria-label="Continue with Apple" title="Continue with Apple"><svg viewBox="0 0 24 24"><path fill="#111" d="M16.36 12.76c.03 3.26 2.86 4.35 2.89 4.36-.02.08-.45 1.55-1.49 3.07-.9 1.31-1.83 2.62-3.3 2.65-1.44.03-1.91-.86-3.56-.86-1.65 0-2.17.83-3.53.89-1.42.05-2.5-1.42-3.41-2.72C2.1 17.48.68 12.62 2.59 9.35a5.3 5.3 0 0 1 4.47-2.71c1.39-.03 2.71.94 3.56 .94.85 0 2.45-1.16 4.13-.99.7.03 2.68.28 3.94 2.14-.1.06-2.35 1.37-2.33 4.03zM13.64 3.9c.75-.91 1.26-2.18 1.12-3.44-1.08.04-2.39.72-3.17 1.63-.7.81-1.31 2.1-1.14 3.34 1.2.09 2.43-.61 3.19-1.53z"/></svg></button>
+    </div>
     <div class="auth-toggle" id="authToggle">Don't have an account? Sign up</div>
-    <div class="auth-toggle" id="forgotToggle" style="margin-top:6px;font-size:12px">Forgot password?</div>
   </div>
 
   <!-- Trust line below cards -->
@@ -1911,6 +1966,7 @@ const supa=(function(){
       getSession:function(){return Promise.resolve({data:{session:null},error:null});},
       onAuthStateChange:function(){return {data:{subscription:{unsubscribe:function(){}}}};},
       signInWithPassword:function(){return Promise.resolve({data:null,error:err});},
+      signInWithOAuth:function(){return Promise.resolve({data:null,error:err});},
       signUp:function(){return Promise.resolve({data:null,error:err});},
       signOut:function(){return Promise.resolve({error:null});},
       resetPasswordForEmail:function(){return Promise.resolve({data:null,error:err});},
@@ -4055,8 +4111,24 @@ function authErrorMessage(error){
   if(l.indexOf('failed to fetch')>=0||l.indexOf('networkerror')>=0||l.indexOf('network request failed')>=0||l.indexOf('offline')>=0)return 'You appear to be offline — check your connection and try again.';
   if(l.indexOf('rate limit')>=0||l.indexOf('for security purposes')>=0)return 'Too many attempts — please wait a moment and try again.';
   if(l.indexOf('user already registered')>=0)return 'An account with this email already exists — try signing in instead.';
+  if(l.indexOf('provider is not enabled')>=0||l.indexOf('unsupported provider')>=0||l.indexOf('validation_failed')>=0)return 'That sign-in method isn’t set up yet — use email & password for now.';
   return m;
 }
+
+// Social sign-in via Supabase OAuth. Works as soon as the provider is
+// enabled in the Supabase dashboard; until then the error maps to a
+// friendly "not set up yet" message.
+async function socialSignIn(provider){
+  var err=document.getElementById('authError');
+  try{
+    var res=await supa.auth.signInWithOAuth({provider:provider,options:{redirectTo:window.location.origin+window.location.pathname}});
+    if(res&&res.error)throw res.error;
+    // On success the browser redirects to the provider; SIGNED_IN fires on return.
+  }catch(e){
+    if(err){err.style.color='var(--red)';err.textContent=authErrorMessage(e);err.style.display='block';}
+  }
+}
+window.socialSignIn=socialSignIn;
 
 async function signIn(){
   const email=document.getElementById('authEmail').value.trim();
