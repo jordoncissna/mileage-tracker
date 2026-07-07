@@ -145,6 +145,10 @@ th.sortable{position:relative;}
 
 #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(8px);background:var(--surface3);border:1px solid var(--border2);color:var(--text);padding:8px 18px;border-radius:20px;font-size:12px;font-weight:500;font-family:'JetBrains Mono',monospace;opacity:0;transition:all .2s;pointer-events:none;z-index:999;box-shadow:0 8px 32px rgba(0,0,0,0.5);}
 #toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+#undoToast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(8px);background:var(--surface3);border:1px solid var(--border2);color:var(--text);padding:8px 10px 8px 18px;border-radius:22px;font-size:12.5px;font-weight:500;display:none;align-items:center;gap:14px;z-index:1200;box-shadow:0 10px 30px rgba(0,0,0,.35);opacity:0;transition:opacity .2s,transform .2s;}
+#undoToast.show{display:flex;opacity:1;transform:translateX(-50%) translateY(0);}
+#undoToast button{background:var(--accent);color:#fff;border:none;border-radius:16px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;}
+#undoToast button:hover{filter:brightness(1.08);}
 .spin{display:inline-block;animation:spin .7s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
 
@@ -1926,6 +1930,7 @@ body:not(.light) .offline-pill{color:#fbbf24;}
 </div>
 
 <div id="toast"></div>
+<div id="undoToast"><span id="undoToastMsg"></span><button id="undoToastBtn" type="button">Undo</button></div>
 
 
 <!-- Mobile bottom navigation (visible only on phone screens) -->
@@ -2700,11 +2705,23 @@ function clearF(){
 }
 
 function del(id){
-  if(!confirm('Delete this trip?'))return;
   const trip=trips.find(t=>t.id===id);
+  if(!trip)return;
+  const idx=trips.indexOf(trip);
+  // Optimistic delete with a 6s undo window — no blocking confirm dialog.
   trips=trips.filter(t=>t.id!==id);
-  save();updateSidebar();renderH();toast('Deleted');
-  if(trip)deleteFromSupabase(trip);
+  save();updateSidebar();renderH();
+  undoToast('Trip deleted',function(){
+    // Undo: restore at original position; re-insert to Supabase (new row).
+    trips.splice(Math.min(idx,trips.length),0,trip);
+    trip.supaId=null;
+    save();updateSidebar();renderH();
+    if(currentUser)saveToSupabase(trip);
+    toast('Restored ✓');
+  },function(){
+    // Window closed untouched: commit the server delete.
+    deleteFromSupabase(trip);
+  });
 }
 
 function renderH(){
@@ -2798,8 +2815,17 @@ function doExport(){
 }
 
 function clearAll(){
-  if(!confirm('Delete ALL trips? Cannot be undone.'))return;
-  trips=[];save();updateSidebar();renderH();toast('Cleared');
+  if(!trips.length){toast('No trips to clear');return;}
+  var n=trips.length;
+  // Typed confirmation — this wipes tax records, so a stray click can't do it.
+  var typed=prompt('This clears all '+n+' trips from this device.\n\nType DELETE to confirm:');
+  if(typed===null)return;
+  if(typed.trim().toUpperCase()!=='DELETE'){toast('Cancelled — nothing deleted');return;}
+  var backup=trips.slice();
+  trips=[];save();updateSidebar();renderH();
+  undoToast('Cleared '+n+' trip'+(n!==1?'s':''),function(){
+    trips=backup;save();updateSidebar();renderH();toast('Restored ✓');
+  },null,8000);
 }
 
 function switchNav(name,el){
@@ -2829,6 +2855,24 @@ function switchNav(name,el){
 
 let tt;
 function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>el.classList.remove('show'),2500);}
+
+// Reversible action toast: shows `msg` with an Undo button for `ms`.
+// onUndo runs if clicked; onExpire runs if the window closes untouched.
+var _undoTimer;
+function undoToast(msg,onUndo,onExpire,ms){
+  var el=document.getElementById('undoToast');
+  var msgEl=document.getElementById('undoToastMsg');
+  var btn=document.getElementById('undoToastBtn');
+  if(!el||!btn){if(onExpire)onExpire();return;}
+  clearTimeout(_undoTimer);
+  msgEl.textContent=msg;
+  var done=false;
+  function close(){el.classList.remove('show');}
+  btn.onclick=function(){if(done)return;done=true;clearTimeout(_undoTimer);close();if(onUndo)onUndo();};
+  el.classList.add('show');
+  _undoTimer=setTimeout(function(){if(done)return;done=true;close();if(onExpire)onExpire();},ms||6000);
+}
+window.undoToast=undoToast;
 
 document.addEventListener('keydown',e=>{
   if((e.metaKey||e.ctrlKey)&&e.key==='Enter')addTrip();

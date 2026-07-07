@@ -148,6 +148,39 @@ let confettiThrew = false; try { window.fireConfetti(); } catch (e) { confettiTh
 T('confetti no throw', !confettiThrew);
 T('confetti on completion not skip', /if\(skipReason!=='skip'\)fireConfetti\(\)/.test(html));
 
+// ===== REVERSIBLE DELETE + TYPED CLEAR-ALL =====
+(function () {
+  const trips = window.__trips();
+  const before = trips.length;
+  const victim = trips[trips.length - 1];
+  window.del(victim.id);
+  T('del removes the trip', window.__trips().length === before - 1);
+  T('undo toast is shown', $('undoToast').classList.contains('show'));
+  $('undoToastBtn').click();
+  T('undo restores the trip', window.__trips().length === before);
+  T('restored trip is the same one', window.__trips().some(t => t.id === victim.id));
+
+  // Clear-all: wrong text does nothing
+  window.prompt = () => 'nope';
+  const n = window.__trips().length;
+  window.clearAll();
+  T('clear-all blocked without typing DELETE', window.__trips().length === n && n > 0);
+
+  // Clear-all: typing DELETE clears, undo restores
+  window.prompt = () => 'DELETE';
+  window.clearAll();
+  T('clear-all with DELETE empties trips', window.__trips().length === 0);
+  T('clear-all shows undo', $('undoToast').classList.contains('show'));
+  $('undoToastBtn').click();
+  T('clear-all undo restores all', window.__trips().length === n);
+
+  // Cancelling the prompt (null) is a no-op
+  window.prompt = () => null;
+  const n2 = window.__trips().length;
+  window.clearAll();
+  T('clear-all cancel is a no-op', window.__trips().length === n2);
+})();
+
 // ===== SINGLE SHARE MODAL / RESIZE HANDLE =====
 T('one shareModal', document.querySelectorAll('#shareModal').length === 1);
 T('one rightResize', document.querySelectorAll('#rightResize').length === 1);
