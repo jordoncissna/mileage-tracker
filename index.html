@@ -1105,11 +1105,16 @@ body:not(.light) .offline-pill{color:#fbbf24;}
 /* ── AUTH REDESIGN: night-city glass (pins dark tokens; photo-swappable bg) ── */
 .auth-overlay{
   --text:#eef2f8;--text2:#c3cbd8;--text3:#8f9aae;--red:#ff8484;
+  /* Layers, top→bottom: legibility scrim · your photo (drop it at
+     assets/login-bg.jpg) · CSS gradient fallback shown until the photo exists. */
   background:
+    linear-gradient(rgba(6,10,20,0.28), rgba(6,10,20,0.52)),
+    url('assets/login-bg.jpg') center/cover no-repeat,
     radial-gradient(ellipse 60% 38% at 22% 96%, rgba(255,166,66,0.28), transparent 60%),
     radial-gradient(ellipse 70% 40% at 82% 92%, rgba(255,140,50,0.22), transparent 60%),
     radial-gradient(ellipse 90% 55% at 50% 115%, rgba(244,120,32,0.18), transparent 65%),
     radial-gradient(ellipse 120% 65% at 50% -12%, #17263e 0%, #0e1830 45%, #080f1f 75%, #05080f 100%) !important;
+  background-color:#080f1f !important;
 }
 .auth-overlay::before{
   background:
