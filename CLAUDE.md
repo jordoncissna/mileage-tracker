@@ -121,7 +121,8 @@ no longer a numbered-download step — edit `index.html` directly.
 - [x] Modernized analytics charts
 - [x] Offline-capable PWA (service worker, manifest, offline trip sync-on-reconnect)
 - [x] Tax-ready PDF reports (audit-defensible IRS export)
+- [x] Invite a coworker (referral link; groundwork for a rewards system)
 - [ ] Receipt capture (photo attached to a trip)
 - [ ] Persist commute override + rules to Supabase (currently local only)
 
-Deferred: native mobile app, paid tiers, marketing landing page.
+Deferred: Capacitor native wrap (iOS/Android + auto-detect), native mobile app, paid tiers, marketing landing page.

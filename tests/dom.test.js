@@ -181,6 +181,20 @@ T('confetti on completion not skip', /if\(skipReason!=='skip'\)fireConfetti\(\)/
   T('clear-all cancel is a no-op', window.__trips().length === n2);
 })();
 
+// ===== INVITE A COWORKER (referral) =====
+T('openInviteModal exposed', typeof window.openInviteModal === 'function');
+T('invite link carries a ref param', /[?&]ref=/.test(window.buildInviteLink()));
+T('invite link points at the app', window.buildInviteLink().indexOf('mileage-tracker') >= 0);
+window.openInviteModal();
+T('invite modal opens', $('inviteModal').style.display === 'flex');
+T('invite link populated in field', $('inviteLinkInput').value === window.buildInviteLink());
+T('invite entry point in settings', html.indexOf('Invite a coworker') >= 0);
+window.closeInviteModal();
+T('invite modal closes', $('inviteModal').style.display === 'none');
+// Inbound referral capture: simulate ?ref= landing
+window.localStorage.setItem('ml_referred_by', 'coworker-123');
+T('referral is stashed for attribution', window.localStorage.getItem('ml_referred_by') === 'coworker-123');
+
 // ===== SINGLE SHARE MODAL / RESIZE HANDLE =====
 T('one shareModal', document.querySelectorAll('#shareModal').length === 1);
 T('one rightResize', document.querySelectorAll('#rightResize').length === 1);

@@ -1914,6 +1914,7 @@ body:not(.light) .offline-pill{color:#fbbf24;}
           <button class="btn btn-primary" id="changePwdBtn" style="width:100%">Change Password</button>
           <div id="changePwdMsg" style="font-size:12px;margin-top:10px;display:none"></div>
           <button class="btn" onclick="startOnboarding()" style="width:100%;margin-top:10px">↻ Replay the welcome tour</button>
+          <button class="btn btn-primary" onclick="openInviteModal()" style="width:100%;margin-top:8px">📨 Invite a coworker</button>
         </div>
         <div class="sc"><div class="sc-icon" style="background:linear-gradient(135deg,#06b6d4,#0891b2)">📦</div>
           <h3>Data</h3>
@@ -1937,6 +1938,26 @@ body:not(.light) .offline-pill{color:#fbbf24;}
 
 <div id="toast"></div>
 <div id="undoToast"><span id="undoToastMsg"></span><button id="undoToastBtn" type="button">Undo</button></div>
+
+<!-- Invite a coworker modal (top-level so it opens from any view) -->
+<div id="inviteModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:1200;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r3);padding:28px;width:400px;max-width:100%;display:flex;flex-direction:column;gap:14px;">
+    <div style="font-size:17px;font-weight:700;color:var(--text)">📨 Invite a coworker</div>
+    <div style="font-size:13px;color:var(--text2);line-height:1.5">Send them your personal link. They get an IRS-ready mileage tracker; you’ll get credit for the referral.</div>
+    <div style="display:flex;gap:8px;align-items:center;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:4px 4px 4px 12px">
+      <input id="inviteLinkInput" readonly style="flex:1;background:none;border:none;color:var(--text);font-size:12px;font-family:'JetBrains Mono',monospace;outline:none;min-width:0"/>
+      <button class="btn btn-primary" onclick="copyInviteLink()" style="white-space:nowrap">Copy</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <button class="btn" id="inviteShareBtn" onclick="nativeInvite()" style="justify-content:flex-start;gap:10px;display:none">📲 Share via…</button>
+      <button class="btn" onclick="emailInvite()" style="justify-content:flex-start;gap:10px">✉️ Invite by email</button>
+      <button class="btn" onclick="smsInvite()" style="justify-content:flex-start;gap:10px">💬 Invite by text</button>
+      <button class="btn" onclick="inviteQr()" style="justify-content:flex-start;gap:10px">📱 Show QR code</button>
+    </div>
+    <div id="inviteQrContainer" style="display:none;text-align:center;padding:12px;background:white;border-radius:var(--r2)"><div id="inviteQrCode"></div><div style="font-size:11px;color:#666;margin-top:8px">Scan to join Milo</div></div>
+    <button class="btn" onclick="closeInviteModal()">Close</button>
+  </div>
+</div>
 
 
 <!-- Mobile bottom navigation (visible only on phone screens) -->
@@ -3178,6 +3199,65 @@ function shareQr(){
   }catch(e){toast('QR library not loaded');}
 }
 function shareCsv(){doExport();closeShareModal();}
+
+// ── INVITE A COWORKER (referral groundwork for future rewards) ──────
+var INVITE_BASE='https://jordoncissna.github.io/mileage-tracker';
+function inviteCode(){
+  // Stable per-user code: the Supabase user id when signed in, else 'guest'.
+  return (currentUser&&currentUser.id)?currentUser.id:'guest';
+}
+function buildInviteLink(){
+  return INVITE_BASE+'/?ref='+encodeURIComponent(inviteCode());
+}
+var INVITE_MSG='I’m using Milo to track my mileage for tax deductions — it’s free and IRS-ready. Join me:';
+function openInviteModal(){
+  var m=document.getElementById('inviteModal');if(!m)return;
+  document.getElementById('inviteLinkInput').value=buildInviteLink();
+  var nb=document.getElementById('inviteShareBtn');
+  if(nb)nb.style.display=(navigator.share)?'flex':'none';
+  var qc=document.getElementById('inviteQrContainer');if(qc)qc.style.display='none';
+  m.style.display='flex';
+}
+function closeInviteModal(){var m=document.getElementById('inviteModal');if(m)m.style.display='none';}
+function copyInviteLink(){
+  var url=buildInviteLink();
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(url).then(function(){toast('Invite link copied ✓');}).catch(function(){toast(url);});
+  }else{toast(url);}
+}
+function nativeInvite(){
+  if(!navigator.share)return copyInviteLink();
+  navigator.share({title:'Milo — Mileage Tracker',text:INVITE_MSG,url:buildInviteLink()}).catch(function(){});
+}
+function emailInvite(){
+  var body=INVITE_MSG+'\n\n'+buildInviteLink();
+  window.location.href='mailto:?subject='+encodeURIComponent('Try Milo for mileage tracking')+'&body='+encodeURIComponent(body);
+}
+function smsInvite(){
+  window.location.href='sms:?&body='+encodeURIComponent(INVITE_MSG+' '+buildInviteLink());
+}
+function inviteQr(){
+  var el=document.getElementById('inviteQrCode');if(!el)return;
+  el.innerHTML='';
+  if(typeof QRCode==='undefined'){toast('⚠ QR needs an internet connection');return;}
+  try{
+    new QRCode(el,{text:buildInviteLink(),width:180,height:180,colorDark:'#000',colorLight:'#fff'});
+    document.getElementById('inviteQrContainer').style.display='block';
+  }catch(e){toast('QR library not loaded');}
+}
+// Capture an inbound referral so signup can attribute it (rewards later).
+function captureReferral(){
+  try{
+    var p=new URLSearchParams(window.location.search);
+    var ref=p.get('ref');
+    if(ref&&!localStorage.getItem('ml_referred_by'))localStorage.setItem('ml_referred_by',ref);
+  }catch(e){}
+}
+captureReferral();
+window.openInviteModal=openInviteModal;window.closeInviteModal=closeInviteModal;
+window.copyInviteLink=copyInviteLink;window.nativeInvite=nativeInvite;
+window.emailInvite=emailInvite;window.smsInvite=smsInvite;window.inviteQr=inviteQr;
+window.buildInviteLink=buildInviteLink;
 function buildTaxReportHTML(year){
   var y=String(year);
   var fl=trips.filter(function(t){return t.date&&t.date.slice(0,4)===y;})
@@ -4219,6 +4299,8 @@ async function signUp(){
   const{data,error}=await supa.auth.signUp({email,password:pwd});
   btn.textContent='Create account';btn.disabled=false;
   if(error){err.textContent=authErrorMessage(error);err.style.display='block';return;}
+  // Attribution seam for the future rewards system: who referred this signup.
+  try{var _ref=localStorage.getItem('ml_referred_by');if(_ref)localStorage.setItem('ml_signup_ref',_ref);}catch(e){}
   if(data.user&&!data.user.confirmed_at){
     err.style.color='var(--green)';err.textContent='✓ Check your email to confirm your account!';err.style.display='block';return;
   }
