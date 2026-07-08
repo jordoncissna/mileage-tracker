@@ -137,8 +137,10 @@ th.sortable{position:relative;}
 .empty{text-align:center;padding:60px 24px;color:var(--text3);font-size:13px;line-height:1.8;}
 
 .settings-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
-.sc{background:var(--surface);border:1px solid var(--border);border-radius:var(--r3);padding:18px;}
-.sc h3{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:14px;}
+.sc{background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);padding:14px 16px;break-inside:avoid;}
+.sc h3{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px;}
+.sc .field{margin-bottom:8px!important;}
+.sc>div[style*="margin-bottom:14px"]{margin-bottom:9px!important;}
 
 .hint-box{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:60px 40px;border:1px dashed var(--border2);border-radius:var(--r3);color:var(--text3);font-size:13px;line-height:1.9;}
 .hint-box strong{color:var(--text2);}
@@ -572,6 +574,10 @@ to{transform:translate(80px,80px);}}
 /* ===== FULL WIDTH HISTORY / ANALYTICS ===== */
 body.fullwidth-history .left,
 body.fullwidth-history .map-panel{display:none!important;}
+/* The right column only ever holds a redundant hint on the Log Trip view
+   (History/Analytics/Settings take over full-width). Hide it there so the
+   map fills the space instead of showing empty filler. */
+body:not(.fullwidth-history) .right{display:none!important;}
 body.fullwidth-history .right{width:100%!important;max-width:none!important;flex:1!important;}
 body.fullwidth-history .resize-handle{display:none!important;}
 
@@ -582,8 +588,11 @@ body.fullwidth-history .resize-handle{display:none!important;}
 .right-resize-handle.dragging{background:rgba(79,158,255,0.5);}
 
 /* Settings layout fix - make it cleaner */
-#view-set .settings-grid{grid-template-columns:1fr 1fr;gap:16px;}
-@media (max-width: 1100px){#view-set .settings-grid{grid-template-columns:1fr;}}
+/* Masonry columns: short cards (e.g. Business info) pack above the next
+   card in their column instead of leaving a tall gap next to a big card. */
+#view-set .settings-grid{display:block;column-count:2;column-gap:12px;}
+#view-set .settings-grid .sc{margin:0 0 12px;width:100%;}
+@media (max-width: 1100px){#view-set .settings-grid{column-count:1;}}
 
 
 /* ===== SETTINGS REDESIGNED ===== */
@@ -594,9 +603,9 @@ body.fullwidth-history .resize-handle{display:none!important;}
   flex-shrink:0;
   background:linear-gradient(135deg,rgba(79,158,255,0.08),rgba(124,77,255,0.08));
   border:1px solid rgba(79,158,255,0.15);
-  border-radius:18px;
-  padding:24px 28px;
-  margin-bottom:20px;
+  border-radius:14px;
+  padding:16px 22px;
+  margin-bottom:14px;
   display:flex;
   justify-content:space-between;
   align-items:center;
@@ -669,18 +678,21 @@ body.fullwidth-history .resize-handle{display:none!important;}
 /* Hero banner */
 .analytics-hero{
   position:relative;
-  background:linear-gradient(135deg,#1a2538 0%,#0e1626 100%);
-  border:1px solid rgba(79,158,255,0.2);
+  /* Vivid blue banner with white text — reads in both light and dark app
+     themes (the old near-black gradient + theme-colored text was invisible
+     in light mode). */
+  background:linear-gradient(135deg,#3b82f6 0%,#2563eb 48%,#1e40af 100%);
+  border:1px solid rgba(255,255,255,0.16);
   border-radius:18px;
   padding:32px 36px;
   overflow:hidden;
-  box-shadow:0 12px 36px rgba(0,0,0,0.3);
+  box-shadow:0 14px 40px rgba(37,99,235,0.28);
 }
 .analytics-hero-bg{
   position:absolute;
   inset:0;
-  background:radial-gradient(circle at 80% 20%,rgba(79,158,255,0.2),transparent 60%),
-             radial-gradient(circle at 20% 80%,rgba(61,214,140,0.15),transparent 60%);
+  background:radial-gradient(circle at 84% 12%,rgba(255,255,255,0.22),transparent 55%),
+             radial-gradient(circle at 12% 92%,rgba(61,214,140,0.28),transparent 55%);
   pointer-events:none;
 }
 .analytics-hero-content{position:relative;z-index:1;}
@@ -688,7 +700,7 @@ body.fullwidth-history .resize-handle{display:none!important;}
   font-size:11px;
   font-weight:700;
   letter-spacing:0.15em;
-  color:var(--accent);
+  color:rgba(255,255,255,0.82);
   margin-bottom:16px;
 }
 .analytics-hero-stats{
@@ -702,7 +714,7 @@ body.fullwidth-history .resize-handle{display:none!important;}
   font-size:42px;
   font-weight:800;
   font-family:'JetBrains Mono',monospace;
-  color:var(--text);
+  color:#ffffff;
   letter-spacing:-0.02em;
   line-height:1;
   margin-bottom:8px;
@@ -711,13 +723,13 @@ body.fullwidth-history .resize-handle{display:none!important;}
   font-size:12px;
   text-transform:uppercase;
   letter-spacing:0.08em;
-  color:var(--text3);
+  color:rgba(255,255,255,0.74);
   font-weight:600;
 }
 .analytics-hero-divider{
   width:1px;
   height:48px;
-  background:linear-gradient(180deg,transparent,rgba(255,255,255,0.15),transparent);
+  background:linear-gradient(180deg,transparent,rgba(255,255,255,0.3),transparent);
 }
 
 /* Filters */
@@ -1675,7 +1687,7 @@ body:not(.light) .offline-pill{color:#fbbf24;}
           </div>
           <div class="analytics-hero-divider"></div>
           <div class="analytics-hero-stat">
-            <div class="analytics-hero-stat-value" id="aHeroDeduction" style="color:#3dd68c">$0</div>
+            <div class="analytics-hero-stat-value" id="aHeroDeduction" style="color:#6ee7a8">$0</div>
             <div class="analytics-hero-stat-label">Deduction earned</div>
           </div>
           <div class="analytics-hero-divider"></div>
@@ -1943,7 +1955,7 @@ body:not(.light) .offline-pill{color:#fbbf24;}
 <div id="inviteModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:1200;align-items:center;justify-content:center;padding:20px;">
   <div style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r3);padding:28px;width:400px;max-width:100%;display:flex;flex-direction:column;gap:14px;">
     <div style="font-size:17px;font-weight:700;color:var(--text)">📨 Invite a coworker</div>
-    <div style="font-size:13px;color:var(--text2);line-height:1.5">Send them your personal link. They get an IRS-ready mileage tracker; you’ll get credit for the referral.</div>
+    <div style="font-size:13px;color:var(--text2);line-height:1.5">Send them your personal link. They set up their <b>own</b> Milo account with their own trips — your mileage stays separate. You’ll get credit for the referral.</div>
     <div style="display:flex;gap:8px;align-items:center;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:4px 4px 4px 12px">
       <input id="inviteLinkInput" readonly style="flex:1;background:none;border:none;color:var(--text);font-size:12px;font-family:'JetBrains Mono',monospace;outline:none;min-width:0"/>
       <button class="btn btn-primary" onclick="copyInviteLink()" style="white-space:nowrap">Copy</button>
