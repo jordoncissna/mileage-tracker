@@ -125,9 +125,10 @@ cache.
 - [x] Auto-classify rules
 - [x] Offline-capable PWA (works without signal; trips sync on reconnect)
 - [x] Tax-ready PDF reports (audit-defensible IRS export)
+- [x] Invite a coworker (referral link; groundwork for a rewards system)
 - [ ] Receipt capture (photo attached to a trip)
 
-Deferred: native mobile app, paid tiers, marketing landing page.
+Deferred: Capacitor native wrap (iOS/Android + auto-detect), native mobile app, paid tiers, marketing landing page.
 
 ## Security notes
 
