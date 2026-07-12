@@ -4259,6 +4259,10 @@ function authErrorMessage(error){
   if(l.indexOf('rate limit')>=0||l.indexOf('for security purposes')>=0)return 'Too many attempts — please wait a moment and try again.';
   if(l.indexOf('user already registered')>=0)return 'An account with this email already exists — try signing in instead.';
   if(l.indexOf('provider is not enabled')>=0||l.indexOf('unsupported provider')>=0||l.indexOf('validation_failed')>=0)return 'That sign-in method isn’t set up yet — use email & password for now.';
+  if(l.indexOf('captcha')>=0)return 'Sign-up is temporarily unavailable — please try again shortly or contact support.';
+  // GoTrue can return an empty/opaque body (SDK stringifies it to "{}" or
+  // "[object Object]"); never surface that raw to a user.
+  if(l==='{}'||l==='[object object]'||m.trim()==='')return 'Something went wrong. Please try again in a moment.';
   return m;
 }
 
