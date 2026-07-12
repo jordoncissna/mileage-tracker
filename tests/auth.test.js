@@ -95,6 +95,13 @@ const SESSION = { user: USER, access_token: 'jwt-a', refresh_token: 'rt-1', expi
   setFields('a@b.co', 'Passw0rdX', 'Passw0rdX'); await window.__signUp();
   T('signup duplicate account shows error', errShown() && errText().length > 0);
 
+  // The exact real-world failure: GoTrue 500 with an empty body → ".message"
+  // is the string "{}". The user must NEVER see "{}" in the DOM again.
+  behavior.signUp = { data: null, error: { message: '{}', status: 500 } };
+  setFields('a@b.co', 'Passw0rdX', 'Passw0rdX'); await window.__signUp();
+  T('signup 500 does NOT render raw "{}"', errText().indexOf('{}') < 0);
+  T('signup 500 shows a readable message with the code', errShown() && errText().indexOf('500') >= 0 && errText().length > 6);
+
   // ===== LOGIN: client-side validation (SHOULD fail fast, no API call) =====
   const si0 = calls.signIn;
   setFields('', ''); await window.__signIn();
