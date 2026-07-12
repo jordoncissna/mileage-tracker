@@ -95,6 +95,13 @@ const SESSION = { user: USER, access_token: 'jwt-a', refresh_token: 'rt-1', expi
   setFields('a@b.co', 'Passw0rdX', 'Passw0rdX'); await window.__signUp();
   T('signup duplicate account shows error', errShown() && errText().length > 0);
 
+  // The exact real-world failure: GoTrue 500 with an empty body → ".message"
+  // is the string "{}". The user must NEVER see "{}" in the DOM again.
+  behavior.signUp = { data: null, error: { message: '{}', status: 500 } };
+  setFields('a@b.co', 'Passw0rdX', 'Passw0rdX'); await window.__signUp();
+  T('signup 500 does NOT render raw "{}"', errText().indexOf('{}') < 0);
+  T('signup 500 shows a readable message with the code', errShown() && errText().indexOf('500') >= 0 && errText().length > 6);
+
   // ===== LOGIN: client-side validation (SHOULD fail fast, no API call) =====
   const si0 = calls.signIn;
   setFields('', ''); await window.__signIn();
@@ -170,6 +177,14 @@ const SESSION = { user: USER, access_token: 'jwt-a', refresh_token: 'rt-1', expi
     T('maps offline stub', m({ message: 'Supabase SDK unavailable (offline)' }).toLowerCase().indexOf('offline') >= 0);
     T('unknown errors pass through', m({ message: 'Some novel error' }).indexOf('Some novel error') >= 0);
     T('handles missing message', typeof m({}) === 'string' && m({}).length > 0);
+    // Opaque "{}" body must never reach the user, and the status code must surface.
+    T('empty "{}" message is not shown raw', m({ message: '{}' }).indexOf('{}') < 0);
+    T('opaque error surfaces status code', m({ message: '{}', status: 500 }).indexOf('500') >= 0);
+    T('500 maps to service-trouble message', m({ status: 503 }).toLowerCase().indexOf('trouble') >= 0);
+    T('429 status maps to rate-limit message', m({ status: 429, message: '{}' }).toLowerCase().indexOf('try again') >= 0);
+    T('recovers message from error_description', m({ message: '{}', error_description: 'Signups not allowed for this instance' }).toLowerCase().indexOf('turned off') >= 0 || m({ message: '{}', error_description: 'Signups not allowed for this instance' }).toLowerCase().indexOf('sign-ups') >= 0);
+    T('email-send failure maps to friendly message', m({ message: 'Error sending confirmation email' }).toLowerCase().indexOf('confirmation email') >= 0);
+    T('captcha maps to friendly message', m({ message: 'captcha protection: request disallowed' }).toLowerCase().indexOf('captcha') < 0);
   } else { fail += 5; console.log('FAIL: 5 mapper tests skipped — authErrorMessage missing'); }
 
   console.log(`\nauth.test.js: ${pass} passed, ${fail} failed`);
