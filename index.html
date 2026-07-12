@@ -4250,20 +4250,44 @@ window.importCSV=importCSV;
 
 // ── AUTH ─────────────────────────────────────────────────────
 // Map raw GoTrue/network errors to messages a human can act on.
+// Pull the most useful human string out of whatever the auth layer threw.
+// GoTrue / supabase-js errors are inconsistent: sometimes a clean `.message`,
+// sometimes an empty body whose `.message` stringifies to "{}", sometimes the
+// detail lives in `error_description`/`msg`/`code`. Never let the raw "{}"
+// reach a user, and never silently drop the HTTP status — it's the single most
+// useful thing for diagnosing an opaque failure.
+function authRawMessage(error){
+  if(!error)return '';
+  var m=error.message;
+  var junk=(typeof m!=='string')||!m.trim()||m.trim()==='{}'||m.trim()==='[object Object]';
+  if(junk){
+    // Recover from the other fields GoTrue/PostgREST may populate.
+    m=error.error_description||error.msg||error.error||error.hint||error.details||error.code||error.name||'';
+  }
+  return (typeof m==='string')?m.trim():'';
+}
 function authErrorMessage(error){
-  var m=(error&&error.message)||'Something went wrong. Please try again.';
+  var m=authRawMessage(error);
   var l=m.toLowerCase();
+  var status=(error&&(error.status||error.statusCode||error.code))||0;
   if(l.indexOf('invalid login credentials')>=0)return 'Incorrect email or password.';
   if(l.indexOf('email not confirmed')>=0)return 'Please confirm your email first — check your inbox for the link.';
   if(l.indexOf('failed to fetch')>=0||l.indexOf('networkerror')>=0||l.indexOf('network request failed')>=0||l.indexOf('offline')>=0)return 'You appear to be offline — check your connection and try again.';
-  if(l.indexOf('rate limit')>=0||l.indexOf('for security purposes')>=0)return 'Too many attempts — please wait a moment and try again.';
-  if(l.indexOf('user already registered')>=0)return 'An account with this email already exists — try signing in instead.';
+  if(l.indexOf('rate limit')>=0||l.indexOf('for security purposes')>=0||l.indexOf('too many')>=0||status===429)return 'Too many attempts — please wait a minute and try again.';
+  if(l.indexOf('user already registered')>=0||l.indexOf('already been registered')>=0)return 'An account with this email already exists — try signing in instead.';
   if(l.indexOf('provider is not enabled')>=0||l.indexOf('unsupported provider')>=0||l.indexOf('validation_failed')>=0)return 'That sign-in method isn’t set up yet — use email & password for now.';
-  if(l.indexOf('captcha')>=0)return 'Sign-up is temporarily unavailable — please try again shortly or contact support.';
-  // GoTrue can return an empty/opaque body (SDK stringifies it to "{}" or
-  // "[object Object]"); never surface that raw to a user.
-  if(l==='{}'||l==='[object object]'||m.trim()==='')return 'Something went wrong. Please try again in a moment.';
-  return m;
+  if(l.indexOf('captcha')>=0)return 'Sign-up verification is blocking this request — please try again shortly or contact support.';
+  if(l.indexOf('sending')>=0&&l.indexOf('email')>=0)return 'We couldn’t send your confirmation email right now — please try again in a few minutes.';
+  if(l.indexOf('signups not allowed')>=0||l.indexOf('signup is disabled')>=0||l.indexOf('signups are disabled')>=0)return 'New sign-ups are currently turned off — contact support.';
+  if(l.indexOf('password')>=0&&(l.indexOf('weak')>=0||l.indexOf('should be')>=0||l.indexOf('at least')>=0))return 'That password doesn’t meet the requirements — try a longer, stronger one.';
+  // Server-side failure (500/503) with an empty body is the classic "{}" case,
+  // very often a mis-configured or rate-limited confirmation-email provider.
+  if(Number(status)>=500)return 'The sign-in service is having trouble right now (error '+status+'). Please try again in a few minutes.';
+  // We have a real, non-junk message from the server — show it as-is.
+  if(m)return m;
+  // Truly opaque: surface the status code so it's actionable, never bare "{}".
+  return status?('Something went wrong (error '+status+'). Please try again in a moment.')
+               :'Something went wrong. Please try again in a moment.';
 }
 
 // Social sign-in via Supabase OAuth. Works as soon as the provider is
@@ -4292,7 +4316,7 @@ async function signIn(){
   btn.innerHTML='<span class="btn-spinner"></span>Signing in...';btn.disabled=true;err.style.display='none';
   const{data,error}=await supa.auth.signInWithPassword({email,password:pwd});
   btn.textContent='Sign in';btn.disabled=false;
-  if(error){err.textContent=authErrorMessage(error);err.style.display='block';return;}
+  if(error){console.error('[auth] signIn failed:',error,'status=',error&&error.status);err.textContent=authErrorMessage(error);err.style.display='block';return;}
   onSignedIn(data.user);
 }
 
@@ -4314,7 +4338,7 @@ async function signUp(){
   btn.innerHTML='<span class="btn-spinner"></span>Creating account...';btn.disabled=true;
   const{data,error}=await supa.auth.signUp({email,password:pwd});
   btn.textContent='Create account';btn.disabled=false;
-  if(error){err.textContent=authErrorMessage(error);err.style.display='block';return;}
+  if(error){console.error('[auth] signUp failed:',error,'status=',error&&error.status);err.textContent=authErrorMessage(error);err.style.display='block';return;}
   // Attribution seam for the future rewards system: who referred this signup.
   try{var _ref=localStorage.getItem('ml_referred_by');if(_ref)localStorage.setItem('ml_signup_ref',_ref);}catch(e){}
   if(data.user&&!data.user.confirmed_at){
