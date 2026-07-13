@@ -4362,10 +4362,8 @@ function onSignedIn(user){
   currentUser=user;
   document.getElementById('authOverlay').style.display='none';
   document.getElementById('userEmail').textContent=user.email;
-  init();
-  setTimeout(()=>{initMainMap();initResize();initRightResize();},200);
-  loadFromSupabase();
-  // First login on this device: run the welcome tour. (Signup with instant
+  // First login on this device: run the welcome tour. Scheduled BEFORE
+  // init/map/sync so no exception below can swallow it. (Signup with instant
   // session also triggers it explicitly; the flag makes that a no-op here.)
   try{
     if(!localStorage.getItem('milo-onboarding-complete')){
@@ -4373,8 +4371,11 @@ function onSignedIn(user){
         var ov=document.getElementById('onboardOverlay');
         if(ov&&!ov.classList.contains('active'))startOnboarding();
       },700);
-    }
-  }catch(e){}
+    }else{console.log('[tour] skipped: already completed on this device');}
+  }catch(e){console.error('[tour] trigger failed:',e);}
+  try{init();}catch(e){console.error('[init] failed:',e);}
+  setTimeout(()=>{initMainMap();initResize();initRightResize();},200);
+  loadFromSupabase();
 }
 
 window.addEventListener('DOMContentLoaded',function(){
