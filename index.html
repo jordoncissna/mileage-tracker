@@ -4336,7 +4336,9 @@ async function signUp(){
   if(!/[0-9]/.test(pwd)){err.textContent='Password must include at least one number';err.style.display='block';return;}
   if(pwd!==pwd2){err.textContent='Passwords do not match';err.style.display='block';return;}
   btn.innerHTML='<span class="btn-spinner"></span>Creating account...';btn.disabled=true;
-  const{data,error}=await supa.auth.signUp({email,password:pwd});
+  // Explicit redirect back to the app (a project page, not the domain root) —
+  // don't rely on the dashboard Site URL being right.
+  const{data,error}=await supa.auth.signUp({email,password:pwd,options:{emailRedirectTo:window.location.origin+window.location.pathname}});
   btn.textContent='Create account';btn.disabled=false;
   if(error){console.error('[auth] signUp failed:',error,'status=',error&&error.status);err.textContent=authErrorMessage(error);err.style.display='block';return;}
   // Attribution seam for the future rewards system: who referred this signup.
