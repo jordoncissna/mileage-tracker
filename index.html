@@ -3464,6 +3464,12 @@ function startOnboarding(){
   updateOnboardScreen();
 }
 
+// The tour-completed flag is scoped per USER, not per browser — a second
+// account signing in on the same computer still gets welcomed. (The legacy
+// un-scoped 'milo-onboarding-complete' key is intentionally ignored.)
+function onboardFlagKey(){
+  return 'milo-onboarding-complete'+(currentUser&&currentUser.id?':'+currentUser.id:'');
+}
 function closeOnboarding(skipReason){
   var overlay=document.getElementById('onboardOverlay');
   if(overlay)overlay.classList.remove('active');
@@ -3472,7 +3478,7 @@ function closeOnboarding(skipReason){
     addSampleTrip();
   }
   if(skipReason!=='skip')fireConfetti();
-  try{localStorage.setItem('milo-onboarding-complete','1');}catch(e){}
+  try{localStorage.setItem(onboardFlagKey(),'1');}catch(e){}
 }
 
 function fireConfetti(){
@@ -4366,12 +4372,12 @@ function onSignedIn(user){
   // init/map/sync so no exception below can swallow it. (Signup with instant
   // session also triggers it explicitly; the flag makes that a no-op here.)
   try{
-    if(!localStorage.getItem('milo-onboarding-complete')){
+    if(!localStorage.getItem(onboardFlagKey())){
       setTimeout(function(){
         var ov=document.getElementById('onboardOverlay');
         if(ov&&!ov.classList.contains('active'))startOnboarding();
       },700);
-    }else{console.log('[tour] skipped: already completed on this device');}
+    }else{console.log('[tour] skipped: this user already completed it');}
   }catch(e){console.error('[tour] trigger failed:',e);}
   try{init();}catch(e){console.error('[init] failed:',e);}
   setTimeout(()=>{initMainMap();initResize();initRightResize();},200);
