@@ -26,7 +26,7 @@
   --red:#f87171; --red-bg:rgba(248,113,113,0.08);
   --r:6px; --r2:10px; --r3:14px;
   /* Analytics series colors — CVD-validated per mode; keep the trio's order */
-  --viz-biz:#3987e5; --viz-com:#c98500; --viz-per:#d55181;
+  --viz-biz:#3987e5; --viz-com:#c98500; --viz-per:#d55181; --viz-accent:#3987e5;
   --hm1:#184f95; --hm2:#1c5cab; --hm3:#2a78d6; --hm4:#5598e7; --hm5:#86b6ef;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -271,7 +271,7 @@ th.sortable{position:relative;}
     --accent:#2563eb; --accent2:#1d4ed8; --accent-glow:rgba(37,99,235,0.15); --accent-bg:rgba(37,99,235,0.08);
     --green:#059669; --green-bg:rgba(5,150,105,0.08);
     --red:#dc2626; --red-bg:rgba(220,38,38,0.08);
-    --viz-biz:#2a78d6; --viz-com:#eda100; --viz-per:#e87ba4;
+    --viz-biz:#2a78d6; --viz-com:#eda100; --viz-per:#e87ba4; --viz-accent:#2a78d6;
     --hm1:#cde2fb; --hm2:#9ec5f4; --hm3:#5598e7; --hm4:#2a78d6; --hm5:#184f95;
   }
   body.light .topbar{background:#fff;border-bottom:1px solid rgba(0,0,0,0.1);}
@@ -673,140 +673,70 @@ body.fullwidth-history .resize-handle{display:none!important;}
 
 
 /* ===== ANALYTICS REDESIGNED ===== */
-.analytics-container{padding:24px;display:flex;flex-direction:column;gap:20px;max-width:1400px;margin:0 auto;}
+.analytics-container{padding:20px 24px 28px;display:flex;flex-direction:column;gap:14px;max-width:1400px;margin:0 auto;}
 
-/* Hero banner */
-.analytics-hero{
-  position:relative;
-  /* Vivid blue banner with white text — reads in both light and dark app
-     themes (the old near-black gradient + theme-colored text was invisible
-     in light mode). */
-  background:linear-gradient(135deg,#3b82f6 0%,#2563eb 48%,#1e40af 100%);
-  border:1px solid rgba(255,255,255,0.16);
-  border-radius:18px;
-  padding:32px 36px;
-  overflow:hidden;
-  box-shadow:0 14px 40px rgba(37,99,235,0.28);
-}
-.analytics-hero-bg{
-  position:absolute;
-  inset:0;
-  background:radial-gradient(circle at 84% 12%,rgba(255,255,255,0.22),transparent 55%),
-             radial-gradient(circle at 12% 92%,rgba(61,214,140,0.28),transparent 55%);
-  pointer-events:none;
-}
-.analytics-hero-content{position:relative;z-index:1;}
-.analytics-hero-eyebrow{
-  font-size:11px;
-  font-weight:700;
-  letter-spacing:0.15em;
-  color:rgba(255,255,255,0.82);
-  margin-bottom:16px;
-}
-.analytics-hero-stats{
-  display:flex;
-  gap:32px;
-  align-items:center;
-  flex-wrap:wrap;
-}
-.analytics-hero-stat{}
-.analytics-hero-stat-value{
-  font-size:42px;
-  font-weight:800;
-  font-family:'JetBrains Mono',monospace;
-  color:#ffffff;
-  letter-spacing:-0.02em;
-  line-height:1;
-  margin-bottom:8px;
-}
-.analytics-hero-stat-label{
-  font-size:12px;
-  text-transform:uppercase;
-  letter-spacing:0.08em;
-  color:rgba(255,255,255,0.74);
-  font-weight:600;
-}
-.analytics-hero-divider{
-  width:1px;
-  height:48px;
-  background:linear-gradient(180deg,transparent,rgba(255,255,255,0.3),transparent);
-}
-
-/* Filters */
-.analytics-filters{
-  display:flex;
-  gap:12px;
-  align-items:center;
-  flex-wrap:wrap;
-}
-.analytics-filter-label{
-  font-size:12px;
-  color:var(--text3);
-  font-weight:600;
-  text-transform:uppercase;
-  letter-spacing:0.08em;
-}
+/* One filter row above everything it scopes (period + year + share) */
+.analytics-head{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
 .analytics-select{
-  background:var(--surface2);
+  width:auto; /* beat the global full-width select rule */
+  background:var(--surface);
   border:1px solid var(--border2);
-  border-radius:10px;
+  border-radius:9px;
   color:var(--text);
   font-size:13px;
-  padding:8px 14px;
+  padding:7px 12px;
   font-family:'Inter',sans-serif;
   cursor:pointer;
 }
+.analytics-head .head-spacer{flex:1;}
 
-/* Stat cards row */
-.analytics-stat-cards{
-  display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
-  gap:14px;
+/* KPI band: one hero figure + compact stat tiles, all scoped to the filter */
+.kpi-band{display:grid;grid-template-columns:1.7fr 1fr 1fr 1fr;gap:12px;align-items:stretch;}
+@media (max-width: 980px){.kpi-band{grid-template-columns:1fr 1fr;}.a-hero{grid-column:1/-1;}}
+.a-hero{grid-row:1;display:flex;flex-direction:column;gap:6px;justify-content:center;}
+.a-hero .a-hero-value{
+  font-size:44px;font-weight:800;color:var(--text);letter-spacing:-0.02em;line-height:1.05;
+  font-family:'Inter',sans-serif; /* proportional figures at display size */
 }
+.a-hero .a-hero-delta{font-size:12.5px;font-weight:600;display:flex;align-items:center;gap:6px;}
+.a-hero .a-hero-delta .d-up{color:var(--green);}
+.a-hero .a-hero-delta .d-down{color:var(--red);}
+.a-hero .a-hero-delta .d-ctx{color:var(--text3);font-weight:500;}
+.a-hero .a-spark{margin-top:4px;display:block;width:100%;height:30px;overflow:visible;}
+.a-card .a-card-note{font-size:11px;color:var(--text3);}
 
 /* General card */
 .analytics-card{
-  background:linear-gradient(180deg,var(--surface),var(--surface2));
+  background:var(--surface);
   border:1px solid var(--border);
   border-radius:14px;
-  padding:24px;
+  padding:18px 20px;
   transition:border-color 0.2s;
 }
 .analytics-card:hover{border-color:var(--border2);}
-.analytics-card-header{margin-bottom:20px;}
+.analytics-card-header{margin-bottom:12px;display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;}
 .analytics-card-title{
-  font-size:15px;
+  font-size:14px;
   font-weight:700;
   color:var(--text);
-  margin-bottom:4px;
 }
 .analytics-card-sub{
   font-size:12px;
   color:var(--text3);
 }
 
-/* Chart improvements */
-.analytics-chart{
-  display:flex;
-  align-items:flex-end;
-  gap:10px;
-  height:200px;
-  width:100%;
-  overflow-x:auto;
-  padding-bottom:8px;
-  position:relative;
-}
-.analytics-chart::-webkit-scrollbar{height:6px;}
-.analytics-chart::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
+.analytics-chart{width:100%;position:relative;}
 
-/* 2-column row */
-.analytics-row-2col{
+/* Dense 3-track grid: wide chart (2) + companion card (1) per row */
+.analytics-grid{
   display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:20px;
+  grid-template-columns:2fr 1fr;
+  gap:14px;
+  align-items:start; /* cards size to content; no hollow space inside short cards */
 }
-@media (max-width: 900px){
-  .analytics-row-2col{grid-template-columns:1fr;}
+.analytics-grid .span2{grid-column:span 1;}
+@media (max-width: 980px){
+  .analytics-grid{grid-template-columns:1fr;}
 }
 
 /* Categories list */
@@ -872,31 +802,16 @@ body.fullwidth-history .resize-handle{display:none!important;}
   font-weight:500;
 }
 
-/* Stat cards (a-card) — premium upgrade */
+/* Stat tiles (a-card) — quiet chrome; the numbers are the loud part */
 .a-card{
-  background:linear-gradient(180deg,var(--surface),var(--surface2));
+  background:var(--surface);
   border:1px solid var(--border);
   border-radius:14px;
-  padding:18px 20px;
-  transition:all 0.2s;
+  padding:16px 18px;
+  transition:border-color 0.2s;
   position:relative;
-  overflow:hidden;
 }
-.a-card::before{
-  content:'';
-  position:absolute;
-  top:0;
-  left:0;
-  right:0;
-  height:2px;
-  background:linear-gradient(90deg,var(--accent),transparent);
-  opacity:0.5;
-}
-.a-card:hover{
-  border-color:var(--accent);
-  transform:translateY(-2px);
-  box-shadow:0 8px 24px rgba(79,158,255,0.12);
-}
+.a-card:hover{border-color:var(--border2);}
 .a-card-label{
   font-size:11px;
   text-transform:uppercase;
@@ -906,11 +821,11 @@ body.fullwidth-history .resize-handle{display:none!important;}
   margin-bottom:8px;
 }
 .a-card-value{
-  font-size:26px;
+  font-size:25px;
   font-weight:700;
-  font-family:'JetBrains Mono',monospace;
+  font-family:'Inter',sans-serif; /* proportional figures for standalone numbers */
   color:var(--text);
-  letter-spacing:-0.02em;
+  letter-spacing:-0.01em;
   margin-bottom:4px;
 }
 .a-card-sub{
@@ -1039,26 +954,6 @@ body.fullwidth-history #view-set.on{
 }
 
 /* Make the analytics chart container have a subtle grid */
-.analytics-chart{
-  position:relative;
-  height:240px!important;
-  padding:32px 16px 12px 16px!important;
-  background:linear-gradient(180deg,transparent 0%,rgba(79,158,255,0.02) 50%,rgba(79,158,255,0.04) 100%);
-  border-radius:12px;
-}
-.analytics-chart::before{
-  content:'';
-  position:absolute;
-  inset:0;
-  background-image:
-    linear-gradient(to bottom, transparent 24%, rgba(255,255,255,0.04) 25%, transparent 26%),
-    linear-gradient(to bottom, transparent 49%, rgba(255,255,255,0.04) 50%, transparent 51%),
-    linear-gradient(to bottom, transparent 74%, rgba(255,255,255,0.04) 75%, transparent 76%);
-  pointer-events:none;
-  border-radius:12px;
-}
-
-
 /* ── Modernized analytics charts ─────────────────────────── */
 .analytics-card{position:relative;}
 .analytics-chart{display:block;height:auto;min-height:0;}
@@ -1072,6 +967,8 @@ body.fullwidth-history #view-set.on{
 .insight-strip{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0 0;}
 .insight-chip{display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--surface);border:1px solid var(--border);border-radius:999px;font-size:12.5px;color:var(--text2);}
 .insight-chip b{color:var(--text);font-weight:600;}
+.insight-chip .chip-up{color:var(--green);}
+.insight-chip .chip-down{color:var(--red);}
 .split-bar{display:flex;gap:2px;height:26px;border-radius:8px;overflow:hidden;margin:6px 0 14px;}
 .split-seg{min-width:3px;transition:width .5s cubic-bezier(.4,0,.2,1);}
 .split-rows .sr{display:flex;align-items:center;gap:10px;padding:7px 0;font-size:12.5px;color:var(--text2);}
@@ -1117,6 +1014,18 @@ body:not(.light) .offline-pill{color:#fbbf24;}
 .cat-fill{height:100%;border-radius:6px;transition:width .55s cubic-bezier(.4,0,.2,1);}
 .cat-amt{font-size:12px;color:var(--text);font-family:'JetBrains Mono',monospace;text-align:right;display:flex;flex-direction:column;line-height:1.25;min-width:58px;}
 .cat-amt .cat-amt-sub{font-size:10px;color:var(--text3);}
+/* Top destinations rows */
+.dest-row{padding:7px 0;}
+.dest-row+.dest-row{border-top:1px solid var(--border);}
+.dest-top{display:flex;justify-content:space-between;gap:10px;align-items:baseline;}
+.dest-name{font-size:12.5px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.dest-count{font-size:11px;color:var(--text2);font-family:'JetBrains Mono',monospace;flex-shrink:0;}
+.dest-track{height:4px;background:var(--surface2);border-radius:3px;overflow:hidden;margin:5px 0 4px;}
+.dest-fill{height:100%;background:var(--viz-accent);border-radius:3px;transition:width .5s cubic-bezier(.4,0,.2,1);}
+.dest-sub{display:flex;justify-content:space-between;font-size:10.5px;color:var(--text3);font-family:'JetBrains Mono',monospace;}
+/* Heatmap ramp legend */
+.hm-legend{display:flex;align-items:center;gap:3px;justify-content:flex-end;font-size:10px;color:var(--text3);margin-top:6px;}
+.hm-legend span{width:10px;height:10px;border-radius:2px;display:inline-block;}
 
 /* ── AUTH REDESIGN: night-city glass (pins dark tokens; photo-swappable bg) ── */
 .auth-overlay{
@@ -1192,7 +1101,7 @@ body:not(.light) .offline-pill{color:#fbbf24;}
     <div class="auth-sub" id="authSub">Sign in to sync your trips across all devices</div>
     <div class="auth-field fi-mail"><label>Email</label><input type="email" id="authEmail" placeholder="e.g., alex@email.com"/></div>
     <div class="auth-field fi-lock"><label>Password</label><div class="pwd-wrap"><input type="password" id="authPassword" placeholder="Password"/><button type="button" class="pwd-toggle" id="authPwdToggle" tabindex="-1" aria-label="Show password"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></div></div>
-    <div class="auth-field" id="confirmPasswordField" style="display:none"><label>Confirm Password</label><div class="pwd-wrap"><input type="password" id="authPasswordConfirm" placeholder="Repeat password"/><button type="button" class="pwd-toggle" id="authPwd2Toggle" tabindex="-1" aria-label="Show password"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></div></div>
+    <div class="auth-field fi-lock" id="confirmPasswordField" style="display:none"><label>Confirm Password</label><div class="pwd-wrap"><input type="password" id="authPasswordConfirm" placeholder="Repeat password"/><button type="button" class="pwd-toggle" id="authPwd2Toggle" tabindex="-1" aria-label="Show password"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></div></div>
     <div id="pwdStrength" style="display:none;font-size:11px;padding:8px 12px;border-radius:8px;background:rgba(0,0,0,0.25);line-height:1.5;"></div>
     <div class="auth-error" id="authError"></div>
     <div class="auth-forgot" id="forgotToggle">Forgot Password?</div>
@@ -1675,37 +1584,8 @@ body:not(.light) .offline-pill{color:#fbbf24;}
 
     <div class="view" id="view-analytics">
   <div class="analytics-container">
-    <!-- Hero banner -->
-    <div class="analytics-hero">
-      <div class="analytics-hero-bg"></div>
-      <div class="analytics-hero-content">
-        <div class="analytics-hero-eyebrow">YEAR TO DATE</div>
-        <div class="analytics-hero-stats">
-          <div class="analytics-hero-stat">
-            <div class="analytics-hero-stat-value" id="aHeroMiles">0</div>
-            <div class="analytics-hero-stat-label">Miles tracked</div>
-          </div>
-          <div class="analytics-hero-divider"></div>
-          <div class="analytics-hero-stat">
-            <div class="analytics-hero-stat-value" id="aHeroDeduction" style="color:#6ee7a8">$0</div>
-            <div class="analytics-hero-stat-label">Deduction earned</div>
-          </div>
-          <div class="analytics-hero-divider"></div>
-          <div class="analytics-hero-stat">
-            <div class="analytics-hero-stat-value" id="aHeroProjected">$0</div>
-            <div class="analytics-hero-stat-label">Projected EOY</div>
-          </div>
-        </div>
-      </div>
-      <button class="btn btn-primary" id="aShareBtn" style="position:absolute;top:20px;right:20px;z-index:2;">↗ Share Report</button>
-    </div>
-
-    <!-- Insights strip -->
-    <div class="insight-strip" id="aInsights"></div>
-
-    <!-- Filter controls -->
-    <div class="analytics-filters">
-      <label class="analytics-filter-label">View:</label>
+    <!-- One filter row above everything it scopes -->
+    <div class="analytics-head">
       <select id="aPeriod" class="analytics-select">
         <option value="month">By Month</option>
         <option value="quarter">By Quarter</option>
@@ -1715,34 +1595,27 @@ body:not(.light) .offline-pill{color:#fbbf24;}
       <select id="aYear" class="analytics-select">
         <option value="">All years</option>
       </select>
+      <span class="head-spacer"></span>
+      <button class="btn btn-primary" id="aShareBtn">↗ Share Report</button>
     </div>
 
-    <!-- Summary stat cards -->
-    <div class="analytics-stat-cards" id="aCards"></div>
+    <!-- KPI band: hero figure + stat tiles, all scoped to the filter above -->
+    <div class="kpi-band" id="aCards"></div>
 
-    <!-- Main chart -->
-    <div class="analytics-card">
-      <div class="analytics-card-header">
-        <div class="analytics-card-title" id="aChartTitle">Miles per Period</div>
-        <div class="analytics-card-sub">Track your progress over time</div>
+    <!-- Insights strip -->
+    <div class="insight-strip" id="aInsights" style="margin:0"></div>
+
+    <div class="analytics-grid">
+      <!-- Main chart -->
+      <div class="analytics-card span2">
+        <div class="analytics-card-header">
+          <div class="analytics-card-title" id="aChartTitle">Miles per Period</div>
+          <div class="analytics-card-sub">Track your progress over time</div>
+        </div>
+        <div id="aChart" class="analytics-chart"></div>
+        <div id="aChartTip" class="chart-tooltip"></div>
       </div>
-      <div id="aChart" class="analytics-chart"></div>
-      <div id="aChartTip" class="chart-tooltip"></div>
-    </div>
 
-    <!-- Deduction pace -->
-    <div class="analytics-card">
-      <div class="analytics-card-header">
-        <div class="analytics-card-title" id="aCumTitle">Deduction Pace</div>
-        <div class="analytics-card-sub">Cumulative deductible value vs last year</div>
-      </div>
-      <div class="viz-legend" id="aCumLegend"></div>
-      <div id="aCum" class="analytics-chart"></div>
-      <div id="aCumTip" class="chart-tooltip"></div>
-    </div>
-
-    <!-- 2-column row -->
-    <div class="analytics-row-2col">
       <!-- Category breakdown -->
       <div class="analytics-card">
         <div class="analytics-card-header">
@@ -1751,27 +1624,45 @@ body:not(.light) .offline-pill{color:#fbbf24;}
         </div>
         <div id="aCats" class="analytics-cats"></div>
       </div>
-      <!-- Enhanced section -->
-      <div id="aEnhanced" class="analytics-enhanced-wrapper"></div>
-    </div>
 
-    <!-- Deductible split -->
-    <div class="analytics-card">
-      <div class="analytics-card-header">
-        <div class="analytics-card-title">Where Your Miles Land</div>
-        <div class="analytics-card-sub">Deductible vs excluded, per IRS rules</div>
+      <!-- Deduction pace -->
+      <div class="analytics-card span2">
+        <div class="analytics-card-header">
+          <div class="analytics-card-title" id="aCumTitle">Deduction Pace</div>
+          <div class="analytics-card-sub">Cumulative deductible value vs last year</div>
+        </div>
+        <div class="viz-legend" id="aCumLegend"></div>
+        <div id="aCum" class="analytics-chart"></div>
+        <div id="aCumTip" class="chart-tooltip"></div>
       </div>
-      <div id="aSplit"></div>
-    </div>
 
-    <!-- Activity heatmap -->
-    <div class="analytics-card">
-      <div class="analytics-card-header">
-        <div class="analytics-card-title" id="aHeatTitle">Your Driving Year</div>
-        <div class="analytics-card-sub">Miles logged per day</div>
+      <!-- Deductible split -->
+      <div class="analytics-card">
+        <div class="analytics-card-header">
+          <div class="analytics-card-title">Where Your Miles Land</div>
+          <div class="analytics-card-sub">Deductible vs excluded, per IRS rules</div>
+        </div>
+        <div id="aSplit"></div>
       </div>
-      <div id="aHeat" class="analytics-chart" style="position:relative"></div>
-      <div id="aHeatTip" class="chart-tooltip"></div>
+
+      <!-- Activity heatmap -->
+      <div class="analytics-card span2">
+        <div class="analytics-card-header">
+          <div class="analytics-card-title" id="aHeatTitle">Your Driving Year</div>
+          <div class="analytics-card-sub">Miles logged per day</div>
+        </div>
+        <div id="aHeat" class="analytics-chart" style="position:relative"></div>
+        <div id="aHeatTip" class="chart-tooltip"></div>
+      </div>
+
+      <!-- Top destinations -->
+      <div class="analytics-card">
+        <div class="analytics-card-header">
+          <div class="analytics-card-title">Top Destinations</div>
+          <div class="analytics-card-sub">Most-visited places</div>
+        </div>
+        <div id="aEnhanced" class="analytics-enhanced-wrapper"></div>
+      </div>
     </div>
 
     <!-- Share modal -->
@@ -3044,24 +2935,7 @@ function importCSV(event){
 
 // ── ANALYTICS ────────────────────────────────────────────────
 function renderAnalytics(){
-  // Populate hero stats (YTD only)
-  const thisYear=new Date().getFullYear().toString();
-  const ytdTrips=trips.filter(t=>t.date&&t.date.startsWith(thisYear));
-  const heroMiles=ytdTrips.reduce((s,t)=>s+deductibleMiles(t),0);
-  const heroDeduction=ytdTrips.reduce((s,t)=>s+deductibleValue(t),0);
-  // Project EOY - based on YTD pace
-  const dayOfYear=Math.floor((new Date()-new Date(thisYear+'-01-01'))/86400000)+1;
-  const dailyRate=heroDeduction/Math.max(dayOfYear,1);
-  const projected=dailyRate*365;
-  const aHm=document.getElementById('aHeroMiles');
-  const aHd=document.getElementById('aHeroDeduction');
-  const aHp=document.getElementById('aHeroProjected');
-  if(aHm)aHm.textContent=heroMiles.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g,',');
-  if(aHd)aHd.textContent='$'+heroDeduction.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g,',');
-  if(aHp)aHp.textContent='$'+projected.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g,',');
-
   const period=document.getElementById('aPeriod').value;
-  const filterYear=document.getElementById('aYear').value;
 
   // Populate year dropdown
   const years=[...new Set(trips.map(t=>yr(t.date)))].sort().reverse();
@@ -3077,21 +2951,67 @@ function renderAnalytics(){
       return renderAnalytics();
     }
   }
+  const filterYear=aYear.value;
 
   let fl=filterYear?trips.filter(t=>yr(t.date)==filterYear):[...trips];
 
-  // Summary cards
+  // ── KPI band — every number below comes from the SAME filtered slice, and
+  // all money figures are deductible-aware (commute/personal excluded), so the
+  // header can never disagree with the cards again.
+  const fmtN=n=>n.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g,',');
   const totalMi=fl.reduce((s,t)=>s+parseFloat(t.miles||0),0);
-  const totalVal=fl.reduce((s,t)=>s+parseFloat(t.miles||0)*rate(t.date),0);
+  const dedVal=fl.reduce((s,t)=>s+deductibleValue(t),0);
+  const dedMi=fl.reduce((s,t)=>s+deductibleMiles(t),0);
   const avgMi=fl.length?totalMi/fl.length:0;
-  const months=[...new Set(fl.map(t=>t.date.slice(0,7)))].length||1;
-  const cards=document.getElementById('aCards');
-  cards.innerHTML=`
-    <div class="a-card"><div class="a-card-label">Total Miles</div><div class="a-card-value">${totalMi.toFixed(0)}</div><div class="a-card-sub">${fl.length} trips</div></div>
-    <div class="a-card"><div class="a-card-label">Deductible Value</div><div class="a-card-value" style="color:var(--green)">$${totalVal.toFixed(0)}</div><div class="a-card-sub">at IRS rate</div></div>
-    <div class="a-card"><div class="a-card-label">Avg per Trip</div><div class="a-card-value">${avgMi.toFixed(1)}</div><div class="a-card-sub">miles</div></div>
-    <div class="a-card"><div class="a-card-label">Monthly Avg</div><div class="a-card-value">${(totalMi/months).toFixed(0)}</div><div class="a-card-sub">miles/month</div></div>
-  `;
+  const monthsN=[...new Set(fl.map(t=>t.date&&t.date.slice(0,7)))].length||1;
+  const nowD=new Date(), nowYr=nowD.getFullYear();
+  const yearScope=filterYear||String(nowYr);
+  const isCurYear=filterYear!==''&&parseInt(yearScope,10)===nowYr;
+
+  // Delta vs the prior year — same-date cut for the current year, full-year otherwise
+  let deltaHtml='';
+  if(filterYear){
+    const prevY=String(parseInt(yearScope,10)-1);
+    const cut=isCurYear?prevY+'-'+String(nowD.getMonth()+1).padStart(2,'0')+'-'+String(nowD.getDate()).padStart(2,'0'):null;
+    const prev=trips.filter(t=>t.date&&yr(t.date)==prevY&&(!cut||t.date<=cut));
+    if(prev.length){
+      const prevVal=prev.reduce((s,t)=>s+deductibleValue(t),0);
+      const diff=dedVal-prevVal, up=diff>=0;
+      deltaHtml='<div class="a-hero-delta"><span class="'+(up?'d-up':'d-down')+'">'+(up?'▲':'▼')+' $'+fmtN(Math.abs(diff))+'</span><span class="d-ctx">vs '+(isCurYear?'this point in ':'')+prevY+'</span></div>';
+    }
+  }
+
+  // 12-month sparkline of deductible value (scope year only; de-emphasis line,
+  // current month marked in the accent)
+  let spark='';
+  if(filterYear){
+    const mv=new Array(12).fill(0);let any=false;
+    trips.forEach(t=>{if(t.date&&t.date.slice(0,4)===yearScope){mv[parseInt(t.date.slice(5,7),10)-1]+=deductibleValue(t);any=true;}});
+    if(any){
+      const mx=Math.max.apply(null,mv.concat([1]));
+      const lastM=isCurYear?nowD.getMonth():11;
+      const SW=180,SH=30,step=SW/11;
+      const py=v=>(SH-3-(v/mx)*(SH-9)).toFixed(1);
+      const pts=mv.map((v,i)=>(i*step).toFixed(1)+','+py(v));
+      spark='<svg class="a-spark" viewBox="0 0 '+SW+' '+SH+'" preserveAspectRatio="none" aria-hidden="true">'+
+        '<polyline fill="none" stroke="var(--text3)" stroke-width="1.5" opacity="0.55" points="'+pts.slice(0,lastM+1).join(' ')+'"/>'+
+        '<circle cx="'+(lastM*step).toFixed(1)+'" cy="'+py(mv[lastM])+'" r="3" fill="var(--viz-accent)" stroke="var(--surface)" stroke-width="2"/></svg>';
+    }
+  }
+
+  const lastTile=isCurYear
+    ?'<div class="a-card"><div class="a-card-label">Projected EOY</div><div class="a-card-value">$'+fmtN((dedVal/Math.max(Math.floor((nowD-new Date(nowYr,0,1))/86400000)+1,1))*365)+'</div><div class="a-card-sub">at current pace</div></div>'
+    :'<div class="a-card"><div class="a-card-label">Monthly avg</div><div class="a-card-value">'+fmtN(totalMi/monthsN)+'</div><div class="a-card-sub">miles/month</div></div>';
+
+  document.getElementById('aCards').innerHTML=
+    '<div class="a-card a-hero">'+
+      '<div class="a-card-label">Deduction earned — '+(filterYear?esc(yearScope):'all years')+'</div>'+
+      '<div class="a-hero-value">$'+fmtN(dedVal)+'</div>'+
+      deltaHtml+spark+
+    '</div>'+
+    '<div class="a-card"><div class="a-card-label">Miles driven</div><div class="a-card-value">'+fmtN(totalMi)+'</div><div class="a-card-sub">'+fl.length+' trips · '+fmtN(dedMi)+' mi deductible</div></div>'+
+    '<div class="a-card"><div class="a-card-label">Avg per trip</div><div class="a-card-value">'+avgMi.toFixed(1)+'</div><div class="a-card-sub">miles</div></div>'+
+    lastTile;
 
   // Group by period
   function getPeriodKey(date){
@@ -3147,7 +3067,7 @@ function renderAnalytics(){
       `</g>`;
     });
     chart.innerHTML=`<svg viewBox="0 0 ${W} ${H}" class="svg-chart" style="height:${H}px" role="img" aria-label="Miles per period">`+
-      `<defs><linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#5aa6ff"/><stop offset="100%" stop-color="#3d8ef0" stop-opacity="0.7"/></linearGradient></defs>`+
+      `<defs><linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="var(--viz-accent)"/><stop offset="100%" stop-color="var(--viz-accent)" stop-opacity="0.78"/></linearGradient></defs>`+
       grid+bars+`</svg>`;
   }
 
@@ -3464,6 +3384,12 @@ function startOnboarding(){
   updateOnboardScreen();
 }
 
+// The tour-completed flag is scoped per USER, not per browser — a second
+// account signing in on the same computer still gets welcomed. (The legacy
+// un-scoped 'milo-onboarding-complete' key is intentionally ignored.)
+function onboardFlagKey(){
+  return 'milo-onboarding-complete'+(currentUser&&currentUser.id?':'+currentUser.id:'');
+}
 function closeOnboarding(skipReason){
   var overlay=document.getElementById('onboardOverlay');
   if(overlay)overlay.classList.remove('active');
@@ -3472,7 +3398,7 @@ function closeOnboarding(skipReason){
     addSampleTrip();
   }
   if(skipReason!=='skip')fireConfetti();
-  try{localStorage.setItem('milo-onboarding-complete','1');}catch(e){}
+  try{localStorage.setItem(onboardFlagKey(),'1');}catch(e){}
 }
 
 function fireConfetti(){
@@ -3805,21 +3731,10 @@ window.closeTripDetail=closeTripDetail;
 
 // ── ENHANCED ANALYTICS ────────────────────────────────────────
 function renderAnalyticsEnhanced(){
+  // Top destinations for the filtered slice. (The old YTD-comparison,
+  // projection and day-of-week cards were folded into the KPI hero delta and
+  // the insight chips — one number, one home.)
   const filterYear=document.getElementById('aYear').value;
-  const curYear=new Date().getFullYear();
-  const priorYear=curYear-1;
-
-  // YTD comparison
-  const tripsThisYear=trips.filter(t=>yr(t.date)==curYear);
-  const tripsLastYear=trips.filter(t=>yr(t.date)==priorYear);
-  const milesThisYear=tripsThisYear.reduce((s,t)=>s+parseFloat(t.miles||0),0);
-  const milesLastYear=tripsLastYear.reduce((s,t)=>s+parseFloat(t.miles||0),0);
-  const valueThisYear=tripsThisYear.reduce((s,t)=>s+parseFloat(t.miles||0)*rate(t.date),0);
-  const valueLastYear=tripsLastYear.reduce((s,t)=>s+parseFloat(t.miles||0)*rate(t.date),0);
-  const milesPct=milesLastYear>0?((milesThisYear-milesLastYear)/milesLastYear*100):null;
-  const valuePct=valueLastYear>0?((valueThisYear-valueLastYear)/valueLastYear*100):null;
-
-  // Top destinations
   let fl=filterYear?trips.filter(t=>yr(t.date)==filterYear):[...trips];
   const dests={};
   fl.forEach(t=>{
@@ -3828,108 +3743,22 @@ function renderAnalyticsEnhanced(){
     if(!dests[key])dests[key]={count:0,miles:0,value:0};
     dests[key].count++;
     dests[key].miles+=parseFloat(t.miles||0);
-    dests[key].value+=parseFloat(t.miles||0)*rate(t.date);
+    dests[key].value+=deductibleValue(t);
   });
-  const topDests=Object.entries(dests).sort((a,b)=>b[1].count-a[1].count).slice(0,5);
-
-  // Day of week analysis
-  const dow={Sun:0,Mon:0,Tue:0,Wed:0,Thu:0,Fri:0,Sat:0};
-  const dowNames=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  fl.forEach(t=>{
-    const d=new Date(t.date+'T12:00:00');
-    dow[dowNames[d.getDay()]]+=parseFloat(t.miles||0);
-  });
-  const maxDow=Math.max(...Object.values(dow),1);
-
-  // Cost per trip & projection
-  const avgPerTrip=fl.length?(fl.reduce((s,t)=>s+parseFloat(t.miles||0)*rate(t.date),0)/fl.length):0;
-  // Annual projection - based on YTD pace
-  const now=new Date();
-  const yearStart=new Date(curYear,0,1);
-  const daysElapsed=Math.max(1,(now-yearStart)/(1000*60*60*24));
-  const projectedAnnual=daysElapsed>0?(valueThisYear/daysElapsed*365):0;
-  const projectedMiles=daysElapsed>0?(milesThisYear/daysElapsed*365):0;
+  const topDests=Object.entries(dests).sort((a,b)=>b[1].count-a[1].count).slice(0,6);
+  const maxDest=topDests.length?Math.max(...topDests.map(d=>d[1].count)):1;
 
   const section=document.getElementById('aEnhanced');
   if(!section)return;
 
-  const arrow=(pct)=>pct===null?'':(pct>=0?'↑':'↓');
-  const pctColor=(pct)=>pct===null?'var(--text3)':(pct>=0?'var(--green)':'var(--red)');
-  const pctText=(pct)=>pct===null?'—':Math.abs(pct).toFixed(0)+'%';
-
-  section.innerHTML=`
-    <!-- YTD comparison -->
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);padding:20px;">
-      <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);margin-bottom:16px">YTD vs ${priorYear}</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
-        <div>
-          <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;font-weight:600">Miles</div>
-          <div style="display:flex;align-items:baseline;gap:10px;margin-top:6px">
-            <div style="font-size:22px;font-weight:700;color:var(--text);font-family:'JetBrains Mono',monospace">${milesThisYear.toFixed(0)}</div>
-            <div style="font-size:12px;color:var(--text3)">vs ${milesLastYear.toFixed(0)}</div>
-            <div style="font-size:13px;font-weight:600;color:${pctColor(milesPct)}">${arrow(milesPct)} ${pctText(milesPct)}</div>
-          </div>
-        </div>
-        <div>
-          <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;font-weight:600">Deductible Value</div>
-          <div style="display:flex;align-items:baseline;gap:10px;margin-top:6px">
-            <div style="font-size:22px;font-weight:700;color:var(--green);font-family:'JetBrains Mono',monospace">$${valueThisYear.toFixed(0)}</div>
-            <div style="font-size:12px;color:var(--text3)">vs $${valueLastYear.toFixed(0)}</div>
-            <div style="font-size:13px;font-weight:600;color:${pctColor(valuePct)}">${arrow(valuePct)} ${pctText(valuePct)}</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Annual projection -->
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);padding:20px;">
-      <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);margin-bottom:16px">Projected ${curYear} Annual (at current pace)</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;">
-        <div>
-          <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;font-weight:600">Annual Miles</div>
-          <div style="font-size:22px;font-weight:700;color:var(--text);margin-top:6px;font-family:'JetBrains Mono',monospace">${projectedMiles.toFixed(0)}</div>
-        </div>
-        <div>
-          <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;font-weight:600">Annual Deduction</div>
-          <div style="font-size:22px;font-weight:700;color:var(--green);margin-top:6px;font-family:'JetBrains Mono',monospace">$${projectedAnnual.toFixed(0)}</div>
-        </div>
-        <div>
-          <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;font-weight:600">Avg Cost/Trip</div>
-          <div style="font-size:22px;font-weight:700;color:var(--text);margin-top:6px;font-family:'JetBrains Mono',monospace">$${avgPerTrip.toFixed(2)}</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Top destinations -->
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);padding:20px;">
-      <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);margin-bottom:16px">Top Destinations</div>
-      ${topDests.length?topDests.map(([addr,d])=>`
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)">
-          <div style="font-size:13px;color:var(--text);max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(addr)}">${esc(addr)}</div>
-          <div style="display:flex;gap:14px;font-size:12px;font-family:'JetBrains Mono',monospace">
-            <span style="color:var(--text2)">${d.count} trip${d.count!==1?'s':''}</span>
-            <span style="color:var(--text)">${d.miles.toFixed(0)} mi</span>
-            <span style="color:var(--green)">$${d.value.toFixed(0)}</span>
-          </div>
-        </div>
-      `).join(''):'<div style="color:var(--text3);font-size:13px">No destinations logged yet</div>'}
-    </div>
-
-    <!-- Day of week -->
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);padding:20px;">
-      <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--text3);margin-bottom:16px">Day of Week Pattern</div>
-      <div style="display:flex;align-items:flex-end;gap:8px;height:120px;">
-        ${dowNames.map(d=>{
-          const h=Math.max(Math.round(dow[d]/maxDow*100),2);
-          return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
-            <div style="font-size:10px;color:var(--text2);font-weight:600">${dow[d].toFixed(0)}</div>
-            <div style="width:100%;height:${h}px;background:var(--accent);border-radius:4px 4px 0 0"></div>
-            <div style="font-size:11px;color:var(--text3);font-weight:600">${d}</div>
-          </div>`;
-        }).join('')}
-      </div>
-    </div>
-  `;
+  section.innerHTML=topDests.length?topDests.map(([addr,d])=>{
+    const w=(d.count/maxDest*100).toFixed(1);
+    return `<div class="dest-row" title="${esc(addr)}">
+      <div class="dest-top"><span class="dest-name">${esc(addr)}</span><span class="dest-count">${d.count}×</span></div>
+      <div class="dest-track"><div class="dest-fill" style="width:${w}%"></div></div>
+      <div class="dest-sub"><span>${d.miles.toFixed(0)} mi</span><span>$${d.value.toFixed(0)} deductible</span></div>
+    </div>`;
+  }).join(''):'<div class="chart-empty">No destinations logged yet.</div>';
 }
 
 // ── ANALYTICS V2 ────────────────────────────────────────────
@@ -4082,7 +3911,8 @@ function renderHeatmap(){
   [['Mon',1],['Wed',3],['Fri',5]].forEach(function(p){
     dayLbl+='<text class="hm-lbl" x="'+(padL-5)+'" y="'+(padT+p[1]*pitch+cell-2)+'" text-anchor="end">'+p[0].charAt(0)+'</text>';
   });
-  box.innerHTML='<svg viewBox="0 0 '+W+' '+H+'" class="svg-chart" style="width:'+W+'px;max-width:100%" role="img" aria-label="Miles driven per day, '+year+'">'+monthLbl+dayLbl+cells+'</svg>';
+  box.innerHTML='<svg viewBox="0 0 '+W+' '+H+'" class="svg-chart" style="width:'+W+'px;max-width:100%" role="img" aria-label="Miles driven per day, '+year+'">'+monthLbl+dayLbl+cells+'</svg>'+
+    '<div class="hm-legend">Less <span style="background:var(--surface3)"></span><span style="background:var(--hm1)"></span><span style="background:var(--hm2)"></span><span style="background:var(--hm3)"></span><span style="background:var(--hm4)"></span><span style="background:var(--hm5)"></span> More</div>';
 }
 function showHeatTip(e,label,mi){
   var tip=document.getElementById('aHeatTip');if(!tip)return;
@@ -4103,7 +3933,7 @@ function renderInsights(){
     var dNow=ytd.reduce(function(s,t){return s+deductibleValue(t);},0);
     var dPri=prior.reduce(function(s,t){return s+deductibleValue(t);},0);
     var diff=dNow-dPri;
-    chips.push((diff>=0?'▲ <b>$'+Math.abs(diff).toFixed(0)+'</b> ahead of':'▼ <b>$'+Math.abs(diff).toFixed(0)+'</b> behind')+' last year’s pace');
+    chips.push((diff>=0?'<span class="chip-up">▲</span> <b>$'+Math.abs(diff).toFixed(0)+'</b> ahead of':'<span class="chip-down">▼</span> <b>$'+Math.abs(diff).toFixed(0)+'</b> behind')+' last year’s pace');
   }
   if(ytd.length>=3){
     var dow=[0,0,0,0,0,0,0],names=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
@@ -4336,7 +4166,9 @@ async function signUp(){
   if(!/[0-9]/.test(pwd)){err.textContent='Password must include at least one number';err.style.display='block';return;}
   if(pwd!==pwd2){err.textContent='Passwords do not match';err.style.display='block';return;}
   btn.innerHTML='<span class="btn-spinner"></span>Creating account...';btn.disabled=true;
-  const{data,error}=await supa.auth.signUp({email,password:pwd});
+  // Explicit redirect back to the app (a project page, not the domain root) —
+  // don't rely on the dashboard Site URL being right.
+  const{data,error}=await supa.auth.signUp({email,password:pwd,options:{emailRedirectTo:window.location.origin+window.location.pathname}});
   btn.textContent='Create account';btn.disabled=false;
   if(error){console.error('[auth] signUp failed:',error,'status=',error&&error.status);err.textContent=authErrorMessage(error);err.style.display='block';return;}
   // Attribution seam for the future rewards system: who referred this signup.
@@ -4360,19 +4192,20 @@ function onSignedIn(user){
   currentUser=user;
   document.getElementById('authOverlay').style.display='none';
   document.getElementById('userEmail').textContent=user.email;
-  init();
-  setTimeout(()=>{initMainMap();initResize();initRightResize();},200);
-  loadFromSupabase();
-  // First login on this device: run the welcome tour. (Signup with instant
+  // First login on this device: run the welcome tour. Scheduled BEFORE
+  // init/map/sync so no exception below can swallow it. (Signup with instant
   // session also triggers it explicitly; the flag makes that a no-op here.)
   try{
-    if(!localStorage.getItem('milo-onboarding-complete')){
+    if(!localStorage.getItem(onboardFlagKey())){
       setTimeout(function(){
         var ov=document.getElementById('onboardOverlay');
         if(ov&&!ov.classList.contains('active'))startOnboarding();
       },700);
-    }
-  }catch(e){}
+    }else{console.log('[tour] skipped: this user already completed it');}
+  }catch(e){console.error('[tour] trigger failed:',e);}
+  try{init();}catch(e){console.error('[init] failed:',e);}
+  setTimeout(()=>{initMainMap();initResize();initRightResize();},200);
+  loadFromSupabase();
 }
 
 window.addEventListener('DOMContentLoaded',function(){

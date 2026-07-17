@@ -126,7 +126,8 @@ T('8 progress dots', document.querySelectorAll('#onboardDots .onboard-dot').leng
 T('no fake location-permission screen', html.indexOf('Allow "Milo" to use') < 0);
 T('no fake notification screen', html.indexOf('Send You Notifications') < 0);
 T('install screen present', html.indexOf('Put Milo on your phone') >= 0);
-T('tour triggers on first login', html.indexOf("localStorage.getItem('milo-onboarding-complete')") >= 0 && html.match(/function onSignedIn[\s\S]{0,700}startOnboarding/));
+T('tour triggers on first login', html.indexOf('localStorage.getItem(onboardFlagKey())') >= 0 && html.match(/function onSignedIn[\s\S]{0,700}startOnboarding/));
+T('tour flag is scoped per user', !!html.match(/function onboardFlagKey[\s\S]{0,200}currentUser/));
 T('tour replay in settings', html.indexOf('Replay the welcome tour') >= 0);
 T('startOnboarding exposed', typeof window.startOnboarding === 'function');
 
