@@ -206,6 +206,9 @@ T('ghost functions exposed', typeof window.showGhostLayer === 'function' && type
 T('real routes clear ghosts (3 render sites)', (html.match(/clearGhostLayer\(\);/g) || []).length >= 4);
 T('theme switch re-arms ghost layer', /Map recreated in[\s\S]{0,300}showGhostLayer/.test(html));
 T('zero-trip users keep mapEmpty', html.indexOf('if(!googleReady||!googleMap||!trips||!trips.length)return;') >= 0);
+// Geometry-less trips: addresses are geocoded once and cached (with negative caching)
+T('ghost geocode fallback wired', html.indexOf('ml3_geo') >= 0 && html.indexOf('ghostGeocode') >= 0);
+T('geocode failures negative-cached', /geoCache\[geoKey\(a\)\]=\(status==='OK'/.test(html));
 // Tap-to-relog prefills the New Trip form (today's date, not the old one)
 const gt = window.__trips()[0];
 window.ghostRelog(gt.id);
