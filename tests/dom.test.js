@@ -200,5 +200,68 @@ T('referral is stashed for attribution', window.localStorage.getItem('ml_referre
 T('one shareModal', document.querySelectorAll('#shareModal').length === 1);
 T('one rightResize', document.querySelectorAll('#rightResize').length === 1);
 
-console.log(`\ndom.test.js: ${pass} passed, ${fail} failed`);
-process.exit(fail ? 1 : 0);
+// ===== BATCH TRIP ENTRY (multi-stop · round trip · repeat dates) =====
+// Async because batch addTrip awaits per-leg routing (falls back instantly
+// here — googleReady is false in jsdom, so entered miles are split).
+(async () => {
+  const fillBase = () => {
+    $('tFromStreet').value = '1113 S 4090 W'; $('tFromCity').value = 'Syracuse'; $('tFromState').value = 'UT';
+    $('tToStreet').value = '456 Business Ave'; $('tToCity').value = 'Lehi'; $('tToState').value = 'UT';
+    $('tPurpose').value = 'client run'; $('tCat').selectedIndex = 0; $('tDate').value = '2026-06-11';
+  };
+  T('addStop exposed', typeof window.addStop === 'function');
+  T('batch controls in markup', !!$('stopsWrap') && !!$('tRound') && !!$('xtraDates') && !!$('batchSummary'));
+
+  // Round trip: one leg out + mirrored return, same miles each
+  let n0 = window.__trips().length;
+  fillBase(); $('tMiles').value = '10'; $('tRound').checked = true;
+  window.updateBatchSummary();
+  T('summary previews trip count', $('batchSummary').style.display === 'block' && $('batchSummary').textContent.indexOf('2') >= 0);
+  await window.__addTrip();
+  T('round trip logs 2 trips', window.__trips().length === n0 + 2);
+  let rt = window.__trips().slice(-2);
+  T('return leg is reversed', rt[1].from === rt[0].to && rt[1].to === rt[0].from);
+  T('return keeps outbound miles', rt[0].miles === 10 && rt[1].miles === 10);
+  T('return purpose marked', rt[1].purpose.indexOf('(return)') >= 0);
+  T('round toggle cleared after save', $('tRound').checked === false);
+
+  // Multi-stop: From→To→Stop = 2 legs; entered 12 mi splits 6/6
+  n0 = window.__trips().length;
+  fillBase(); $('tMiles').value = '12';
+  window.addStop();
+  const sb = document.querySelector('#stopsWrap .stop-block');
+  sb.querySelector('.s-street').value = '90 S Main St'; sb.querySelector('.s-city').value = 'Farmington'; sb.querySelector('.s-state').value = 'UT';
+  await window.__addTrip();
+  T('multi-stop logs one trip per leg', window.__trips().length === n0 + 2);
+  let legs = window.__trips().slice(-2);
+  T('legs chain through the stop', legs[0].to === legs[1].from && legs[1].to.indexOf('90 S Main St') >= 0);
+  T('entered miles split across legs', legs[0].miles === 6 && legs[1].miles === 6);
+  T('stops cleared after save', document.querySelectorAll('#stopsWrap .stop-block').length === 0);
+
+  // Repeat dates: same trip on 2 dates → 2 trips
+  n0 = window.__trips().length;
+  fillBase(); $('tMiles').value = '8';
+  window.addExtraDate();
+  document.querySelector('#xtraDates .xdate').value = '2026-06-12';
+  await window.__addTrip();
+  T('repeat-date logs per date', window.__trips().length === n0 + 2);
+  let dd = window.__trips().slice(-2);
+  T('dates differ across copies', dd[0].date === '2026-06-11' && dd[1].date === '2026-06-12');
+  T('extra dates cleared after save', document.querySelectorAll('#xtraDates .xdate').length === 0);
+
+  // Composed: 1 stop + round trip + 2 dates = 3 legs × 2 dates = 6 trips
+  n0 = window.__trips().length;
+  fillBase(); $('tMiles').value = '12'; $('tRound').checked = true;
+  window.addStop();
+  const sb2 = document.querySelector('#stopsWrap .stop-block');
+  sb2.querySelector('.s-street').value = '210 Commerce Dr'; sb2.querySelector('.s-city').value = 'Ogden'; sb2.querySelector('.s-state').value = 'UT';
+  window.addExtraDate();
+  document.querySelector('#xtraDates .xdate').value = '2026-06-13';
+  await window.__addTrip();
+  T('composed batch logs legs × dates', window.__trips().length === n0 + 6);
+  const six = window.__trips().slice(-6);
+  T('composed return leg closes the loop', six[2].to === six[0].from);
+
+  console.log(`\ndom.test.js: ${pass} passed, ${fail} failed`);
+  process.exit(fail ? 1 : 0);
+})();
