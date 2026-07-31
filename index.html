@@ -954,6 +954,19 @@ body.fullwidth-history #view-set.on{
 }
 
 /* Make the analytics chart container have a subtle grid */
+/* ── Batch trip entry (multi-stop · round trip · repeat dates) ── */
+.linklike{background:none;border:none;color:var(--accent);font-size:12px;font-weight:600;cursor:pointer;padding:2px 0;font-family:'Inter',sans-serif;}
+.linklike:hover{text-decoration:underline;}
+.stop-block{background:var(--surface2);border:1px solid var(--border);border-radius:var(--r2);padding:10px 12px;margin-bottom:8px;}
+.stop-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+.stop-head span{font-size:10px;font-weight:600;color:#c98500;text-transform:uppercase;letter-spacing:.07em;}
+body.light .stop-head span{color:#a06a00;}
+.stop-x{background:none;border:none;color:var(--text3);cursor:pointer;font-size:12px;padding:2px 4px;line-height:1;}
+.stop-x:hover{color:var(--red);}
+.xdate-row{display:flex;align-items:center;gap:6px;margin-bottom:6px;}
+.xdate-row input{flex:1;}
+#batchSummary{margin-bottom:10px;padding:8px 12px;background:var(--accent-bg);border:1px solid var(--accent);border-radius:var(--r2);font-size:12px;color:var(--text);font-weight:600;}
+
 /* ── Modernized analytics charts ─────────────────────────── */
 .analytics-card{position:relative;}
 .analytics-chart{display:block;height:auto;min-height:0;}
@@ -998,8 +1011,19 @@ body:not(.light) .offline-pill{color:#fbbf24;}
 .hm-cell{rx:2px;}
 .hm-cell:hover{stroke:var(--text2);stroke-width:1;}
 .chart-bar{transition:opacity .15s ease;}
-.chart-barg{cursor:default;}
-.chart-barg:hover .chart-bar{opacity:.8;}
+.chart-barg{cursor:pointer;outline:none;}
+.chart-barg:hover .chart-bar,.chart-barg:focus .chart-bar{opacity:.8;}
+.chart-barg:focus-visible .chart-bar{stroke:var(--accent);stroke-width:2;}
+/* Table-view twin + toggles */
+.tbl-toggle{margin-left:auto;background:var(--surface2);border:1px solid var(--border2);border-radius:7px;color:var(--text2);font-size:11px;font-weight:600;padding:4px 9px;cursor:pointer;font-family:'Inter',sans-serif;}
+.tbl-toggle:hover{color:var(--text);border-color:var(--accent);}
+.viz-table-wrap{overflow-x:auto;}
+.viz-table{width:100%;border-collapse:collapse;font-size:12px;}
+.viz-table th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);font-weight:600;padding:6px 10px;border-bottom:1px solid var(--border2);}
+.viz-table td{padding:6px 10px;border-bottom:1px solid var(--border);color:var(--text2);}
+.viz-table td.num{font-family:'JetBrains Mono',monospace;color:var(--text);text-align:right;font-variant-numeric:tabular-nums;}
+.viz-table th:not(:first-child){text-align:right;}
+.viz-legend .lg-dash{background:repeating-linear-gradient(90deg,var(--accent) 0 4px,transparent 4px 8px);}
 .chart-xlabel{fill:var(--text3);font-size:11px;font-family:'JetBrains Mono',monospace;}
 .chart-empty{padding:36px 12px;text-align:center;color:var(--text3);font-size:13px;}
 .chart-tooltip{position:absolute;pointer-events:none;opacity:0;transition:opacity .12s ease;background:var(--surface3);border:1px solid var(--border2);border-radius:9px;padding:7px 11px;display:flex;flex-direction:column;gap:1px;z-index:30;box-shadow:0 8px 24px rgba(0,0,0,.45);white-space:nowrap;}
@@ -1421,11 +1445,15 @@ body:not(.light) .offline-pill{color:#fbbf24;}
       <div>
         <div class="section-label">New trip</div>
 
-        <div class="g2" style="margin-bottom:10px">
-          <div class="field"><span class="field-label">Date</span><input type="date" id="tDate"/></div>
+        <div class="g2" style="margin-bottom:6px">
+          <div class="field"><span class="field-label">Date</span><input type="date" id="tDate" onchange="updateBatchSummary()"/></div>
           <div class="field"><span class="field-label">Miles</span>
             <div class="iw"><input type="number" id="tMiles" placeholder="0.0" step="0.1" min="0"/><span class="isuf">mi</span></div>
           </div>
+        </div>
+        <div id="xtraDates"></div>
+        <div style="margin-bottom:10px">
+          <button type="button" class="linklike" onclick="addExtraDate()">＋ Repeat on another date</button>
         </div>
 
         <!-- FROM address -->
@@ -1451,6 +1479,14 @@ body:not(.light) .offline-pill{color:#fbbf24;}
             <div class="field"><span class="field-label">City</span><input type="text" id="tToCity" placeholder="Provo" autocomplete="off" oninput="clearDist();buildAddr()"/></div>
             <div class="field"><span class="field-label">State</span><input type="text" id="tToState" placeholder="UT" maxlength="2" autocomplete="off" oninput="clearDist();buildAddr()" style="text-transform:uppercase"/></div>
           </div>
+        </div>
+        <!-- Extra stops (multi-leg day). Each stop chains a new leg onto the route. -->
+        <div id="stopsWrap"></div>
+        <div style="margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+          <button type="button" class="linklike" onclick="addStop()">＋ Add stop</button>
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2);cursor:pointer;margin:0">
+            <input type="checkbox" id="tRound" onchange="updateBatchSummary()" style="width:auto;accent-color:var(--accent)"/> Round trip — also log the return
+          </label>
         </div>
         <input type="hidden" id="tFrom"/>
         <input type="hidden" id="tTo"/>
@@ -1497,6 +1533,7 @@ body:not(.light) .offline-pill{color:#fbbf24;}
           </select>
         </div>
 
+        <div id="batchSummary" style="display:none"></div>
         <div class="btn-row">
           <button class="btn" onclick="clearF()">Clear</button>
           <button class="btn btn-primary" onclick="addTrip()">Save trip →</button>
@@ -1552,6 +1589,13 @@ body:not(.light) .offline-pill{color:#fbbf24;}
     <div class="view" id="view-hist">
       <div class="filter-bar">
         <select id="fYear" onchange="renderH()"><option value="">All years</option></select>
+        <select id="fMonth" onchange="renderH()">
+          <option value="">All months</option>
+          <option value="01">Jan</option><option value="02">Feb</option><option value="03">Mar</option>
+          <option value="04">Apr</option><option value="05">May</option><option value="06">Jun</option>
+          <option value="07">Jul</option><option value="08">Aug</option><option value="09">Sep</option>
+          <option value="10">Oct</option><option value="11">Nov</option><option value="12">Dec</option>
+        </select>
         <select id="fSort" onchange="renderH()" style="background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:13px;padding:7px 10px;font-family:'Inter',sans-serif;">
           <option value="date_desc">Date (newest)</option>
           <option value="date_asc">Date (oldest)</option>
@@ -1610,7 +1654,8 @@ body:not(.light) .offline-pill{color:#fbbf24;}
       <div class="analytics-card span2">
         <div class="analytics-card-header">
           <div class="analytics-card-title" id="aChartTitle">Miles per Period</div>
-          <div class="analytics-card-sub">Track your progress over time</div>
+          <div class="analytics-card-sub">Click a bar to see those trips</div>
+          <button type="button" class="tbl-toggle" id="aChartTblBtn" onclick="toggleChartTable(this,'period')">⊞ Table</button>
         </div>
         <div id="aChart" class="analytics-chart"></div>
         <div id="aChartTip" class="chart-tooltip"></div>
@@ -1630,6 +1675,7 @@ body:not(.light) .offline-pill{color:#fbbf24;}
         <div class="analytics-card-header">
           <div class="analytics-card-title" id="aCumTitle">Deduction Pace</div>
           <div class="analytics-card-sub">Cumulative deductible value vs last year</div>
+          <button type="button" class="tbl-toggle" id="aCumTblBtn" onclick="toggleChartTable(this,'pace')">⊞ Table</button>
         </div>
         <div class="viz-legend" id="aCumLegend"></div>
         <div id="aCum" class="analytics-chart"></div>
@@ -2152,6 +2198,30 @@ async function saveToSupabase(trip){
   setSyncing(false);
 }
 
+// One insert for a whole batch of trips (multi-stop / round-trip / repeat-date
+// entry) — a single network round trip, and Supabase applies it atomically.
+async function saveBatchToSupabase(list){
+  if(!currentUser||!list.length)return;
+  setSyncing(true);
+  try{
+    const rows=list.map(function(t){return{
+      user_id:currentUser.id,date:t.date,miles:t.miles,
+      from_addr:t.from||'',to_addr:t.to||'',purpose:t.purpose||'',
+      category:t.category||'',coords:t.coords||null,
+      from_latlng:t.fromLatLng||null,to_latlng:t.toLatLng||null};});
+    const{data,error}=await supa.from('trips').insert(rows).select();
+    if(error)throw error;
+    if(data&&data.length===list.length){
+      data.forEach(function(row,i){
+        const idx=trips.findIndex(function(t){return t.id===list[i].id;});
+        if(idx>=0)trips[idx].supaId=row.id;
+      });
+      save();
+    }
+  }catch(e){console.error('Batch save error:',e);}
+  setSyncing(false);
+}
+
 async function deleteFromSupabase(trip){
   if(!currentUser||!trip.supaId)return;
   try{
@@ -2598,25 +2668,154 @@ function clearDist(){
   pendingDist=null;
 }
 
-function addTrip(){
+// ── BATCH TRIP ENTRY (multi-stop chain · round trip · repeat dates) ──
+// All three compose: (1 + stops [+ return]) legs × dates = trips, saved in
+// one local commit and ONE Supabase insert.
+function addStop(){
+  var wrap=document.getElementById('stopsWrap');if(!wrap)return;
+  var div=document.createElement('div');
+  div.className='stop-block';
+  div.innerHTML='<div class="stop-head"><span></span><button type="button" class="stop-x" onclick="removeStop(this)" aria-label="Remove stop">✕</button></div>'+
+    '<div class="field" style="margin-bottom:6px"><span class="field-label">Street</span><input type="text" class="s-street" placeholder="789 Client Way" autocomplete="off" oninput="updateBatchSummary()"/></div>'+
+    '<div class="g2"><div class="field"><span class="field-label">City</span><input type="text" class="s-city" autocomplete="off" oninput="updateBatchSummary()"/></div>'+
+    '<div class="field"><span class="field-label">State</span><input type="text" class="s-state" maxlength="2" style="text-transform:uppercase" autocomplete="off" oninput="updateBatchSummary()"/></div></div>';
+  wrap.appendChild(div);
+  renumberStops();updateBatchSummary();
+}
+function removeStop(btn){var b=btn.closest('.stop-block');if(b)b.remove();renumberStops();updateBatchSummary();}
+function renumberStops(){
+  document.querySelectorAll('#stopsWrap .stop-block .stop-head span').forEach(function(s,i){s.textContent='➕ Stop '+(i+2);});
+}
+function addExtraDate(){
+  var wrap=document.getElementById('xtraDates');if(!wrap)return;
+  var row=document.createElement('div');
+  row.className='xdate-row';
+  row.innerHTML='<input type="date" class="xdate" oninput="updateBatchSummary()"/><button type="button" class="stop-x" onclick="removeXDate(this)" aria-label="Remove date">✕</button>';
+  wrap.appendChild(row);
+  updateBatchSummary();
+}
+function removeXDate(btn){var r=btn.closest('.xdate-row');if(r)r.remove();updateBatchSummary();}
+function batchStops(){
+  var out=[];
+  document.querySelectorAll('#stopsWrap .stop-block').forEach(function(b){
+    var s=b.querySelector('.s-street').value.trim();
+    var c=b.querySelector('.s-city').value.trim();
+    var st=b.querySelector('.s-state').value.trim().toUpperCase();
+    var a=[s,c,st].filter(Boolean).join(', ');
+    if(a)out.push(a);
+  });
+  return out;
+}
+function batchDates(){
+  var d=document.getElementById('tDate').value;
+  var list=d?[d]:[];
+  document.querySelectorAll('#xtraDates .xdate').forEach(function(i){
+    if(i.value&&list.indexOf(i.value)<0)list.push(i.value);
+  });
+  return list;
+}
+function updateBatchSummary(){
+  var el=document.getElementById('batchSummary');if(!el)return;
+  var legs=1+batchStops().length;
+  var round=document.getElementById('tRound');
+  if(round&&round.checked)legs++;
+  var nd=Math.max(batchDates().length,1);
+  var n=legs*nd;
+  if(n>1){
+    el.style.display='block';
+    el.textContent='Will log '+n+' trips in one save ('+legs+' leg'+(legs>1?'s':'')+' × '+nd+' date'+(nd>1?'s':'')+')';
+  }else el.style.display='none';
+}
+// Driving distance for one leg via Maps; resolves null if Maps can't answer
+// (offline, quota, stub) so the caller can fall back to splitting entered miles.
+function legRoute(from,to){
+  return new Promise(function(res){
+    var done=false;var fin=function(v){if(!done){done=true;res(v);}};
+    if(!googleReady||!window.google||!google.maps||!google.maps.DirectionsService)return fin(null);
+    setTimeout(function(){fin(null);},8000);
+    try{
+      new google.maps.DirectionsService().route({origin:from,destination:to,travelMode:google.maps.TravelMode.DRIVING},function(r,status){
+        if(status==='OK'&&r&&r.routes&&r.routes[0]&&r.routes[0].legs&&r.routes[0].legs[0]){
+          fin({miles:parseFloat((r.routes[0].legs[0].distance.value*0.000621371).toFixed(1))});
+        }else fin(null);
+      });
+    }catch(e){fin(null);}
+  });
+}
+async function addTrip(){
   const d=document.getElementById('tDate').value;
   const m=document.getElementById('tMiles').value;
-  if(!d||!m||parseFloat(m)<=0){toast('⚠ Enter date and miles');return;}
   buildAddr(); // ensure hidden fields are up to date
-  const trip={id:Date.now(),date:d,miles:parseFloat(m),
-    from:document.getElementById('tFrom').value.trim(),
-    to:document.getElementById('tTo').value.trim(),
-    purpose:document.getElementById('tPurpose').value.trim(),
-    category:document.getElementById('tCat').value};
-  // Save route geometry if we calculated it
-  if(pendingDist&&pendingDist.coords){
-    trip.coords=pendingDist.coords;
-    trip.fromLatLng=pendingDist.from;
-    trip.toLatLng=pendingDist.to;
+  const stops=batchStops();
+  const roundEl=document.getElementById('tRound');
+  const round=!!(roundEl&&roundEl.checked);
+  const dates=batchDates();
+  const isBatch=stops.length>0||round||dates.length>1;
+
+  if(!isBatch){
+    // Single trip — behavior unchanged.
+    if(!d||!m||parseFloat(m)<=0){toast('⚠ Enter date and miles');return;}
+    const trip={id:Date.now(),date:d,miles:parseFloat(m),
+      from:document.getElementById('tFrom').value.trim(),
+      to:document.getElementById('tTo').value.trim(),
+      purpose:document.getElementById('tPurpose').value.trim(),
+      category:document.getElementById('tCat').value};
+    // Save route geometry if we calculated it
+    if(pendingDist&&pendingDist.coords){
+      trip.coords=pendingDist.coords;
+      trip.fromLatLng=pendingDist.from;
+      trip.toLatLng=pendingDist.to;
+    }
+    trips.push(trip);
+    save();clearF();updateSidebar();renderH();toast('Trip saved ✓');
+    saveToSupabase(trip);
+    return;
   }
-  trips.push(trip);
-  save();clearF();updateSidebar();renderH();toast('Trip saved ✓');
-  saveToSupabase(trip);
+
+  // ── Batch: legs = From → To → stops (+ return); × dates ──
+  if(!dates.length){toast('⚠ Enter a date');return;}
+  const from=document.getElementById('tFrom').value.trim();
+  const to=document.getElementById('tTo').value.trim();
+  if(!from||!to){toast('⚠ Enter From and To addresses');return;}
+  const points=[from,to].concat(stops);
+  const outLegs=[];
+  for(var i=0;i<points.length-1;i++)outLegs.push([points[i],points[i+1]]);
+  // Per-leg miles: ask Maps for each leg; any gap falls back to an even split
+  // of the entered Miles value (which means "outbound total" in batch mode).
+  const legMi=[];var gaps=false;
+  for(const lg of outLegs){
+    const r=await legRoute(lg[0],lg[1]);
+    if(r&&r.miles>0)legMi.push(r.miles);else{gaps=true;legMi.push(null);}
+  }
+  const mTotal=parseFloat(m||'0');
+  if(gaps){
+    if(!(mTotal>0)){toast('⚠ Enter total outbound miles (Maps unavailable) — I’ll split them across legs');return;}
+    const known=legMi.reduce(function(s,x){return s+(x||0);},0);
+    const missing=legMi.filter(function(x){return x===null;}).length;
+    const even=Math.max(parseFloat(((mTotal-known)/missing).toFixed(1)),0.1);
+    for(var j=0;j<legMi.length;j++)if(legMi[j]===null)legMi[j]=even;
+  }
+  const legDefs=outLegs.map(function(lg,idx){return{from:lg[0],to:lg[1],miles:legMi[idx],ret:false};});
+  if(round){
+    const backFrom=points[points.length-1],backTo=points[0];
+    const rr=await legRoute(backFrom,backTo);
+    const backMi=(rr&&rr.miles>0)?rr.miles:parseFloat(legMi.reduce(function(s,x){return s+x;},0).toFixed(1));
+    legDefs.push({from:backFrom,to:backTo,miles:backMi,ret:true});
+  }
+  const purpose=document.getElementById('tPurpose').value.trim();
+  const cat=document.getElementById('tCat').value;
+  const batch=[];var seq=0;
+  dates.forEach(function(dt){
+    legDefs.forEach(function(lg){
+      batch.push({id:Date.now()+(seq++),date:dt,miles:lg.miles,from:lg.from,to:lg.to,
+        purpose:(purpose+(lg.ret?' (return)':'')).trim()||(lg.ret?'Return trip':''),
+        category:cat});
+    });
+  });
+  batch.forEach(function(t){trips.push(t);});
+  save();clearF();updateSidebar();renderH();
+  toast(batch.length+' trips saved ✓');
+  saveBatchToSupabase(batch);
 }
 
 function clearF(){
@@ -2631,6 +2830,11 @@ function clearF(){
     var el=document.getElementById(id);if(el)el.value='';
   });
   var cat=document.getElementById('tCat');if(cat)cat.selectedIndex=0;
+  // Batch-entry state: extra stops, extra dates, round-trip toggle, summary.
+  var sw=document.getElementById('stopsWrap');if(sw)sw.innerHTML='';
+  var xd=document.getElementById('xtraDates');if(xd)xd.innerHTML='';
+  var rt=document.getElementById('tRound');if(rt)rt.checked=false;
+  if(typeof updateBatchSummary==='function')updateBatchSummary();
   clearDist();
 }
 
@@ -2662,6 +2866,8 @@ function renderH(){
   sel.innerHTML='<option value="">All years</option>'+years.map(y=>`<option value="${y}"${cv==y?' selected':''}>${y}</option>`).join('');
   let fl=[...trips];
   if(fy)fl=fl.filter(t=>yr(t.date)==fy);
+  const fm=(document.getElementById('fMonth')||{}).value||'';
+  if(fm)fl=fl.filter(t=>t.date&&t.date.slice(5,7)===fm);
   if(fc)fl=fl.filter(t=>t.category===fc);
   const sortMode=(document.getElementById('fSort')||{}).value||'date_desc';
   const sorters={
@@ -3051,6 +3257,8 @@ function renderAnalytics(){
     });
     let bars='';
     const maxIdx=keys.reduce((m,k,i)=>grouped[k].miles>grouped[keys[m]].miles?i:m,0);
+    // Stash the rendered slice for the table-view twin
+    window._periodTable=keys.map(k=>({label:k,mi:grouped[k].miles,val:grouped[k].value,count:grouped[k].count}));
     keys.forEach((k,i)=>{
       const v=grouped[k].miles, val=grouped[k].value;
       const bh=Math.max((v/yMax)*plotH,2);
@@ -3059,7 +3267,7 @@ function renderAnalytics(){
       const r=Math.min(4,bw/2,bh);
       let lbl=k.replace(/^\d{4}-/,'').replace(/^(\d{4}) /,'');
       if(/^\d{2}$/.test(lbl))lbl=MOS[parseInt(lbl,10)-1]||lbl;
-      bars+=`<g class="chart-barg" onpointerenter="showChartTip(event,'${lbl}',${v.toFixed(0)},${val.toFixed(0)})" onpointermove="moveChartTip(event)" onpointerleave="hideChartTip()">`+
+      bars+=`<g class="chart-barg" tabindex="0" role="button" aria-label="${lbl}: ${v.toFixed(0)} miles, $${val.toFixed(0)} — press Enter to see these trips" data-key="${k}" data-lbl="${lbl}" data-mi="${v.toFixed(0)}" data-val="${val.toFixed(0)}" data-cx="${cx.toFixed(0)}" onclick="drillPeriod('${k}')" onkeydown="if(event.key==='Enter')drillPeriod('${k}')" onfocus="focusBarTip(this)" onblur="hideChartTip()" onpointerenter="showChartTip(event,'${lbl}',${v.toFixed(0)},${val.toFixed(0)})" onpointermove="moveChartTip(event)" onpointerleave="hideChartTip()">`+
         `<rect x="${(padL+slot*i).toFixed(1)}" y="${padT}" width="${slot.toFixed(1)}" height="${plotH}" fill="transparent"/>`+
         `<path class="chart-bar" d="M${x.toFixed(1)},${(y+bh).toFixed(1)} V${(y+r).toFixed(1)} Q${x.toFixed(1)},${y.toFixed(1)} ${(x+r).toFixed(1)},${y.toFixed(1)} H${(x+bw-r).toFixed(1)} Q${(x+bw).toFixed(1)},${y.toFixed(1)} ${(x+bw).toFixed(1)},${(y+r).toFixed(1)} V${(y+bh).toFixed(1)} Z" fill="url(#barGrad)"/>`+
         (i===maxIdx&&v>0?`<text class="chart-ylabel" style="fill:var(--text2)" x="${cx.toFixed(1)}" y="${(y-5).toFixed(1)}" text-anchor="middle">${v.toFixed(0)}</text>`:'')+
@@ -3081,13 +3289,15 @@ function renderAnalytics(){
   });
   const catKeys=Object.keys(catGroups).sort((a,b)=>catGroups[b].miles-catGroups[a].miles);
   const maxCat=Math.max(...catKeys.map(k=>catGroups[k].miles),1);
+  const allCatMi=catKeys.reduce((s,k)=>s+catGroups[k].miles,0)||1;
   document.getElementById('aCats').innerHTML=catKeys.length?catKeys.map(k=>{
     const col=catColor(k), pct=(catGroups[k].miles/maxCat*100);
-    return `<div class="cat-row2">
+    const share=Math.round(catGroups[k].miles/allCatMi*100);
+    return `<div class="cat-row2" title="${esc(k)} — ${share}% of miles in this view">
       <div class="cat-dot" style="background:${col}"></div>
-      <div class="cat-name" title="${esc(k)}">${esc(k)}</div>
+      <div class="cat-name">${esc(k)}</div>
       <div class="cat-track"><div class="cat-fill" style="width:${pct.toFixed(1)}%;background:${col}"></div></div>
-      <div class="cat-amt">${catGroups[k].miles.toFixed(0)} mi<span class="cat-amt-sub">$${catGroups[k].value.toFixed(0)}</span></div>
+      <div class="cat-amt">${catGroups[k].miles.toFixed(0)} mi<span class="cat-amt-sub">$${catGroups[k].value.toFixed(0)} · ${share}%</span></div>
     </div>`;
   }).join(''):'<div class="chart-empty">No categories yet.</div>';
 }
@@ -3107,6 +3317,65 @@ function moveChartTip(e){
 }
 function hideChartTip(){var tip=document.getElementById('aChartTip');if(tip)tip.style.opacity='0';}
 window.showChartTip=showChartTip;window.moveChartTip=moveChartTip;window.hideChartTip=hideChartTip;
+
+// ── ANALYTICS INTERACTIVITY ──────────────────────────────────
+// Click (or Enter on) a bar → jump to History filtered to that period.
+function drillPeriod(key){
+  key=String(key);
+  var y=key.slice(0,4);
+  var mm=/^\d{4}-(\d{2})$/.exec(key);
+  // Set the filters first — switchNav('hist') re-renders History itself.
+  var fy=document.getElementById('fYear');if(fy)fy.value=y;
+  var fm=document.getElementById('fMonth');if(fm)fm.value=mm?mm[1]:'';
+  switchNav('hist',document.getElementById('nav-hist'));
+  renderH();
+  toast('Showing '+(mm?MOS[parseInt(mm[1],10)-1]+' ':'')+y+' trips');
+}
+// Keyboard path for the bar tooltip: same readout as hover, anchored to the bar.
+function focusBarTip(g){
+  var tip=document.getElementById('aChartTip');if(!tip)return;
+  tip.innerHTML='<span class="tip-period">'+g.getAttribute('data-lbl')+'</span><span class="tip-mi">'+Number(g.getAttribute('data-mi')).toLocaleString()+' mi</span><span class="tip-val">$'+Number(g.getAttribute('data-val')).toLocaleString()+'</span>';
+  tip.style.opacity='1';
+  tip.style.left=Math.max(6,parseFloat(g.getAttribute('data-cx')||'0')-40)+'px';
+  tip.style.top='6px';
+}
+// Table-view twin for each chart — the numbers, keyboard/screen-reader clean.
+function vizTable(cols,rows){
+  var h='<div class="viz-table-wrap"><table class="viz-table"><thead><tr>'+cols.map(function(c){return '<th>'+c+'</th>';}).join('')+'</tr></thead><tbody>';
+  rows.forEach(function(r){h+='<tr>'+r.map(function(c,i){return '<td'+(i?' class="num"':'')+'>'+c+'</td>';}).join('')+'</tr>';});
+  return h+'</tbody></table></div>';
+}
+function toggleChartTable(btn,which){
+  var box=document.getElementById(which==='pace'?'aCum':'aChart');if(!box)return;
+  if(box.getAttribute('data-table')==='1'){
+    box.innerHTML=box._chartHTML||'';
+    box.removeAttribute('data-table');
+    btn.textContent='⊞ Table';
+    return;
+  }
+  var cols,rows;
+  if(which==='pace'){
+    var d=window._paceTable||{years:[],rows:[]};
+    cols=['Month'].concat(d.years);
+    rows=d.rows;
+  }else{
+    cols=['Period','Trips','Miles','Deductible'];
+    rows=(window._periodTable||[]).map(function(p){
+      return [esc(p.label),String(p.count),p.mi.toFixed(0),'$'+p.val.toFixed(0)];
+    });
+  }
+  box._chartHTML=box.innerHTML;
+  box.setAttribute('data-table','1');
+  box.innerHTML=vizTable(cols,rows);
+  btn.textContent='📊 Chart';
+}
+// Fresh renders replace any table view — reset the toggles so labels stay true.
+function resetChartTables(){
+  ['aChart','aCum'].forEach(function(id){var b=document.getElementById(id);if(b)b.removeAttribute('data-table');});
+  var b1=document.getElementById('aChartTblBtn');if(b1)b1.textContent='⊞ Table';
+  var b2=document.getElementById('aCumTblBtn');if(b2)b2.textContent='⊞ Table';
+}
+window.drillPeriod=drillPeriod;window.focusBarTip=focusBarTip;window.toggleChartTable=toggleChartTable;
 
 // ── SHARE ─────────────────────────────────────────────────────
 function openShareModal(){
@@ -3806,7 +4075,15 @@ function renderCumulative(){
     (hasB?'<span class="lg"><span class="lg-line" style="background:var(--text3)"></span>'+esc(yearB)+'</span>':'');
   var W=Math.max(480,box.clientWidth||640),H=200,padL=48,padR=70,padT=14,padB=24;
   var plotW=W-padL-padR,plotH=H-padT-padB;
-  var yMax=niceCeil(Math.max(hasA?cumA[lastA]:0,hasB?cumB[11]:0));
+  // EOY projection at the current daily pace (current year only, and only
+  // while there are future months to project into).
+  var projEOY=0;
+  if(hasA&&parseInt(yearA,10)===now.getFullYear()&&lastA<11){
+    var dayOfYear=Math.floor((now-new Date(now.getFullYear(),0,1))/86400000)+1;
+    projEOY=cumA[lastA]/Math.max(dayOfYear,1)*365;
+  }
+  var yMax=niceCeil(Math.max(hasA?cumA[lastA]:0,hasB?cumB[11]:0,projEOY));
+  if(legend&&projEOY>0)legend.innerHTML+='<span class="lg"><span class="lg-line lg-dash"></span>projected</span>';
   var X=function(m){return padL+plotW*(m/11);};
   var Y=function(v){return padT+plotH*(1-v/yMax);};
   var grid='';
@@ -3825,7 +4102,21 @@ function renderCumulative(){
     lineA='<polyline fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" points="'+ptsA.join(' ')+'"/>'+
       '<circle cx="'+X(lastA).toFixed(1)+'" cy="'+Y(cumA[lastA]).toFixed(1)+'" r="4" fill="var(--accent)" stroke="var(--surface)" stroke-width="2"/>'+
       '<text class="chart-ylabel" style="fill:var(--text);font-weight:600" x="'+(X(lastA)+9).toFixed(1)+'" y="'+(Y(cumA[lastA])+3.5).toFixed(1)+'">$'+Math.round(cumA[lastA]).toLocaleString()+'</text>';
+    if(projEOY>0){
+      // Dashed = projection, deliberately: the one legit use of a dashed line.
+      lineA+='<line x1="'+X(lastA).toFixed(1)+'" y1="'+Y(cumA[lastA]).toFixed(1)+'" x2="'+X(11).toFixed(1)+'" y2="'+Y(projEOY).toFixed(1)+'" stroke="var(--accent)" stroke-width="2" stroke-dasharray="4 5" stroke-linecap="round" opacity="0.55"/>'+
+        '<text class="chart-ylabel" style="fill:var(--text3)" x="'+(X(11)+8).toFixed(1)+'" y="'+(Y(projEOY)+3.5).toFixed(1)+'">≈$'+Math.round(projEOY).toLocaleString()+'</text>';
+    }
   }
+  // Stash the rendered numbers for the table-view twin
+  window._paceTable={
+    years:[yearA].concat(hasB?[yearB]:[]),
+    rows:MOS.map(function(mo,m){
+      var r=[mo,(hasA&&m<=lastA)?'$'+Math.round(cumA[m]).toLocaleString():'—'];
+      if(hasB)r.push('$'+Math.round(cumB[m]).toLocaleString());
+      return r;
+    })
+  };
   var hits='';
   for(var m2=0;m2<12;m2++){
     var av=(hasA&&m2<=lastA)?Math.round(cumA[m2]):null;
@@ -3964,6 +4255,7 @@ window.addEventListener('resize',function(){
 // Wrap renderAnalytics to also render enhanced section
 const _origRenderAnalytics=renderAnalytics;
 renderAnalytics=function(){
+  resetChartTables(); // a fresh render always shows charts; keep toggle labels honest
   _origRenderAnalytics();
   renderInsights();
   renderCumulative();
@@ -4069,6 +4361,11 @@ window.calcDist=calcDist;
 window.useDist=useDist;
 window.clearF=clearF;
 window.addTrip=addTrip;
+window.addStop=addStop;
+window.removeStop=removeStop;
+window.addExtraDate=addExtraDate;
+window.removeXDate=removeXDate;
+window.updateBatchSummary=updateBatchSummary;
 window.doExport=doExport;
 window.clearAll=clearAll;
 window.saveSet=saveSet;
