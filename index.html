@@ -55,6 +55,16 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
   .map-panel-info{font-size:11px;color:var(--accent);font-family:'JetBrains Mono',monospace;}
   #mainMap{flex:1;width:100%;min-height:0;}
   .map-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--text3);font-size:13px;gap:12px;text-align:center;padding:32px;line-height:1.8;}
+  /* Ghost layer: trip-history polylines + "tap to relog" chip rail (design 2b) */
+  .ghost-chips{position:absolute;left:0;right:0;bottom:0;z-index:5;padding:12px 14px;pointer-events:none;background:linear-gradient(transparent,var(--bg2) 85%);display:none;}
+  .ghost-chips.show{display:block;}
+  .gc-label{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;}
+  .gc-row{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;pointer-events:auto;}
+  .gc-row::-webkit-scrollbar{display:none;}
+  .gc-chip{flex:none;display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border2);border-radius:8px;padding:7px 12px;cursor:pointer;transition:all .12s;box-shadow:0 2px 8px rgba(0,0,0,0.08);}
+  .gc-chip:hover{border-color:var(--accent);}
+  .gc-chip b{font-size:11.5px;font-weight:600;color:var(--text);white-space:nowrap;}
+  .gc-chip span{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--text3);white-space:nowrap;}
 .right::-webkit-scrollbar{width:4px;}
 .right::-webkit-scrollbar-thumb{background:var(--surface3);border-radius:4px;}
 
@@ -1556,6 +1566,10 @@ body:not(.light) .offline-pill{color:#fbbf24;}
     </div>
     <div class="map-click-hint" id="mapClickHint">Click anywhere on the map to set location</div>
     <div id="mainMap"></div>
+    <div class="ghost-chips" id="ghostChips">
+      <div class="gc-label">Recent — tap to relog</div>
+      <div class="gc-row" id="ghostChipRow"></div>
+    </div>
     <div class="map-empty" id="mapEmpty">
       <div style="font-size:36px;opacity:.15">🗺</div>
       Calculate a route to see it here.<br>
@@ -2169,6 +2183,7 @@ async function loadFromSupabase(){
     }
     save();
     updateSidebar();renderH();
+    showGhostLayer(); // idle-map history layer (no-ops until map is ready)
   }catch(e){console.error('Load error:',e);}
   setSyncing(false);
 
@@ -2492,6 +2507,8 @@ function initGoogleMapPanel(){
       buildAddr();
     });
   });
+  // Idle-map history layer once the map exists (no-ops without trips)
+  setTimeout(showGhostLayer,300);
 }
 
 let gDirectionsRenderer=null;
@@ -2502,6 +2519,95 @@ function clearGoogleMap(){
   gMarkers.forEach(m=>m.setMap(null));
   gMarkers=[];
 }
+
+// ── GHOST LAYER: trip history on the idle map (design 2b) ────────────
+// When a signed-in user with history lands on Log Trip and no route is
+// active, draw stored trips as faint frequency-weighted polylines plus a
+// "tap to relog" chip rail. Cleared whenever a real route renders.
+var ghostLines=[];
+function ghostLL(p){
+  if(!p)return null;
+  if(Array.isArray(p))return{lat:+p[1],lng:+p[0]}; // geocode() stores [lng,lat]
+  if(typeof p.lat==='number'||typeof p.lat==='function')
+    return{lat:+(p.lat.call?p.lat():p.lat),lng:+(p.lng.call?p.lng():p.lng)};
+  return null;
+}
+function ghostPath(t){
+  if(t.coords&&t.coords.length>1){
+    var p=t.coords.map(ghostLL).filter(Boolean);
+    if(p.length>1)return p;
+  }
+  var a=ghostLL(t.fromLatLng),b=ghostLL(t.toLatLng);
+  return a&&b?[a,b]:null;
+}
+function shortAddr(a){return (a||'').split(',')[0].trim()||'—';}
+function showGhostLayer(){
+  if(!googleReady||!googleMap||!trips||!trips.length)return;
+  clearGhostLayer();
+  var empty=document.getElementById('mapEmpty');
+  if(empty)empty.style.display='none';
+  var freq={};
+  trips.forEach(function(t){var k=(t.from||'')+'→'+(t.to||'');freq[k]=(freq[k]||0)+1;});
+  var bounds=new google.maps.LatLngBounds();
+  var drew=false;
+  trips.slice(-60).forEach(function(t){
+    var path=ghostPath(t);
+    if(!path)return;
+    var k=(t.from||'')+'→'+(t.to||'');
+    ghostLines.push(new google.maps.Polyline({
+      map:googleMap,path:path,geodesic:true,clickable:false,
+      strokeColor:'#2a78d6',strokeOpacity:0.16,
+      strokeWeight:Math.min(11,3+2*Math.log2(freq[k]||1))
+    }));
+    path.forEach(function(p){bounds.extend(p);});
+    drew=true;
+  });
+  if(drew)googleMap.fitBounds(bounds,60);
+  var row=document.getElementById('ghostChipRow');
+  var recent=trips.slice().sort(function(a,b){return (b.date||'').localeCompare(a.date||'');}).slice(0,4);
+  if(row)row.innerHTML=recent.map(function(t){
+    // Single-quoted attr so JSON string ids (future UUIDs) survive intact
+    return "<div class='gc-chip' onclick='ghostRelog("+JSON.stringify(t.id)+")'><b>"+esc(shortAddr(t.from))+' → '+esc(shortAddr(t.to))+'</b><span>'+t.miles+' mi</span></div>';
+  }).join('');
+  var chips=document.getElementById('ghostChips');
+  if(chips)chips.classList.add('show');
+}
+function clearGhostLayer(){
+  ghostLines.forEach(function(l){l.setMap(null);});
+  ghostLines=[];
+  var chips=document.getElementById('ghostChips');
+  if(chips)chips.classList.remove('show');
+}
+// Refresh ghosts ONLY if they're currently showing (never stomp a real route).
+// Called after trip adds/deletes so the idle layer never shows stale history.
+function refreshGhostLayer(){
+  var c=document.getElementById('ghostChips');
+  if(!c||!c.classList.contains('show'))return;
+  if(trips&&trips.length)showGhostLayer();
+  else{clearGhostLayer();var me=document.getElementById('mapEmpty');if(me)me.style.display='';}
+}
+function ghostRelog(id){
+  var t=trips.find(function(x){return x.id===id;});
+  if(!t)return;
+  clearGhostLayer();
+  // One-tap relog: prefill the New Trip form from the trip (today's date —
+  // relogging, not editing history), then show its route.
+  var setV=function(elId,v){var el=document.getElementById(elId);if(el)el.value=(v==null?'':v);};
+  var fp=(t.from||'').split(',').map(function(s){return s.trim();});
+  var tp=(t.to||'').split(',').map(function(s){return s.trim();});
+  setV('tFromStreet',fp[0]);setV('tFromCity',fp[1]);setV('tFromState',fp[2]);
+  setV('tToStreet',tp[0]);setV('tToCity',tp[1]);setV('tToState',tp[2]);
+  setV('tMiles',t.miles);setV('tPurpose',t.purpose||'');
+  var cat=document.getElementById('tCat');if(cat&&t.category)cat.value=t.category;
+  var dt=document.getElementById('tDate');if(dt)dt.value=today();
+  buildAddr();
+  if(typeof updateBatchSummary==='function')updateBatchSummary();
+  toast('Form filled from trip — review & save');
+  if(googleReady&&googleMap)showRouteOnGoogleMap(t.from,t.to,t.miles,fmt(t.date)+(t.purpose?' · '+t.purpose:''));
+}
+window.showGhostLayer=showGhostLayer;
+window.clearGhostLayer=clearGhostLayer;
+window.ghostRelog=ghostRelog;
 
 async function showRouteOnGoogleMap(fromAddr,toAddr,miles,durText){
   // Wait for Google Map to be ready
@@ -2515,6 +2621,7 @@ async function showRouteOnGoogleMap(fromAddr,toAddr,miles,durText){
     return;
   }
   clearGoogleMap();
+  clearGhostLayer();
   document.getElementById('mapEmpty').style.display='none';
   const directionsService=new google.maps.DirectionsService();
   directionsService.route({
@@ -2603,6 +2710,7 @@ async function calcDist(){
     document.getElementById('distBox').classList.add('show');
     // Render the route on Google Maps
     clearGoogleMap();
+    clearGhostLayer();
     document.getElementById('mapEmpty').style.display='none';
     gDirectionsRenderer=new google.maps.DirectionsRenderer({
       map:googleMap,
@@ -2650,6 +2758,7 @@ async function showHistMap(tripId){
     document.getElementById('view-log').classList.add('on');
   }
   if(!googleReady||!googleMap){toast('⚠ Map not ready');return;}
+  clearGhostLayer();
   document.getElementById('mapEmpty').style.display='none';
   showRouteOnGoogleMap(trip.from,trip.to,trip.miles,fmt(trip.date)+(trip.purpose?' · '+trip.purpose:''));
 }
@@ -2768,7 +2877,7 @@ async function addTrip(){
       trip.toLatLng=pendingDist.to;
     }
     trips.push(trip);
-    save();clearF();updateSidebar();renderH();toast('Trip saved ✓');
+    save();clearF();updateSidebar();renderH();refreshGhostLayer();toast('Trip saved ✓');
     saveToSupabase(trip);
     return;
   }
@@ -2814,7 +2923,7 @@ async function addTrip(){
     });
   });
   batch.forEach(function(t){trips.push(t);});
-  save();clearF();updateSidebar();renderH();
+  save();clearF();updateSidebar();renderH();refreshGhostLayer();
   toast(batch.length+' trips saved ✓');
   saveBatchToSupabase(batch);
 }
@@ -2845,7 +2954,7 @@ function del(id){
   const idx=trips.indexOf(trip);
   // Optimistic delete with a 6s undo window — no blocking confirm dialog.
   trips=trips.filter(t=>t.id!==id);
-  save();updateSidebar();renderH();
+  save();updateSidebar();renderH();refreshGhostLayer();
   undoToast('Trip deleted',function(){
     // Undo: restore at original position; re-insert to Supabase (new row).
     trips.splice(Math.min(idx,trips.length),0,trip);
@@ -3387,7 +3496,7 @@ function closeShareModal(){
   document.getElementById('shareModal').style.display='none';
 }
 function shareUrl(){
-  const url='https://jordoncissna.github.io/mileage-tracker';
+  const url=appBase();
   navigator.clipboard.writeText(url).then(()=>toast('Link copied ✓')).catch(()=>toast('URL: '+url));
   closeShareModal();
 }
@@ -3396,14 +3505,20 @@ function shareQr(){
   qrEl.innerHTML='';
   if(typeof QRCode==='undefined'){toast('⚠ QR needs an internet connection');return;}
   try{
-    new QRCode(qrEl,{text:'https://jordoncissna.github.io/mileage-tracker',width:180,height:180,colorDark:'#000',colorLight:'#fff'});
+    new QRCode(qrEl,{text:appBase(),width:180,height:180,colorDark:'#000',colorLight:'#fff'});
     document.getElementById('qrContainer').style.display='block';
   }catch(e){toast('QR library not loaded');}
 }
 function shareCsv(){doExport();closeShareModal();}
 
 // ── INVITE A COWORKER (referral groundwork for future rewards) ──────
-var INVITE_BASE='https://jordoncissna.github.io/mileage-tracker';
+// Domain-agnostic app URL: on github.io the app lives under /mileage-tracker,
+// on a custom domain (milo.ridgelinemg.com) at the root. Derive, don't hardcode.
+function appBase(){
+  var p=window.location.pathname.replace(/[^\/]*$/,'').replace(/\/$/,'');
+  return window.location.origin+p;
+}
+var INVITE_BASE=appBase();
 function inviteCode(){
   // Stable per-user code: the Supabase user id when signed in, else 'guest'.
   return (currentUser&&currentUser.id)?currentUser.id:'guest';
@@ -4319,6 +4434,10 @@ function applyMapMode(mode){
     });
   });
   console.log('Map recreated in',mode,'mode');
+  // The recreate destroyed whatever was drawn (route or ghosts) — restore the
+  // idle-history layer so a theme switch never leaves a blank map.
+  ghostLines=[];
+  setTimeout(showGhostLayer,350);
 }
 
 function setMode(mode){

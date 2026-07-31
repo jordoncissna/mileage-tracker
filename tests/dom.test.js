@@ -200,6 +200,22 @@ T('referral is stashed for attribution', window.localStorage.getItem('ml_referre
 T('one shareModal', document.querySelectorAll('#shareModal').length === 1);
 T('one rightResize', document.querySelectorAll('#rightResize').length === 1);
 
+// ===== GHOST LAYER (idle-map history + tap-to-relog) =====
+T('ghost chip rail in markup', !!$('ghostChips') && !!$('ghostChipRow') && html.indexOf('tap to relog') >= 0);
+T('ghost functions exposed', typeof window.showGhostLayer === 'function' && typeof window.clearGhostLayer === 'function' && typeof window.ghostRelog === 'function');
+T('real routes clear ghosts (3 render sites)', (html.match(/clearGhostLayer\(\);/g) || []).length >= 4);
+T('theme switch re-arms ghost layer', /Map recreated in[\s\S]{0,300}showGhostLayer/.test(html));
+T('zero-trip users keep mapEmpty', html.indexOf('if(!googleReady||!googleMap||!trips||!trips.length)return;') >= 0);
+// Tap-to-relog prefills the New Trip form (today's date, not the old one)
+const gt = window.__trips()[0];
+window.ghostRelog(gt.id);
+T('relog prefills From street', $('tFromStreet').value === (gt.from || '').split(',')[0].trim());
+T('relog prefills To street', $('tToStreet').value === (gt.to || '').split(',')[0].trim());
+T('relog prefills miles', parseFloat($('tMiles').value) === parseFloat(gt.miles));
+T('relog dates today, not the old date', /^\d{4}-\d{2}-\d{2}$/.test($('tDate').value) && $('tDate').value !== gt.date);
+T('relog rebuilds hidden addr', $('tFrom').value.indexOf($('tFromStreet').value) >= 0);
+window.__clearF();
+
 // ===== ANALYTICS V3: interactivity =====
 window.__renderAnalytics();
 T('bars are keyboard-focusable', $('aChart').innerHTML.indexOf('tabindex="0"') >= 0);

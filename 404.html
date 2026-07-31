@@ -5,7 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Milo — redirecting…</title>
 <!-- Fallback for JS-disabled clients: send everyone to the app entry point. -->
-<meta http-equiv="refresh" content="0; url=/mileage-tracker/">
+<!-- "/" is right on both hosts: the custom domain serves the app at the root,
+     and on github.io the user-page repo at "/" forwards into /mileage-tracker/. -->
+<meta http-equiv="refresh" content="0; url=/">
 <style>
   html,body{height:100%;margin:0}
   body{
@@ -30,14 +32,16 @@
     <div class="dot"></div>
     <h1>Taking you to Milo…</h1>
     <p>That page moved — sending you to the app.</p>
-    <p><a id="manual" href="/mileage-tracker/">Continue to Milo →</a></p>
+    <p><a id="manual" href="/">Continue to Milo →</a></p>
   </div>
 <script>
-  // Any unmatched path under /mileage-tracker/ lands here. Forward to the app
-  // entry point, preserving the URL hash (Supabase auth links put
-  // #access_token=... there) and any query string so sign-in can complete.
+  // Any unmatched app path lands here. Forward to the app entry point,
+  // preserving the URL hash (Supabase auth links put #access_token=... there)
+  // and any query string so sign-in can complete. Domain-agnostic: github.io
+  // serves the app under /mileage-tracker/, a custom domain at the root.
   (function () {
-    var target = '/mileage-tracker/' + (window.location.search || '') + (window.location.hash || '');
+    var base = /github\.io$/.test(window.location.hostname) ? '/mileage-tracker/' : '/';
+    var target = base + (window.location.search || '') + (window.location.hash || '');
     var link = document.getElementById('manual');
     if (link) link.setAttribute('href', target);
     window.location.replace(target);
