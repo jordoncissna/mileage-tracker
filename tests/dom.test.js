@@ -200,6 +200,35 @@ T('referral is stashed for attribution', window.localStorage.getItem('ml_referre
 T('one shareModal', document.querySelectorAll('#shareModal').length === 1);
 T('one rightResize', document.querySelectorAll('#rightResize').length === 1);
 
+// ===== ANALYTICS V3: interactivity =====
+window.__renderAnalytics();
+T('bars are keyboard-focusable', $('aChart').innerHTML.indexOf('tabindex="0"') >= 0);
+T('bars carry drill handler', $('aChart').innerHTML.indexOf('drillPeriod(') >= 0);
+T('pace chart draws dashed projection', $('aCum').innerHTML.indexOf('stroke-dasharray') >= 0);
+T('projection labeled ≈$', $('aCum').innerHTML.indexOf('≈$') >= 0);
+T('projected key in legend', $('aCumLegend').innerHTML.indexOf('projected') >= 0);
+T('category rows show % share', $('aCats').innerHTML.indexOf('%') >= 0);
+// Table-view twin toggles
+window.toggleChartTable($('aChartTblBtn'), 'period');
+T('period table renders', $('aChart').innerHTML.indexOf('<table') >= 0 && $('aChart').textContent.indexOf('Miles') >= 0);
+T('toggle label flips to Chart', $('aChartTblBtn').textContent.indexOf('Chart') >= 0);
+window.toggleChartTable($('aChartTblBtn'), 'period');
+T('chart restored after re-toggle', $('aChart').innerHTML.indexOf('<svg') >= 0);
+window.toggleChartTable($('aCumTblBtn'), 'pace');
+T('pace table renders with months', $('aCum').innerHTML.indexOf('<table') >= 0 && $('aCum').textContent.indexOf('Jan') >= 0);
+window.__renderAnalytics();
+T('fresh render resets to charts', $('aCum').innerHTML.indexOf('<svg') >= 0 && $('aCumTblBtn').textContent.indexOf('Table') >= 0);
+// Drill-down: bar click filters History by year+month
+window.drillPeriod('2026-03');
+T('drill switches to history view', document.querySelector('#view-hist').classList.contains('on'));
+T('drill sets year filter', $('fYear').value === '2026');
+T('drill sets month filter', $('fMonth').value === '03');
+// The March seed trip goes to "101 Test Rd"; June's "456 Business Ave" must be filtered out
+T('history filtered to the month', $('htable').innerHTML.indexOf('101 Test Rd') >= 0 && $('htable').innerHTML.indexOf('2026-06-10') < 0);
+window.drillPeriod('2026');
+T('year-level drill clears month', $('fMonth').value === '');
+$('fYear').value = ''; $('fMonth').value = ''; window.__renderH();
+
 // ===== BATCH TRIP ENTRY (multi-stop · round trip · repeat dates) =====
 // Async because batch addTrip awaits per-leg routing (falls back instantly
 // here — googleReady is false in jsdom, so entered miles are split).
