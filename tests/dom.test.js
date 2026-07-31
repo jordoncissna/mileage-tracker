@@ -209,6 +209,12 @@ T('zero-trip users keep mapEmpty', html.indexOf('if(!googleReady||!googleMap||!t
 // Geometry-less trips: addresses are geocoded once and cached (with negative caching)
 T('ghost geocode fallback wired', html.indexOf('ml3_geo') >= 0 && html.indexOf('ghostGeocode') >= 0);
 T('geocode failures negative-cached', /geoCache\[geoKey\(a\)\]=\(status==='OK'/.test(html));
+// 3a interactive: chip hover ↔ polyline highlight, both directions
+T('ghostHighlight exposed', typeof window.ghostHighlight === 'function');
+T('hint element present', !!$('ghostHint') && $('ghostHint').textContent.indexOf('hover') >= 0);
+T('polylines are clickable with hover listeners', html.indexOf('clickable:true') >= 0 && /line\.addListener\('mouseover'/.test(html));
+T('active-chip styles shipped', html.indexOf('.gc-chip.active') >= 0);
+T('highlight(null) resets hint', (window.ghostHighlight(null), $('ghostHint').textContent === 'hover to preview'));
 // Tap-to-relog prefills the New Trip form (today's date, not the old one)
 const gt = window.__trips()[0];
 window.ghostRelog(gt.id);
