@@ -61,10 +61,16 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
   .gc-label{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;}
   .gc-row{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;pointer-events:auto;}
   .gc-row::-webkit-scrollbar{display:none;}
-  .gc-chip{flex:none;display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border2);border-radius:8px;padding:7px 12px;cursor:pointer;transition:all .12s;box-shadow:0 2px 8px rgba(0,0,0,0.08);}
+  .gc-chip{flex:none;display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border2);border-radius:8px;padding:7px 12px;cursor:pointer;transition:all .18s;box-shadow:0 2px 8px rgba(0,0,0,0.08);}
   .gc-chip:hover{border-color:var(--accent);}
   .gc-chip b{font-size:11.5px;font-weight:600;color:var(--text);white-space:nowrap;}
   .gc-chip span{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--text3);white-space:nowrap;}
+  /* 3a interactive states: hovered chip ↔ highlighted polyline */
+  .gc-chip.active{background:var(--accent);border-color:transparent;transform:translateY(-2px);box-shadow:0 6px 16px rgba(37,99,235,0.35);}
+  .gc-chip.active b{color:#fff;}
+  .gc-chip.active span{color:rgba(255,255,255,0.75);}
+  .gc-hint{font-size:10.5px;color:var(--text3);font-family:'JetBrains Mono',monospace;}
+  .gc-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;}
 .right::-webkit-scrollbar{width:4px;}
 .right::-webkit-scrollbar-thumb{background:var(--surface3);border-radius:4px;}
 
@@ -1567,7 +1573,7 @@ body:not(.light) .offline-pill{color:#fbbf24;}
     <div class="map-click-hint" id="mapClickHint">Click anywhere on the map to set location</div>
     <div id="mainMap"></div>
     <div class="ghost-chips" id="ghostChips">
-      <div class="gc-label">Recent — tap to relog</div>
+      <div class="gc-head"><div class="gc-label">Recent — tap to relog</div><span class="gc-hint" id="ghostHint">hover to preview</span></div>
       <div class="gc-row" id="ghostChipRow"></div>
     </div>
     <div class="map-empty" id="mapEmpty">
@@ -2520,11 +2526,14 @@ function clearGoogleMap(){
   gMarkers=[];
 }
 
-// ── GHOST LAYER: trip history on the idle map (design 2b) ────────────
+// ── GHOST LAYER: trip history on the idle map (design 3a, interactive) ──
 // When a signed-in user with history lands on Log Trip and no route is
 // active, draw stored trips as faint frequency-weighted polylines plus a
-// "tap to relog" chip rail. Cleared whenever a real route renders.
-var ghostLines=[];
+// "tap to relog" chip rail. Hovering a chip highlights its route (rest dim);
+// hovering/clicking a polyline highlights its chip / relogs the trip.
+// Cleared whenever a real route renders.
+var ghostLines=[]; // [{line, tripId, baseWeight}]
+var ghostHovered=null;
 function ghostLL(p){
   if(!p)return null;
   if(Array.isArray(p))return{lat:+p[1],lng:+p[0]}; // geocode() stores [lng,lat]
@@ -2584,11 +2593,17 @@ function showGhostLayer(){
     }
     if(!path)return;
     var k=(t.from||'')+'→'+(t.to||'');
-    ghostLines.push(new google.maps.Polyline({
-      map:googleMap,path:path,geodesic:true,clickable:false,
-      strokeColor:'#2a78d6',strokeOpacity:0.16,
-      strokeWeight:Math.min(11,3+2*Math.log2(freq[k]||1))
-    }));
+    var bw=Math.min(11,3+2*Math.log2(freq[k]||1));
+    var line=new google.maps.Polyline({
+      map:googleMap,path:path,geodesic:true,clickable:true,
+      strokeColor:'#2a78d6',strokeOpacity:0.16,strokeWeight:bw
+    });
+    (function(id){
+      line.addListener('mouseover',function(){ghostHighlight(id);});
+      line.addListener('mouseout',function(){ghostHighlight(null);});
+      line.addListener('click',function(){ghostRelog(id);});
+    })(t.id);
+    ghostLines.push({line:line,tripId:t.id,baseWeight:bw});
     path.forEach(function(p){bounds.extend(p);});
     drew=true;
   });
@@ -2613,14 +2628,35 @@ function showGhostLayer(){
   var row=document.getElementById('ghostChipRow');
   var recent=trips.slice().sort(function(a,b){return (b.date||'').localeCompare(a.date||'');}).slice(0,4);
   if(row)row.innerHTML=recent.map(function(t){
-    // Single-quoted attr so JSON string ids (future UUIDs) survive intact
-    return "<div class='gc-chip' onclick='ghostRelog("+JSON.stringify(t.id)+")'><b>"+esc(shortAddr(t.from))+' → '+esc(shortAddr(t.to))+'</b><span>'+t.miles+' mi</span></div>';
+    // Single-quoted attrs so JSON string ids (future UUIDs) survive intact
+    var idj=JSON.stringify(t.id);
+    return "<div class='gc-chip' data-trip='"+esc(String(t.id))+"' onclick='ghostRelog("+idj+")' onmouseenter='ghostHighlight("+idj+")' onmouseleave='ghostHighlight(null)'><b>"+esc(shortAddr(t.from))+' → '+esc(shortAddr(t.to))+'</b><span>'+t.miles+' mi</span></div>';
   }).join('');
   var chips=document.getElementById('ghostChips');
   if(chips)chips.classList.add('show');
 }
+// Highlight one trip's polyline + chip; pass null to reset.
+function ghostHighlight(tripId){
+  if(ghostHovered===tripId)return;
+  ghostHovered=tripId;
+  ghostLines.forEach(function(g){
+    var active=tripId!==null&&g.tripId===tripId;
+    var dimmed=tripId!==null&&!active;
+    g.line.setOptions({
+      strokeOpacity:active?0.85:dimmed?0.05:0.16,
+      strokeWeight:active?g.baseWeight+2:g.baseWeight,
+      zIndex:active?10:1
+    });
+  });
+  document.querySelectorAll('.gc-chip').forEach(function(el){
+    el.classList.toggle('active',tripId!==null&&el.getAttribute('data-trip')===String(tripId));
+  });
+  var hint=document.getElementById('ghostHint');
+  if(hint)hint.textContent=tripId!==null?'click to relog →':'hover to preview';
+}
 function clearGhostLayer(){
-  ghostLines.forEach(function(l){l.setMap(null);});
+  ghostHovered=null;
+  ghostLines.forEach(function(g){g.line.setMap(null);});
   ghostLines=[];
   var chips=document.getElementById('ghostChips');
   if(chips)chips.classList.remove('show');
@@ -2655,6 +2691,7 @@ function ghostRelog(id){
 window.showGhostLayer=showGhostLayer;
 window.clearGhostLayer=clearGhostLayer;
 window.ghostRelog=ghostRelog;
+window.ghostHighlight=ghostHighlight;
 
 async function showRouteOnGoogleMap(fromAddr,toAddr,miles,durText){
   // Wait for Google Map to be ready
