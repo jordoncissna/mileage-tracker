@@ -29,7 +29,8 @@ Live: https://jordoncissna.github.io/mileage-tracker
   - Supabase (Postgres + Auth, row-level security) is the source of truth for trips.
   - `localStorage` holds device-local settings. Keys: `ml3_trips` (cache),
     `ml3_set` (cfg: rates, home/office, commute toggles, auto-classify rules),
-    `ml3_routew` (remembered Route column width).
+    `ml3_routew` (remembered Route column width), `ml3_geo` (address→[lng,lat]
+    geocode cache for the map ghost layer; failures cached as null).
 - **Maps:** Google Maps JS API (Places autocomplete + Geometry for distance).
 - **Auth email:** Resend SMTP via Supabase.
 

@@ -2541,6 +2541,26 @@ function ghostPath(t){
   return a&&b?[a,b]:null;
 }
 function shortAddr(a){return (a||'').split(',')[0].trim()||'—';}
+// Address→[lng,lat] cache so trips logged without Calculate-distance (no stored
+// geometry) can still ghost. Geocoded once, kept in localStorage (ml3_geo);
+// failures are negative-cached (null) so we never loop on a bad address.
+var geoCache={};
+try{geoCache=JSON.parse(localStorage.getItem('ml3_geo')||'{}');}catch(e){}
+function geoKey(a){return (a||'').trim().toLowerCase();}
+function saveGeoCache(){try{localStorage.setItem('ml3_geo',JSON.stringify(geoCache));}catch(e){}}
+function ghostGeocode(addrs,done){
+  var g=new google.maps.Geocoder(),i=0;
+  (function next(){
+    if(i>=addrs.length)return done();
+    var a=addrs[i++];
+    g.geocode({address:a},function(res,status){
+      geoCache[geoKey(a)]=(status==='OK'&&res&&res[0]&&res[0].geometry&&res[0].geometry.location)
+        ?[res[0].geometry.location.lng(),res[0].geometry.location.lat()]:null;
+      saveGeoCache();
+      setTimeout(next,150); // stay friendly to the geocoding quota
+    });
+  })();
+}
 function showGhostLayer(){
   if(!googleReady||!googleMap||!trips||!trips.length)return;
   clearGhostLayer();
@@ -2550,8 +2570,18 @@ function showGhostLayer(){
   trips.forEach(function(t){var k=(t.from||'')+'→'+(t.to||'');freq[k]=(freq[k]||0)+1;});
   var bounds=new google.maps.LatLngBounds();
   var drew=false;
+  var missing={};
   trips.slice(-60).forEach(function(t){
     var path=ghostPath(t);
+    if(!path){
+      // No stored geometry — try the geocode cache; note gaps for a fetch pass
+      var a=geoCache[geoKey(t.from)],b=geoCache[geoKey(t.to)];
+      if(a&&b)path=[ghostLL(a),ghostLL(b)];
+      else{
+        if(t.from&&!(geoKey(t.from) in geoCache))missing[t.from.trim()]=1;
+        if(t.to&&!(geoKey(t.to) in geoCache))missing[t.to.trim()]=1;
+      }
+    }
     if(!path)return;
     var k=(t.from||'')+'→'+(t.to||'');
     ghostLines.push(new google.maps.Polyline({
@@ -2563,6 +2593,23 @@ function showGhostLayer(){
     drew=true;
   });
   if(drew)googleMap.fitBounds(bounds,60);
+  // Geocode what's missing, then redraw once — negative caching guarantees the
+  // second pass has no gaps, so this can't recurse further.
+  var toFetch=Object.keys(missing);
+  if(toFetch.length&&google.maps.Geocoder&&!showGhostLayer._fetching){
+    showGhostLayer._fetching=true; // one pass at a time — protects geocode quota
+    ghostGeocode(toFetch,function(){
+      showGhostLayer._fetching=false;
+      var c=document.getElementById('ghostChips');
+      if(c&&c.classList.contains('show'))showGhostLayer();
+    });
+  }
+  // Header count — the idle map is a portrait of the whole log
+  var infoEl=document.getElementById('mainMapInfo');
+  if(infoEl){
+    var totMi=trips.reduce(function(s,t){return s+parseFloat(t.miles||0);},0);
+    infoEl.textContent=trips.length+' trips · '+totMi.toFixed(1).replace(/\B(?=(\d{3})+(?!\d))/g,',')+' mi';
+  }
   var row=document.getElementById('ghostChipRow');
   var recent=trips.slice().sort(function(a,b){return (b.date||'').localeCompare(a.date||'');}).slice(0,4);
   if(row)row.innerHTML=recent.map(function(t){
