@@ -3387,7 +3387,7 @@ function closeShareModal(){
   document.getElementById('shareModal').style.display='none';
 }
 function shareUrl(){
-  const url='https://jordoncissna.github.io/mileage-tracker';
+  const url=appBase();
   navigator.clipboard.writeText(url).then(()=>toast('Link copied ✓')).catch(()=>toast('URL: '+url));
   closeShareModal();
 }
@@ -3396,14 +3396,20 @@ function shareQr(){
   qrEl.innerHTML='';
   if(typeof QRCode==='undefined'){toast('⚠ QR needs an internet connection');return;}
   try{
-    new QRCode(qrEl,{text:'https://jordoncissna.github.io/mileage-tracker',width:180,height:180,colorDark:'#000',colorLight:'#fff'});
+    new QRCode(qrEl,{text:appBase(),width:180,height:180,colorDark:'#000',colorLight:'#fff'});
     document.getElementById('qrContainer').style.display='block';
   }catch(e){toast('QR library not loaded');}
 }
 function shareCsv(){doExport();closeShareModal();}
 
 // ── INVITE A COWORKER (referral groundwork for future rewards) ──────
-var INVITE_BASE='https://jordoncissna.github.io/mileage-tracker';
+// Domain-agnostic app URL: on github.io the app lives under /mileage-tracker,
+// on a custom domain (milo.ridgelinemg.com) at the root. Derive, don't hardcode.
+function appBase(){
+  var p=window.location.pathname.replace(/[^\/]*$/,'').replace(/\/$/,'');
+  return window.location.origin+p;
+}
+var INVITE_BASE=appBase();
 function inviteCode(){
   // Stable per-user code: the Supabase user id when signed in, else 'guest'.
   return (currentUser&&currentUser.id)?currentUser.id:'guest';
