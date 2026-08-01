@@ -225,6 +225,28 @@ T('home activates as fullwidth view', $('view-home').classList.contains('on') &&
 T('view choice persisted', window.localStorage.getItem('ml_view') === 'home');
 window.switchNav('log', $('nav-log'));
 
+// ===== LOG OVERLAY (Mission Control) =====
+T('overlay markup present', !!$('logOverlay') && !!$('smartRoute') && !!$('catChips') && !!$('logDetails'));
+T('form fields live inside overlay', $('logOverlay').contains($('tFromStreet')) && $('logOverlay').contains($('tMiles')) && $('logOverlay').contains($('stopsWrap')));
+window.openLogOverlay();
+T('overlay opens', $('logOverlay').style.display === 'flex');
+T('category chips rendered', $('catChips').querySelectorAll('.cat-chip').length >= 6);
+window.pickCat('Client Meeting');
+T('chip click drives hidden select', $('tCat').value === 'Client Meeting');
+T('deductible footer live', $('logDed').textContent.indexOf('$') === 0);
+// smart route: seeded trips make suggestions
+$('smartRoute').value = 'syracuse';
+window.smartRouteInput();
+T('smart field suggests routes', $('smartDrop').style.display === 'block' && $('smartDrop').querySelectorAll('.sd-row').length >= 1);
+window.applySmartRoute(0);
+T('picking a route prefills From', $('tFromStreet').value.length > 0);
+T('picking a route prefills miles', parseFloat($('tMiles').value) > 0);
+// Esc closes
+document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+T('Esc closes overlay', $('logOverlay').style.display === 'none');
+T('cmd-K wiring present', /metaKey\|\|e\.ctrlKey/.test(html) && html.indexOf("key==='k'") >= 0);
+window.__clearF();
+
 // ===== ANALYTICS V3: interactivity =====
 window.__renderAnalytics();
 T('bars are keyboard-focusable', $('aChart').innerHTML.indexOf('tabindex="0"') >= 0);

@@ -55,6 +55,37 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
   .map-panel-info{font-size:11px;color:var(--accent);font-family:'JetBrains Mono',monospace;}
   #mainMap{flex:1;width:100%;min-height:0;}
   .map-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--text3);font-size:13px;gap:12px;text-align:center;padding:32px;line-height:1.8;}
+  /* ── Log-trip overlay ── */
+  .left{display:none!important;}
+  .map-panel{border-left:none;}
+  .log-overlay{position:fixed;inset:0;background:rgba(4,6,10,0.55);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;}
+  .log-card{width:520px;max-width:100%;max-height:92vh;background:var(--bg2);border:1px solid var(--border2);border-radius:16px;box-shadow:0 30px 80px rgba(0,0,0,0.55);display:flex;flex-direction:column;overflow:hidden;}
+  .log-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px 0;}
+  .log-title{font-size:14px;font-weight:600;color:var(--text);}
+  .log-actions{display:flex;align-items:center;gap:12px;}
+  .log-esc{font-size:11px;color:var(--text3);}
+  .log-body{padding:14px 20px;display:flex;flex-direction:column;gap:2px;overflow-y:auto;}
+  .smart-wrap{position:relative;margin-bottom:10px;}
+  .smart-glass{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:13px;pointer-events:none;}
+  #smartRoute{width:100%;background:var(--surface);border:1px solid var(--accent);border-radius:9px;padding:11px 13px 11px 34px;font-size:13.5px;color:var(--text);box-shadow:0 0 0 3px var(--accent-glow);box-sizing:border-box;}
+  .smart-drop{position:absolute;left:0;right:0;top:calc(100% + 6px);background:var(--surface);border:1px solid var(--border2);border-radius:9px;overflow:hidden;z-index:5;box-shadow:0 12px 32px rgba(0,0,0,0.4);}
+  .sd-row{display:flex;align-items:center;gap:10px;padding:9px 12px;cursor:pointer;border-top:1px solid var(--border);}
+  .sd-row:first-child{border-top:none;}
+  .sd-row:hover,.sd-row.sel{background:var(--accent-bg);}
+  .sd-main{flex:1;min-width:0;}
+  .sd-route{font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .sd-sub{font-size:10px;color:var(--text3);}
+  .sd-mi{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text2);white-space:nowrap;}
+  .dist-round{display:flex;justify-content:flex-end;margin:4px 0 6px;}
+  .cat-chips{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 2px;}
+  .cat-chip{font-size:11px;font-weight:500;padding:5px 11px;border-radius:20px;cursor:pointer;background:transparent;color:var(--text2);border:1px solid var(--border2);white-space:nowrap;}
+  .cat-chip.more{color:var(--text3);border-color:var(--border);}
+  #logDetails{margin:8px 0 4px;border:1px solid var(--border);border-radius:9px;padding:0 12px;}
+  #logDetails summary{cursor:pointer;font-size:11.5px;color:var(--text2);padding:9px 0;user-select:none;}
+  #logDetails[open]{padding-bottom:10px;background:var(--surface);}
+  .log-foot{display:flex;align-items:center;gap:10px;padding:13px 20px;border-top:1px solid var(--border);background:var(--surface);}
+  .log-ded{font-size:11px;color:var(--text3);white-space:nowrap;margin-right:auto;}
+  .log-ded b{font-family:'JetBrains Mono',monospace;color:var(--green);font-weight:500;}
   /* ── Mission Control shell: fixed left icon rail ── */
   .rail{position:fixed;left:0;top:0;bottom:0;width:56px;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;padding:14px 0 12px;gap:6px;z-index:60;}
   .rail-logo{width:30px;height:30px;border-radius:8px;margin-bottom:14px;overflow:hidden;flex-shrink:0;}
@@ -1498,103 +1529,7 @@ body:not(.light) .offline-pill{color:#fbbf24;}
         </div>
       </div>
 
-      <div>
-        <div class="section-label">New trip</div>
-
-        <div class="g2" style="margin-bottom:6px">
-          <div class="field"><span class="field-label">Date</span><input type="date" id="tDate" onchange="updateBatchSummary()"/></div>
-          <div class="field"><span class="field-label">Miles</span>
-            <div class="iw"><input type="number" id="tMiles" placeholder="0.0" step="0.1" min="0"/><span class="isuf">mi</span></div>
-          </div>
-        </div>
-        <div id="xtraDates"></div>
-        <div style="margin-bottom:10px">
-          <button type="button" class="linklike" onclick="addExtraDate()">＋ Repeat on another date</button>
-        </div>
-
-        <!-- FROM address -->
-        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--r2);padding:10px 12px;margin-bottom:8px;">
-          <div style="font-size:10px;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;">📍 From</div>
-          <div class="field" style="margin-bottom:6px">
-            <span class="field-label">Street</span>
-            <input type="text" id="tFromStreet" placeholder="123 Main St" autocomplete="off" oninput="clearDist();buildAddr()"/>
-          </div>
-          <div class="g2" style="margin-bottom:6px">
-            <div class="field"><span class="field-label">City</span><input type="text" id="tFromCity" placeholder="Salt Lake City" autocomplete="off" oninput="clearDist();buildAddr()"/></div>
-            <div class="field"><span class="field-label">State</span><input type="text" id="tFromState" placeholder="UT" maxlength="2" autocomplete="off" oninput="clearDist();buildAddr()" style="text-transform:uppercase"/></div>
-          </div>
-        </div>
-        <!-- TO address -->
-        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--r2);padding:10px 12px;margin-bottom:8px;">
-          <div style="font-size:10px;font-weight:600;color:var(--red);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;">🏁 To</div>
-          <div class="field" style="margin-bottom:6px">
-            <span class="field-label">Street</span>
-            <input type="text" id="tToStreet" placeholder="456 Business Ave" autocomplete="off" oninput="clearDist();buildAddr()"/>
-          </div>
-          <div class="g2" style="margin-bottom:6px">
-            <div class="field"><span class="field-label">City</span><input type="text" id="tToCity" placeholder="Provo" autocomplete="off" oninput="clearDist();buildAddr()"/></div>
-            <div class="field"><span class="field-label">State</span><input type="text" id="tToState" placeholder="UT" maxlength="2" autocomplete="off" oninput="clearDist();buildAddr()" style="text-transform:uppercase"/></div>
-          </div>
-        </div>
-        <!-- Extra stops (multi-leg day). Each stop chains a new leg onto the route. -->
-        <div id="stopsWrap"></div>
-        <div style="margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
-          <button type="button" class="linklike" onclick="addStop()">＋ Add stop</button>
-          <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2);cursor:pointer;margin:0">
-            <input type="checkbox" id="tRound" onchange="updateBatchSummary()" style="width:auto;accent-color:var(--accent)"/> Round trip — also log the return
-          </label>
-        </div>
-        <input type="hidden" id="tFrom"/>
-        <input type="hidden" id="tTo"/>
-
-        <div style="margin-bottom:10px;display:flex;align-items:center;gap:10px">
-          <button class="btn btn-calc" id="calcBtn" onclick="calcDist()">⊙ Calculate distance</button>
-          <span style="font-size:11px;color:var(--text3)">⌘D</span>
-        </div>
-
-        <div class="dist-box" id="distBox">
-          <div class="dist-opt">
-            <span class="dist-type">One way</span>
-            <span class="dist-mi" id="distMi1">—</span>
-            <span class="dist-info" id="distInfo1"></span>
-            <span class="dist-use" onclick="useDist(1)">Use →</span>
-          </div>
-          <div class="dist-sep"></div>
-          <div class="dist-opt">
-            <span class="dist-type">Round trip</span>
-            <span class="dist-mi" id="distMi2">—</span>
-            <span class="dist-info" id="distInfo2"></span>
-            <span class="dist-use" onclick="useDist(2)">Use →</span>
-          </div>
-        </div>
-
-        <div class="field" style="margin-bottom:10px">
-          <span class="field-label">Purpose / Client</span>
-          <input type="text" id="tPurpose" placeholder="e.g. Met with Acme Corp re: contract"/>
-        </div>
-
-        <div class="field" style="margin-bottom:12px">
-          <span class="field-label">Category</span>
-          <select id="tCat">
-            <option>Office Visit</option>
-            <option>Blockchain Work</option>
-            <option>Team Meeting</option>
-            <option>Client Meeting</option>
-            <option>Business Errand</option>
-            <option>Conference / Event</option>
-            <option>Bank / Finance</option>
-            <option>Office Supplies</option>
-            <option>Other Business</option>
-            <option>Personal (Non-deductible)</option>
-          </select>
-        </div>
-
-        <div id="batchSummary" style="display:none"></div>
-        <div class="btn-row">
-          <button class="btn" onclick="clearF()">Clear</button>
-          <button class="btn btn-primary" onclick="addTrip()">Save trip →</button>
-        </div>
-      </div>
+      <!-- New-trip form moved into the log overlay (Mission Control) -->
 
     </div>
   </div>
@@ -1649,7 +1584,7 @@ body:not(.light) .offline-pill{color:#fbbf24;}
             <div id="homeMap"></div>
             <div class="hm-note">live map · places weighted by visits</div>
             <div class="home-cta" id="homeCta" style="display:none">
-              <button class="btn btn-primary" onclick="switchNav('log',document.getElementById('nav-log'))">＋ Log your first trip</button>
+              <button class="btn btn-primary" onclick="openLogOverlay()">＋ Log your first trip</button>
             </div>
           </div>
           <div class="home-week">
@@ -1795,6 +1730,7 @@ body:not(.light) .offline-pill{color:#fbbf24;}
     </div>
 
     <!-- Share modal -->
+
     <div id="shareModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:999;align-items:center;justify-content:center;">
       <div style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r3);padding:28px;width:360px;display:flex;flex-direction:column;gap:16px;">
         <div style="font-size:16px;font-weight:600;color:var(--text)">Share Mileage Report</div>
@@ -1966,6 +1902,117 @@ body:not(.light) .offline-pill{color:#fbbf24;}
       </div>
     </div>
 
+  </div>
+</div>
+
+<!-- ── LOG TRIP OVERLAY (Mission Control) ─────────────────────────── -->
+<div class="log-overlay" id="logOverlay" style="display:none">
+  <div class="log-card">
+    <div class="log-head">
+      <span class="log-title">Log a trip</span>
+      <span class="log-actions"><button type="button" class="linklike" onclick="clearF()">Clear</button><span class="log-esc">esc to close</span></span>
+    </div>
+    <div class="log-body">
+      <div class="smart-wrap">
+        <span class="smart-glass">⌕</span>
+        <input type="text" id="smartRoute" placeholder="Type a route — e.g. home to office" autocomplete="off" oninput="smartRouteInput()" onkeydown="smartRouteKey(event)"/>
+        <div class="smart-drop" id="smartDrop" style="display:none"></div>
+      </div>
+        <div class="g2" style="margin-bottom:6px">
+          <div class="field"><span class="field-label">Date</span><input type="date" id="tDate" onchange="updateBatchSummary()"/></div>
+          <div class="field"><span class="field-label">Miles</span>
+            <div class="iw"><input type="number" id="tMiles" placeholder="0.0" step="0.1" min="0" oninput="updateLogDed()"/><span class="isuf">mi</span></div>
+          </div>
+        </div>
+        <div style="margin-bottom:10px;display:flex;align-items:center;gap:10px">
+          <button class="btn btn-calc" id="calcBtn" onclick="calcDist()">⊙ Calculate distance</button>
+          <span style="font-size:11px;color:var(--text3)">⌘D</span>
+        </div>
+
+        <div class="dist-round">          <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2);cursor:pointer;margin:0">
+            <input type="checkbox" id="tRound" onchange="updateBatchSummary()" style="width:auto;accent-color:var(--accent)"/> Round trip — also log the return
+          </label>
+        </div>
+        <div class="dist-box" id="distBox">
+          <div class="dist-opt">
+            <span class="dist-type">One way</span>
+            <span class="dist-mi" id="distMi1">—</span>
+            <span class="dist-info" id="distInfo1"></span>
+            <span class="dist-use" onclick="useDist(1)">Use →</span>
+          </div>
+          <div class="dist-sep"></div>
+          <div class="dist-opt">
+            <span class="dist-type">Round trip</span>
+            <span class="dist-mi" id="distMi2">—</span>
+            <span class="dist-info" id="distInfo2"></span>
+            <span class="dist-use" onclick="useDist(2)">Use →</span>
+          </div>
+        </div>
+        <div class="field" style="margin-bottom:12px">
+          <span class="field-label">Category</span>
+          <div class="cat-chips" id="catChips"></div>
+          <select id="tCat" style="display:none">
+            <option>Office Visit</option>
+            <option>Blockchain Work</option>
+            <option>Team Meeting</option>
+            <option>Client Meeting</option>
+            <option>Business Errand</option>
+            <option>Conference / Event</option>
+            <option>Bank / Finance</option>
+            <option>Office Supplies</option>
+            <option>Other Business</option>
+            <option>Personal (Non-deductible)</option>
+          </select>
+        </div>
+        <div class="field" style="margin-bottom:10px">
+          <span class="field-label">Purpose / Client</span>
+          <input type="text" id="tPurpose" placeholder="e.g. Met with Acme Corp re: contract"/>
+        </div>
+      <details id="logDetails">
+        <summary>Address details, stops &amp; repeat dates</summary>
+        <!-- FROM address -->
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--r2);padding:10px 12px;margin-bottom:8px;">
+          <div style="font-size:10px;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;">📍 From</div>
+          <div class="field" style="margin-bottom:6px">
+            <span class="field-label">Street</span>
+            <input type="text" id="tFromStreet" placeholder="123 Main St" autocomplete="off" oninput="clearDist();buildAddr()"/>
+          </div>
+          <div class="g2" style="margin-bottom:6px">
+            <div class="field"><span class="field-label">City</span><input type="text" id="tFromCity" placeholder="Salt Lake City" autocomplete="off" oninput="clearDist();buildAddr()"/></div>
+            <div class="field"><span class="field-label">State</span><input type="text" id="tFromState" placeholder="UT" maxlength="2" autocomplete="off" oninput="clearDist();buildAddr()" style="text-transform:uppercase"/></div>
+          </div>
+        </div>
+        <!-- TO address -->
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--r2);padding:10px 12px;margin-bottom:8px;">
+          <div style="font-size:10px;font-weight:600;color:var(--red);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;">🏁 To</div>
+          <div class="field" style="margin-bottom:6px">
+            <span class="field-label">Street</span>
+            <input type="text" id="tToStreet" placeholder="456 Business Ave" autocomplete="off" oninput="clearDist();buildAddr()"/>
+          </div>
+          <div class="g2" style="margin-bottom:6px">
+            <div class="field"><span class="field-label">City</span><input type="text" id="tToCity" placeholder="Provo" autocomplete="off" oninput="clearDist();buildAddr()"/></div>
+            <div class="field"><span class="field-label">State</span><input type="text" id="tToState" placeholder="UT" maxlength="2" autocomplete="off" oninput="clearDist();buildAddr()" style="text-transform:uppercase"/></div>
+          </div>
+        </div>
+        <!-- Extra stops (multi-leg day). Each stop chains a new leg onto the route. -->
+        <div id="stopsWrap"></div>
+        <div style="margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+          <button type="button" class="linklike" onclick="addStop()">＋ Add stop</button>
+        </div>
+        <div id="xtraDates"></div>
+        <div style="margin-bottom:10px">
+          <button type="button" class="linklike" onclick="addExtraDate()">＋ Repeat on another date</button>
+        </div>
+      </details>
+        <input type="hidden" id="tFrom"/>
+        <input type="hidden" id="tTo"/>
+        <div id="batchSummary" style="display:none"></div>
+    </div>
+    <div class="log-foot">
+      <span class="log-ded">= <b id="logDed">$0.00</b> deductible</span>
+      <button type="button" class="btn" onclick="addStop();var d=document.getElementById('logDetails');if(d)d.open=true;">＋ Add stop</button>
+      <button type="button" class="btn btn-primary" onclick="addTrip()">Save trip ↵</button>
+    </div>
   </div>
 </div>
 
@@ -2636,7 +2683,7 @@ function relogTrip(id){
   var dt=document.getElementById('tDate');if(dt)dt.value=today();
   buildAddr();
   if(typeof updateBatchSummary==='function')updateBatchSummary();
-  switchNav('log',document.getElementById('nav-log'));
+  openLogOverlay();
   toast('Form filled from trip — review & save');
   if(googleReady&&googleMap)showRouteOnGoogleMap(t.from,t.to,t.miles,fmt(t.date)+(t.purpose?' · '+t.purpose:''));
 }
@@ -2738,6 +2785,136 @@ function renderHomePlaces(){
 window.relogTrip=relogTrip;
 window.renderHome=renderHome;
 window.renderHomeIfActive=renderHomeIfActive;
+// ── LOG OVERLAY (Mission Control) ────────────────────────────────────
+function openLogOverlay(){
+  switchNav('log',document.getElementById('nav-log'));
+  var ov=document.getElementById('logOverlay');if(!ov)return;
+  ov.style.display='flex';
+  renderCatChips();updateLogDed();
+  var sr=document.getElementById('smartRoute');
+  if(sr){sr.value='';setTimeout(function(){sr.focus();},60);}
+  var sd=document.getElementById('smartDrop');if(sd)sd.style.display='none';
+}
+function closeLogOverlay(){
+  var ov=document.getElementById('logOverlay');
+  if(ov)ov.style.display='none';
+}
+function logOverlayOpen(){
+  var ov=document.getElementById('logOverlay');
+  return !!(ov&&ov.style.display!=='none');
+}
+// Saved-route index: unique from→to pairs, most-driven first
+function routeIndex(){
+  var ix={};
+  trips.forEach(function(t){
+    if(!t.from||!t.to)return;
+    var k=geoKey(t.from)+'→'+geoKey(t.to);
+    if(!ix[k])ix[k]={from:t.from,to:t.to,n:0,miles:parseFloat(t.miles||0),category:t.category||''};
+    ix[k].n++;ix[k].miles=parseFloat(t.miles||0)||ix[k].miles;
+  });
+  return Object.keys(ix).map(function(k){return ix[k];}).sort(function(a,b){return b.n-a.n;});
+}
+var _smartSel=0;
+function smartMatches(q){
+  q=(q||'').toLowerCase().trim();
+  var all=routeIndex();
+  if(!q)return all.slice(0,5);
+  var toks=q.split(/[^a-z0-9]+/).filter(Boolean);
+  return all.filter(function(r){
+    var hay=(labelAddr(r.from)+' '+labelAddr(r.to)+' '+r.from+' '+r.to).toLowerCase();
+    return toks.every(function(t){return hay.indexOf(t)>=0;});
+  }).slice(0,5);
+}
+function smartRouteInput(){
+  var sr=document.getElementById('smartRoute'),sd=document.getElementById('smartDrop');
+  if(!sr||!sd)return;
+  var ms=smartMatches(sr.value);
+  _smartSel=0;
+  if(!ms.length){sd.style.display='none';return;}
+  sd.innerHTML=ms.map(function(r,i){
+    return "<div class='sd-row"+(i===_smartSel?' sel':'')+"' onclick='applySmartRoute("+i+")'><span>↺</span><div class='sd-main'><div class='sd-route'>"+esc(labelAddr(r.from))+' → '+esc(labelAddr(r.to))+"</div><div class='sd-sub'>saved route · driven "+r.n+"×</div></div><span class='sd-mi'>"+r.miles.toFixed(1)+" mi</span></div>";
+  }).join('');
+  sd.style.display='block';
+  sd._matches=ms;
+}
+function applySmartRoute(i){
+  var sd=document.getElementById('smartDrop');
+  var r=sd&&sd._matches&&sd._matches[i];if(!r)return;
+  var setV=function(id,v){var el=document.getElementById(id);if(el)el.value=(v==null?'':v);};
+  var fp=r.from.split(',').map(function(x){return x.trim();});
+  var tp=r.to.split(',').map(function(x){return x.trim();});
+  setV('tFromStreet',fp[0]);setV('tFromCity',fp[1]);setV('tFromState',fp[2]);
+  setV('tToStreet',tp[0]);setV('tToCity',tp[1]);setV('tToState',tp[2]);
+  setV('tMiles',r.miles);
+  var cat=document.getElementById('tCat');if(cat&&r.category)cat.value=r.category;
+  buildAddr();renderCatChips();updateLogDed();
+  var sr=document.getElementById('smartRoute');
+  if(sr)sr.value=labelAddr(r.from)+' → '+labelAddr(r.to);
+  sd.style.display='none';
+}
+function smartRouteKey(e){
+  var sd=document.getElementById('smartDrop');
+  var open=sd&&sd.style.display!=='none'&&sd._matches&&sd._matches.length;
+  if(e.key==='ArrowDown'&&open){e.preventDefault();_smartSel=Math.min(_smartSel+1,sd._matches.length-1);smartPaint(sd);}
+  else if(e.key==='ArrowUp'&&open){e.preventDefault();_smartSel=Math.max(_smartSel-1,0);smartPaint(sd);}
+  else if(e.key==='Enter'&&open){e.preventDefault();applySmartRoute(_smartSel);}
+  else if(e.key==='Escape'&&open){e.stopPropagation();sd.style.display='none';}
+}
+function smartPaint(sd){
+  sd.querySelectorAll('.sd-row').forEach(function(el,i){el.classList.toggle('sel',i===_smartSel);});
+}
+// Category chips drive the hidden #tCat select
+var CAT_CHIP_LIMIT=6,_catMore=false;
+function renderCatChips(){
+  var box=document.getElementById('catChips'),sel=document.getElementById('tCat');
+  if(!box||!sel)return;
+  var opts=Array.prototype.map.call(sel.options,function(o){return o.value;});
+  var cur=sel.value;
+  var shown=_catMore?opts:opts.slice(0,CAT_CHIP_LIMIT);
+  if(!_catMore&&opts.indexOf(cur)>=CAT_CHIP_LIMIT)shown=shown.concat([cur]);
+  box.innerHTML=shown.map(function(c){
+    var col=catColor(c),on=c===cur;
+    var st=on?('background:'+col+'29;color:'+col+';border-color:'+col+'66;font-weight:600;'):'';
+    return "<span class='cat-chip' style='"+st+"' onclick='pickCat("+JSON.stringify(c)+")'>"+esc(c.replace(' (Non-deductible)',''))+"</span>";
+  }).join('')+(_catMore?'':"<span class='cat-chip more' onclick='toggleCatMore()'>More…</span>");
+}
+function pickCat(c){
+  var sel=document.getElementById('tCat');
+  if(sel)sel.value=c;
+  renderCatChips();updateLogDed();
+}
+function toggleCatMore(){_catMore=true;renderCatChips();}
+function updateLogDed(){
+  var el=document.getElementById('logDed');if(!el)return;
+  var mi=parseFloat((document.getElementById('tMiles')||{}).value||'0')||0;
+  var d=(document.getElementById('tDate')||{}).value||today();
+  var cat=(document.getElementById('tCat')||{}).value||'';
+  var val=/Personal/.test(cat)?0:mi*rate(d);
+  el.textContent='$'+val.toFixed(2);
+}
+window.openLogOverlay=openLogOverlay;
+window.closeLogOverlay=closeLogOverlay;
+window.smartRouteInput=smartRouteInput;
+window.smartRouteKey=smartRouteKey;
+window.applySmartRoute=applySmartRoute;
+window.pickCat=pickCat;
+window.toggleCatMore=toggleCatMore;
+window.renderCatChips=renderCatChips;
+window.updateLogDed=updateLogDed;
+// Global keys: ⌘K/Ctrl+K opens, Esc closes, Enter saves (when overlay is up)
+document.addEventListener('keydown',function(e){
+  if((e.metaKey||e.ctrlKey)&&(e.key==='k'||e.key==='K')){e.preventDefault();openLogOverlay();return;}
+  if(!logOverlayOpen())return;
+  if(e.key==='Escape'){closeLogOverlay();return;}
+  if(e.key==='Enter'&&!e.shiftKey){
+    var a=document.activeElement;
+    var sd=document.getElementById('smartDrop');
+    if(a&&a.id==='smartRoute'&&sd&&sd.style.display!=='none')return; // smart field handles Enter
+    if(a&&(a.tagName==='BUTTON'||a.tagName==='SELECT'||a.tagName==='SUMMARY'))return;
+    e.preventDefault();addTrip();
+  }
+});
+
 
 async function showRouteOnGoogleMap(fromAddr,toAddr,miles,durText){
   // Wait for Google Map to be ready
@@ -3004,7 +3181,7 @@ async function addTrip(){
       trip.toLatLng=pendingDist.to;
     }
     trips.push(trip);
-    save();clearF();updateSidebar();renderH();renderHomeIfActive();toast('Trip saved ✓');
+    save();clearF();updateSidebar();renderH();renderHomeIfActive();closeLogOverlay();toast('Trip saved ✓');
     saveToSupabase(trip);
     return;
   }
@@ -3050,7 +3227,7 @@ async function addTrip(){
     });
   });
   batch.forEach(function(t){trips.push(t);});
-  save();clearF();updateSidebar();renderH();renderHomeIfActive();
+  save();clearF();updateSidebar();renderH();renderHomeIfActive();closeLogOverlay();
   toast(batch.length+' trips saved ✓');
   saveBatchToSupabase(batch);
 }
@@ -4914,8 +5091,8 @@ window.addEventListener('DOMContentLoaded',function(){
 
 
   document.getElementById('nav-home').addEventListener('click',function(){switchNav('home',this);});
-  document.getElementById('nav-log').addEventListener('click',function(){switchNav('log',this);});
-  var tbl=document.getElementById('tbLogBtn');if(tbl)tbl.addEventListener('click',function(){switchNav('log',document.getElementById('nav-log'));});
+  document.getElementById('nav-log').addEventListener('click',function(){openLogOverlay();});
+  var tbl=document.getElementById('tbLogBtn');if(tbl)tbl.addEventListener('click',function(){openLogOverlay();});
   document.getElementById('nav-hist').addEventListener('click',function(){switchNav('hist',this);});
   document.getElementById('nav-analytics').addEventListener('click',function(){switchNav('analytics',this);renderAnalytics();});
   document.getElementById('nav-set').addEventListener('click',function(){switchNav('set',this);});
