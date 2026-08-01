@@ -111,6 +111,11 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
   .log-ded{font-size:11px;color:var(--text3);white-space:nowrap;margin-right:auto;}
   .log-ded b{font-family:'JetBrains Mono',monospace;color:var(--green);font-weight:500;}
   /* ── Mission Control shell: fixed left icon rail ── */
+  @media (max-width: 640px){
+    .rail{display:none!important;}
+    .topbar,.main{margin-left:0!important;}
+    body.fullwidth-history #view-set.on{left:0!important;}
+  }
   .rail{position:fixed;left:0;top:0;bottom:0;z-index:150;width:var(--railw,78px);background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;padding:14px 0 12px;gap:6px;}
   .rail-logo{width:38px;height:38px;border-radius:10px;margin-bottom:14px;overflow:hidden;flex-shrink:0;}
   .rail-logo img{width:100%;height:100%;object-fit:cover;display:block;}
@@ -227,6 +232,11 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
   .log-ded{font-size:11px;color:var(--text3);white-space:nowrap;margin-right:auto;}
   .log-ded b{font-family:'JetBrains Mono',monospace;color:var(--green);font-weight:500;}
   /* ── Mission Control shell: fixed left icon rail ── */
+  @media (max-width: 640px){
+    .rail{display:none!important;}
+    .topbar,.main{margin-left:0!important;}
+    body.fullwidth-history #view-set.on{left:0!important;}
+  }
   .rail{position:fixed;left:0;top:0;bottom:0;z-index:150;width:var(--railw,78px);background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;padding:14px 0 12px;gap:6px;}
   .rail-logo{width:38px;height:38px;border-radius:10px;margin-bottom:14px;overflow:hidden;flex-shrink:0;}
   .rail-logo img{width:100%;height:100%;object-fit:cover;display:block;}
@@ -2170,6 +2180,10 @@ body:not(.light) .offline-pill{color:#fbbf24;}
 
 <!-- Mobile bottom navigation (visible only on phone screens) -->
 <nav class="mobile-bottom-nav" id="mobileBottomNav">
+  <button class="mbn-btn" data-nav="home" aria-label="Home">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>
+    <span>Home</span>
+  </button>
   <button class="mbn-btn on" data-nav="log" aria-label="Log Trip">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
     <span>Log Trip</span>
@@ -5373,7 +5387,8 @@ if(_aPwd)_aPwd.addEventListener('input',function(){
   document.querySelectorAll('.mbn-btn').forEach(function(b){
     b.addEventListener('click',function(){
       var name=b.getAttribute('data-nav');
-      if(name)switchNav(name);
+      if(name==='log')openLogOverlay();
+      else if(name)switchNav(name);
     });
   });
 
