@@ -130,7 +130,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
   .home-wrap{height:100%;}
   /* ── Home view: full-bleed live map + floating glass cards (option A) ── */
   #view-home.on{position:relative;height:100%;overflow:hidden;display:block;padding:0;}
-  #view-home #homeMap{position:absolute;inset:0;}
+  #view-home #homeMap{position:absolute;inset:0;background:var(--bg2);background-image:linear-gradient(rgba(79,158,255,0.05) 1px,transparent 1px),linear-gradient(90deg,rgba(79,158,255,0.05) 1px,transparent 1px);background-size:34px 34px;}
   .home-float{position:absolute;inset:0;padding:20px 24px;display:flex;flex-direction:column;gap:12px;pointer-events:none;z-index:2;}
   .glassy{background:var(--glass);backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);border:1px solid var(--glass-br);border-radius:12px;box-shadow:0 12px 40px var(--glass-sh);}
   .home-headrow{display:flex;}
