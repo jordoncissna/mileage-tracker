@@ -276,6 +276,16 @@ window.drillPeriod('2026');
 T('year-level drill clears month', $('fMonth').value === '');
 $('fYear').value = ''; $('fMonth').value = ''; window.__renderH();
 
+// ===== RAIL RESIZE =====
+T('rail resize handle present', !!$('railResize'));
+window.applyRailWidth(60);
+T('compact mode below 70px', $('railEl').classList.contains('rail-compact'));
+window.applyRailWidth(180);
+T('wide sidebar mode at 180px', $('railEl').classList.contains('rail-wide') && !$('railEl').classList.contains('rail-compact'));
+T('width persisted', window.localStorage.getItem('ml_railw') === '180');
+window.applyRailWidth(78);
+T('stacked default restored', !$('railEl').classList.contains('rail-wide'));
+
 // ===== MISSION CONTROL 3: ledger + analytics + settings =====
 window.__renderH();
 T('ledger month headers render', $('htable').querySelectorAll('.month-row').length >= 1);
