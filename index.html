@@ -55,6 +55,29 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
   .map-panel-info{font-size:11px;color:var(--accent);font-family:'JetBrains Mono',monospace;}
   #mainMap{flex:1;width:100%;min-height:0;}
   .map-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--text3);font-size:13px;gap:12px;text-align:center;padding:32px;line-height:1.8;}
+  /* ── Ledger / MC-3 chrome ── */
+  .month-row td{background:var(--bg2);font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;padding:7px 12px;border-top:1px solid var(--border2);font-family:'JetBrains Mono',monospace;}
+  .h-totals{margin-left:auto;font-size:11px;color:var(--text3);font-family:'JetBrains Mono',monospace;white-space:nowrap;}
+  .stack-wrap{display:flex;align-items:flex-end;gap:12px;height:170px;padding-top:8px;}
+  .stack-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;height:100%;justify-content:flex-end;}
+  .stack-bar{width:100%;max-width:44px;display:flex;flex-direction:column;border-radius:4px 4px 0 0;overflow:hidden;}
+  .stack-bar div{width:100%;}
+  .stack-m{font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;}
+  .stack-legend{display:flex;gap:14px;}
+  .stack-legend span{font-size:10.5px;color:var(--text2);display:flex;align-items:center;gap:5px;}
+  .stack-legend i{width:8px;height:8px;border-radius:2px;display:inline-block;}
+  .set-hero{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;}
+  @media (max-width:700px){.set-hero{grid-template-columns:1fr;}}
+  .sh-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 18px;}
+  .sh-top{display:flex;justify-content:space-between;align-items:baseline;}
+  .sh-label{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;}
+  .sh-edit{font-size:10.5px;color:var(--accent);cursor:pointer;}
+  .sh-big{font-family:'JetBrains Mono',monospace;font-size:24px;margin-top:8px;color:var(--text);}
+  .sh-big small{font-size:12px;color:var(--text3);}
+  .sh-name{font-size:15px;font-weight:600;margin-top:10px;color:var(--text);}
+  .sh-sub{font-size:11px;color:var(--text3);margin-top:4px;}
+  .set-foot{display:flex;justify-content:space-between;align-items:center;padding:14px 4px 4px;font-size:11px;color:var(--text3);}
+  .set-foot .signout-red{color:var(--red);cursor:pointer;font-size:11.5px;font-weight:500;}
   /* ── Log-trip overlay ── */
   .left{display:none!important;}
   .map-panel{border-left:none;}
@@ -1607,6 +1630,7 @@ body:not(.light) .offline-pill{color:#fbbf24;}
     <div class="view" id="view-hist">
       <div class="filter-bar">
         <select id="fYear" onchange="renderH()"><option value="">All years</option></select>
+        <span class="h-totals" id="hTotals"></span>
         <select id="fMonth" onchange="renderH()">
           <option value="">All months</option>
           <option value="01">Jan</option><option value="02">Feb</option><option value="03">Mar</option>
@@ -1668,6 +1692,13 @@ body:not(.light) .offline-pill{color:#fbbf24;}
     <div class="insight-strip" id="aInsights" style="margin:0"></div>
 
     <div class="analytics-grid">
+      <div class="analytics-card span2">
+        <div class="analytics-card-header">
+          <div class="analytics-card-title">Monthly miles</div>
+          <div class="stack-legend"><span><i style="background:var(--viz-biz)"></i>Business</span><span><i style="background:var(--viz-com)"></i>Commute</span><span><i style="background:var(--viz-per)"></i>Personal</span></div>
+        </div>
+        <div id="aStack"></div>
+      </div>
       <!-- Main chart -->
       <div class="analytics-card span2">
         <div class="analytics-card-header">
@@ -1722,8 +1753,8 @@ body:not(.light) .offline-pill{color:#fbbf24;}
       <!-- Top destinations -->
       <div class="analytics-card">
         <div class="analytics-card-header">
-          <div class="analytics-card-title">Top Destinations</div>
-          <div class="analytics-card-sub">Most-visited places</div>
+          <div class="analytics-card-title">Top routes</div>
+          <div class="analytics-card-sub">Most-driven · deduction earned</div>
         </div>
         <div id="aEnhanced" class="analytics-enhanced-wrapper"></div>
       </div>
@@ -1750,6 +1781,10 @@ body:not(.light) .offline-pill{color:#fbbf24;}
 </div>
 
 <div class="view" id="view-set">
+<div class="set-hero">
+  <div class="sh-card"><div class="sh-top"><span class="sh-label">Mileage rate</span><span class="sh-edit" onclick="mcScrollSet()">Edit</span></div><div class="sh-big" id="shRate">$0.70<small>/mi</small></div><div class="sh-sub" id="shRateSub">IRS standard rate</div></div>
+  <div class="sh-card"><div class="sh-top"><span class="sh-label">Vehicle</span><span class="sh-edit" onclick="mcScrollSet()">Edit</span></div><div class="sh-name" id="shVehicle">—</div><div class="sh-sub" id="shVehicleSub"></div></div>
+</div>
       <div class="settings-hero">
         <div class="settings-hero-greeting">
           <div class="settings-hero-title" id="settingsHelloName">Welcome back</div>
@@ -1883,6 +1918,7 @@ body:not(.light) .offline-pill{color:#fbbf24;}
           <div id="changePwdMsg" style="font-size:12px;margin-top:10px;display:none"></div>
           <button class="btn" onclick="startOnboarding()" style="width:100%;margin-top:10px">↻ Replay the welcome tour</button>
           <div style="margin-top:10px;text-align:center"><a href="privacy.html" target="_blank" rel="noopener" style="font-size:11.5px;color:var(--text3)">Privacy Policy</a></div>
+          <div class="set-foot"><span>Milo v2 · data syncs via Supabase</span><span class="signout-red" onclick="var b=document.getElementById('signOutBtn');if(b)b.click()">Sign out</span></div>
           <button class="btn btn-primary" onclick="openInviteModal()" style="width:100%;margin-top:8px">📨 Invite a coworker</button>
         </div>
         <div class="sc"><div class="sc-icon" style="background:linear-gradient(135deg,#06b6d4,#0891b2)">📦</div>
@@ -3272,6 +3308,16 @@ function del(id){
   });
 }
 
+// Ledger month header: shown when date-sorted; subtotal for that month within the filtered set
+function _mh(fl,t,i,sortMode){
+  if(String(sortMode).indexOf('date')!==0)return'';
+  var m=(t.date||'').slice(0,7);
+  if(i>0&&(fl[i-1].date||'').slice(0,7)===m)return'';
+  var mi=0,v=0;
+  fl.forEach(function(x){if((x.date||'').slice(0,7)===m){mi+=parseFloat(x.miles||0);v+=deductibleValue(x);}});
+  var lbl=new Date(m+'-15T12:00').toLocaleDateString('en-US',{month:'long',year:'numeric'});
+  return '<tr class="month-row"><td colspan="5">'+lbl+'</td><td colspan="2" style="text-align:right">'+mi.toFixed(1)+' mi · $'+v.toFixed(2)+'</td></tr>';
+}
 function renderH(){
   const fy=document.getElementById('fYear').value;
   const fc=document.getElementById('fCat').value;
@@ -3304,6 +3350,8 @@ function renderH(){
   const tv=fl.reduce((s,t)=>s+deductibleValue(t),0);
   const sugTrips=fl.filter(t=>suggestFor(t));
   const sugBanner=sugTrips.length?`<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;margin-bottom:10px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:10px"><span style="font-size:13px;color:var(--text);flex:1">💡 ${sugTrips.length} trip${sugTrips.length!==1?'s':''} match your auto-classify rules</span><button class="btn btn-primary" onclick="applyAllSuggestions()">Apply all</button></div>`:'';
+  var _ht=document.getElementById('hTotals');
+  if(_ht)_ht.textContent=fl.length+' trips · '+tmi.toFixed(1)+' mi · $'+tv.toFixed(2);
   box.innerHTML=sugBanner+`<table>
     <thead><tr>
       <th class="sortable" onclick="sortBy('date')">Date <span class="sort-ind" data-col="date"></span></th>
@@ -3314,7 +3362,7 @@ function renderH(){
       <th class="sortable" style="text-align:right" onclick="sortBy('value')">Value <span class="sort-ind" data-col="value"></span></th>
       <th></th>
     </tr></thead>
-    <tbody>${fl.map(t=>`<tr style="cursor:pointer" onclick="showTripDetail(${t.id})">
+    <tbody>${fl.map((t,_i)=>`${_mh(fl,t,_i,sortMode)}<tr style="cursor:pointer" onclick="showTripDetail(${t.id})">
       <td class="mono" style="white-space:nowrap;font-size:12px;color:var(--text2)">${fmt(t.date)}</td>
       <td><div class="route-cell" title="${esc(t.from)}${t.from&&t.to?' → ':''}${esc(t.to)}">${esc(t.from)}${t.from&&t.to?' → ':''}${esc(t.to)}</div></td>
       <td style="font-size:12px;color:var(--text2);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.purpose)||'—'}</td>
@@ -3322,6 +3370,7 @@ function renderH(){
       <td class="mono" style="text-align:right;font-weight:500">${parseFloat(t.miles||0).toFixed(1)}</td>
       <td class="mono" style="text-align:right;color:${(isCommute(t)&&cfg.commuteExclude)||isPersonal(t)?'var(--text3)':'var(--green)'}">${(isCommute(t)&&cfg.commuteExclude)||isPersonal(t)?'<span style="text-decoration:line-through;opacity:0.5">$'+(parseFloat(t.miles||0)*rate(t.date)).toFixed(2)+'</span> $0.00':'$'+(parseFloat(t.miles||0)*rate(t.date)).toFixed(2)}</td>
       <td style="display:flex;gap:6px;align-items:center">${t.from&&t.to?`<button class="map-btn" onclick="event.stopPropagation();showHistMap(${t.id})">🗺 View Route</button>`:''}
+      <button class="map-btn" title="Relog this trip" onclick="event.stopPropagation();relogTrip(${t.id})">↺</button>
       <button class="btn btn-danger" onclick="event.stopPropagation();del(${t.id})">✕</button></td>
     </tr>`).join('')}</tbody>
     <tfoot><tr>
@@ -3396,6 +3445,7 @@ function switchNav(name,el){
   if(name==='home'||name==='hist'||name==='analytics'||name==='set'){
     document.body.classList.add('fullwidth-history');
     if(name==='set'&&typeof updateSettingsHero==='function')updateSettingsHero();
+    if(name==='set'&&typeof renderSetHero==='function')renderSetHero();
   } else {
     document.body.classList.remove('fullwidth-history');
   }
@@ -4423,35 +4473,60 @@ window.showTripDetail=showTripDetail;
 window.closeTripDetail=closeTripDetail;
 
 // ── ENHANCED ANALYTICS ────────────────────────────────────────
-function renderAnalyticsEnhanced(){
-  // Top destinations for the filtered slice. (The old YTD-comparison,
-  // projection and day-of-week cards were folded into the KPI hero delta and
-  // the insight chips — one number, one home.)
-  const filterYear=document.getElementById('aYear').value;
-  let fl=filterYear?trips.filter(t=>yr(t.date)==filterYear):[...trips];
-  const dests={};
-  fl.forEach(t=>{
-    if(!t.to)return;
-    const key=t.to.trim();
-    if(!dests[key])dests[key]={count:0,miles:0,value:0};
-    dests[key].count++;
-    dests[key].miles+=parseFloat(t.miles||0);
-    dests[key].value+=deductibleValue(t);
+// Monthly miles, stacked by deductibility class (Mission Control 3a)
+function renderSetHero(){
+  var y=new Date().getFullYear();
+  var r=rate(y+'-01-01');
+  var el=document.getElementById('shRate');if(el)el.innerHTML='$'+r.toFixed(2)+'<small>/mi</small>';
+  var es=document.getElementById('shRateSub');if(es)es.textContent='IRS standard rate · '+y;
+  var v=document.getElementById('shVehicle');if(v)v.textContent=cfg.vehicle||'Add a vehicle';
+  var vs=document.getElementById('shVehicleSub');if(vs)vs.textContent=trips.length?('used on '+trips.length+' trip'+(trips.length!==1?'s':'')):'no trips yet';
+}
+function mcScrollSet(){var sc=document.querySelector('#view-set .sc');if(sc)sc.scrollIntoView({behavior:'smooth'});}
+window.renderSetHero=renderSetHero;window.mcScrollSet=mcScrollSet;
+function renderMonthlyStack(){
+  var box=document.getElementById('aStack');if(!box)return;
+  var fy=(document.getElementById('aYear')||{}).value||String(new Date().getFullYear());
+  var m=[];for(var i=0;i<12;i++)m.push({biz:0,com:0,per:0});
+  trips.forEach(function(t){
+    if(!t.date||t.date.slice(0,4)!==fy)return;
+    var mi=parseFloat(t.miles||0),idx=parseInt(t.date.slice(5,7),10)-1;
+    if(idx<0||idx>11)return;
+    if(isPersonal(t))m[idx].per+=mi;
+    else if(cfg.commuteExclude&&isCommute(t))m[idx].com+=mi;
+    else m[idx].biz+=mi;
   });
-  const topDests=Object.entries(dests).sort((a,b)=>b[1].count-a[1].count).slice(0,6);
-  const maxDest=topDests.length?Math.max(...topDests.map(d=>d[1].count)):1;
-
-  const section=document.getElementById('aEnhanced');
-  if(!section)return;
-
-  section.innerHTML=topDests.length?topDests.map(([addr,d])=>{
-    const w=(d.count/maxDest*100).toFixed(1);
-    return `<div class="dest-row" title="${esc(addr)}">
-      <div class="dest-top"><span class="dest-name">${esc(addr)}</span><span class="dest-count">${d.count}×</span></div>
-      <div class="dest-track"><div class="dest-fill" style="width:${w}%"></div></div>
-      <div class="dest-sub"><span>${d.miles.toFixed(0)} mi</span><span>$${d.value.toFixed(0)} deductible</span></div>
-    </div>`;
-  }).join(''):'<div class="chart-empty">No destinations logged yet.</div>';
+  var mx=1;m.forEach(function(x){mx=Math.max(mx,x.biz+x.com+x.per);});
+  var H=140;
+  box.innerHTML='<div class="stack-wrap">'+m.map(function(x,i){
+    return '<div class="stack-col"><div class="stack-bar">'+
+      '<div style="background:var(--viz-per);height:'+(x.per/mx*H).toFixed(1)+'px"></div>'+
+      '<div style="background:var(--viz-com);height:'+(x.com/mx*H).toFixed(1)+'px"></div>'+
+      '<div style="background:var(--viz-biz);height:'+(x.biz/mx*H).toFixed(1)+'px"></div>'+
+      '</div><span class="stack-m">'+MOS[i]+'</span></div>';
+  }).join('')+'</div>';
+}
+function renderAnalyticsEnhanced(){
+  // Top routes for the filtered slice (Mission Control 3a) + computed insight
+  var filterYear=(document.getElementById('aYear')||{}).value||'';
+  var fl=filterYear?trips.filter(function(t){return yr(t.date)==filterYear;}):trips.slice();
+  var ix={};
+  fl.forEach(function(t){
+    if(!t.from||!t.to)return;
+    var k=geoKey(t.from)+'→'+geoKey(t.to);
+    if(!ix[k])ix[k]={from:t.from,to:t.to,n:0,val:0,mi:0};
+    ix[k].n++;ix[k].val+=deductibleValue(t);ix[k].mi+=parseFloat(t.miles||0);
+  });
+  var routes=Object.keys(ix).map(function(k){return ix[k];}).sort(function(a,b){return b.n-a.n;}).slice(0,6);
+  var section=document.getElementById('aEnhanced');if(!section)return;
+  if(!routes.length){section.innerHTML='<div class="chart-empty">No routes logged yet.</div>';return;}
+  var topVal=routes.slice().sort(function(a,b){return b.val-a.val;})[0];
+  var yrLbl=filterYear||String(new Date().getFullYear());
+  section.innerHTML=routes.map(function(r){
+    return "<div class='dest-row'><div class='dest-top'><span class='dest-name'>"+esc(labelAddr(r.from))+' → '+esc(labelAddr(r.to))+"</span><span class='dest-count'>"+r.n+"×</span></div>"+
+      "<div class='dest-sub'><span>"+r.mi.toFixed(0)+" mi</span><span style='color:var(--green)'>$"+r.val.toFixed(2)+"</span></div></div>";
+  }).join('')+
+  (topVal&&topVal.val>0?"<div class='dest-row' style='border-top:1px solid var(--border2)'><div class='dest-sub' style='padding-top:8px'><span>"+esc(labelAddr(topVal.from))+' → '+esc(labelAddr(topVal.to))+" alone is</span><span style='color:var(--green);font-family:JetBrains Mono,monospace'>$"+topVal.val.toFixed(0)+" of your "+esc(yrLbl)+" deduction</span></div></div>":'');
 }
 
 // ── ANALYTICS V2 ────────────────────────────────────────────
@@ -4686,6 +4761,7 @@ renderAnalytics=function(){
   renderSplit();
   renderHeatmap();
   renderAnalyticsEnhanced();
+  renderMonthlyStack();
 };
 window.renderAnalytics=renderAnalytics;
 window.openShareModal=openShareModal;

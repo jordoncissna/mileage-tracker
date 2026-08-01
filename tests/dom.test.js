@@ -276,6 +276,21 @@ window.drillPeriod('2026');
 T('year-level drill clears month', $('fMonth').value === '');
 $('fYear').value = ''; $('fMonth').value = ''; window.__renderH();
 
+// ===== MISSION CONTROL 3: ledger + analytics + settings =====
+window.__renderH();
+T('ledger month headers render', $('htable').querySelectorAll('.month-row').length >= 1);
+T('month header carries subtotal', $('htable').querySelector('.month-row').textContent.indexOf('mi') >= 0);
+T('rows carry relog button', $('htable').innerHTML.indexOf('relogTrip(') >= 0);
+T('totals line beside filters', $('hTotals').textContent.indexOf('trips') >= 0 && $('hTotals').textContent.indexOf('$') >= 0);
+window.__renderAnalytics();
+T('monthly stacked panel renders', $('aStack').querySelectorAll('.stack-col').length === 12);
+T('stack uses viz series vars', $('aStack').innerHTML.indexOf('var(--viz-biz)') >= 0 && $('aStack').innerHTML.indexOf('var(--viz-com)') >= 0);
+T('top routes render', $('aEnhanced').querySelectorAll('.dest-row').length >= 1 && $('aEnhanced').textContent.indexOf('×') >= 0);
+T('settings hero cards present', !!$('shRate') && !!$('shVehicle'));
+window.renderSetHero();
+T('rate card populated', $('shRate').textContent.indexOf('$') === 0);
+T('sign out moved to settings foot', document.querySelector('.set-foot .signout-red') !== null);
+
 // ===== BATCH TRIP ENTRY (multi-stop · round trip · repeat dates) =====
 // Async because batch addTrip awaits per-leg routing (falls back instantly
 // here — googleReady is false in jsdom, so entered miles are split).
