@@ -111,18 +111,28 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
   .log-ded{font-size:11px;color:var(--text3);white-space:nowrap;margin-right:auto;}
   .log-ded b{font-family:'JetBrains Mono',monospace;color:var(--green);font-weight:500;}
   /* ── Mission Control shell: fixed left icon rail ── */
-  .rail{position:fixed;left:0;top:0;bottom:0;width:78px;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;padding:14px 0 12px;gap:6px;z-index:60;}
+  .rail{position:fixed;left:0;top:0;bottom:0;width:var(--railw,78px);background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;padding:14px 0 12px;gap:6px;z-index:60;}
   .rail-logo{width:38px;height:38px;border-radius:10px;margin-bottom:14px;overflow:hidden;flex-shrink:0;}
   .rail-logo img{width:100%;height:100%;object-fit:cover;display:block;}
   .rail .np{width:66px;height:54px;border-radius:11px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:18px;line-height:1;cursor:pointer;background:transparent;border:1px solid transparent;color:var(--text2);padding:0;line-height:1;}
   .rail .np:hover{background:var(--surface2);color:var(--text);}
   .rail .np.on{background:var(--accent-bg);border-color:rgba(79,158,255,0.3);color:var(--accent);}
   .rail .nl{font-size:9.5px;font-weight:600;font-family:'Inter',sans-serif;letter-spacing:.02em;}
+  /* Drag the rail's edge: compact (icons) ↔ stacked (icon over word) ↔ wide (sidebar) */
+  .rail-resize{position:absolute;right:-3px;top:0;bottom:0;width:7px;cursor:col-resize;z-index:61;}
+  .rail-resize:hover{background:var(--accent-bg);}
+  .rail.rail-compact .nl{display:none;}
+  .rail.rail-compact .np{width:44px;height:44px;font-size:20px;}
+  .rail.rail-wide{align-items:stretch;padding-left:8px;padding-right:8px;}
+  .rail.rail-wide .rail-logo{margin-left:6px;}
+  .rail.rail-wide .np{width:auto;height:44px;flex-direction:row;justify-content:flex-start;gap:11px;padding:0 12px;font-size:18px;}
+  .rail.rail-wide .nl{font-size:12.5px;}
+  .rail.rail-wide .rail-avatar{margin-left:6px;}
   .rail-avatar{margin-top:auto;width:36px;height:36px;border-radius:50%;background:var(--surface3);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:600;color:var(--text3);flex-shrink:0;cursor:default;}
   .nav-pills{display:none!important;}
-  .topbar{margin-left:78px;padding:0 20px;}
+  .topbar{margin-left:var(--railw,78px);padding:0 20px;}
   .topbar .logo{display:none;}
-  .main{margin-left:78px;}
+  .main{margin-left:var(--railw,78px);}
   .tb-context{display:flex;align-items:baseline;gap:10px;min-width:0;}
   .tb-context b{font-size:14px;font-weight:600;color:var(--text);white-space:nowrap;}
   .tb-context span{font-size:11.5px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -217,18 +227,28 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
   .log-ded{font-size:11px;color:var(--text3);white-space:nowrap;margin-right:auto;}
   .log-ded b{font-family:'JetBrains Mono',monospace;color:var(--green);font-weight:500;}
   /* ── Mission Control shell: fixed left icon rail ── */
-  .rail{position:fixed;left:0;top:0;bottom:0;width:78px;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;padding:14px 0 12px;gap:6px;z-index:60;}
+  .rail{position:fixed;left:0;top:0;bottom:0;width:var(--railw,78px);background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;padding:14px 0 12px;gap:6px;z-index:60;}
   .rail-logo{width:38px;height:38px;border-radius:10px;margin-bottom:14px;overflow:hidden;flex-shrink:0;}
   .rail-logo img{width:100%;height:100%;object-fit:cover;display:block;}
   .rail .np{width:66px;height:54px;border-radius:11px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:18px;line-height:1;cursor:pointer;background:transparent;border:1px solid transparent;color:var(--text2);padding:0;line-height:1;}
   .rail .np:hover{background:var(--surface2);color:var(--text);}
   .rail .np.on{background:var(--accent-bg);border-color:rgba(79,158,255,0.3);color:var(--accent);}
   .rail .nl{font-size:9.5px;font-weight:600;font-family:'Inter',sans-serif;letter-spacing:.02em;}
+  /* Drag the rail's edge: compact (icons) ↔ stacked (icon over word) ↔ wide (sidebar) */
+  .rail-resize{position:absolute;right:-3px;top:0;bottom:0;width:7px;cursor:col-resize;z-index:61;}
+  .rail-resize:hover{background:var(--accent-bg);}
+  .rail.rail-compact .nl{display:none;}
+  .rail.rail-compact .np{width:44px;height:44px;font-size:20px;}
+  .rail.rail-wide{align-items:stretch;padding-left:8px;padding-right:8px;}
+  .rail.rail-wide .rail-logo{margin-left:6px;}
+  .rail.rail-wide .np{width:auto;height:44px;flex-direction:row;justify-content:flex-start;gap:11px;padding:0 12px;font-size:18px;}
+  .rail.rail-wide .nl{font-size:12.5px;}
+  .rail.rail-wide .rail-avatar{margin-left:6px;}
   .rail-avatar{margin-top:auto;width:36px;height:36px;border-radius:50%;background:var(--surface3);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:600;color:var(--text3);flex-shrink:0;cursor:default;}
   .nav-pills{display:none!important;}
-  .topbar{margin-left:78px;padding:0 20px;}
+  .topbar{margin-left:var(--railw,78px);padding:0 20px;}
   .topbar .logo{display:none;}
-  .main{margin-left:78px;}
+  .main{margin-left:var(--railw,78px);}
   .tb-context{display:flex;align-items:baseline;gap:10px;min-width:0;}
   .tb-context b{font-size:14px;font-weight:600;color:var(--text);white-space:nowrap;}
   .tb-context span{font-size:11.5px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -1583,7 +1603,8 @@ body:not(.light) .offline-pill{color:#fbbf24;}
 </div>
 
 
-<div class="rail">
+<div class="rail" id="railEl">
+  <div class="rail-resize" id="railResize" title="Drag to resize"></div>
   <div class="rail-logo"><img src="icons/icon-192.png" alt="Milo"/></div>
   <button class="np" id="nav-home" title="Home">⌂<span class="nl">Home</span></button>
   <button class="np on" id="nav-log" title="Log Trip">＋<span class="nl">Log Trip</span></button>
@@ -2889,6 +2910,35 @@ function renderHomePlaces(){
     placeGeocode(toFetch,function(){renderHomePlaces._fetching=false;renderHomeIfActive();});
   }
 }
+
+// ── Rail resize: drag the edge; width persists (ml_railw) ──
+function applyRailWidth(w){
+  w=Math.max(56,Math.min(230,w|0));
+  document.documentElement.style.setProperty('--railw',w+'px');
+  var r=document.getElementById('railEl');
+  if(r){
+    r.classList.toggle('rail-compact',w<70);
+    r.classList.toggle('rail-wide',w>=120);
+  }
+  try{localStorage.setItem('ml_railw',String(w));}catch(e){}
+}
+function initRailResize(){
+  var h=document.getElementById('railResize');if(!h)return;
+  var saved=parseInt(localStorage.getItem('ml_railw')||'78',10);
+  applyRailWidth(isNaN(saved)?78:saved);
+  var drag=null;
+  h.addEventListener('pointerdown',function(e){
+    drag={x:e.clientX,w:parseInt(getComputedStyle(document.documentElement).getPropertyValue('--railw'))||78};
+    h.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  });
+  h.addEventListener('pointermove',function(e){
+    if(!drag)return;
+    applyRailWidth(drag.w+(e.clientX-drag.x));
+  });
+  h.addEventListener('pointerup',function(){drag=null;});
+}
+window.applyRailWidth=applyRailWidth;
 window.relogTrip=relogTrip;
 window.renderHome=renderHome;
 window.renderHomeIfActive=renderHomeIfActive;
@@ -5237,6 +5287,7 @@ window.addEventListener('DOMContentLoaded',function(){
   },500);
 
 
+  initRailResize();
   document.getElementById('nav-home').addEventListener('click',function(){switchNav('home',this);});
   document.getElementById('nav-log').addEventListener('click',function(){openLogOverlay();});
   var tbl=document.getElementById('tbLogBtn');if(tbl)tbl.addEventListener('click',function(){openLogOverlay();});
