@@ -200,30 +200,30 @@ T('referral is stashed for attribution', window.localStorage.getItem('ml_referre
 T('one shareModal', document.querySelectorAll('#shareModal').length === 1);
 T('one rightResize', document.querySelectorAll('#rightResize').length === 1);
 
-// ===== GHOST LAYER (idle-map history + tap-to-relog) =====
-T('ghost chip rail in markup', !!$('ghostChips') && !!$('ghostChipRow') && html.indexOf('tap to relog') >= 0);
-T('ghost functions exposed', typeof window.showGhostLayer === 'function' && typeof window.clearGhostLayer === 'function' && typeof window.ghostRelog === 'function');
-T('real routes clear ghosts (3 render sites)', (html.match(/clearGhostLayer\(\);/g) || []).length >= 4);
-T('theme switch re-arms ghost layer', /Map recreated in[\s\S]{0,300}showGhostLayer/.test(html));
-T('zero-trip users keep mapEmpty', html.indexOf('if(!googleReady||!googleMap||!trips||!trips.length)return;') >= 0);
-// Geometry-less trips: addresses are geocoded once and cached (with negative caching)
-T('ghost geocode fallback wired', html.indexOf('ml3_geo') >= 0 && html.indexOf('ghostGeocode') >= 0);
-T('geocode failures negative-cached', /geoCache\[geoKey\(a\)\]=\(status==='OK'/.test(html));
-// 3a interactive: chip hover ↔ polyline highlight, both directions
-T('ghostHighlight exposed', typeof window.ghostHighlight === 'function');
-T('hint element present', !!$('ghostHint') && $('ghostHint').textContent.indexOf('hover') >= 0);
-T('polylines are clickable with hover listeners', html.indexOf('clickable:true') >= 0 && /line\.addListener\('mouseover'/.test(html));
-T('active-chip styles shipped', html.indexOf('.gc-chip.active') >= 0);
-T('highlight(null) resets hint', (window.ghostHighlight(null), $('ghostHint').textContent === 'hover to preview'));
+// ===== MISSION CONTROL: rail + Home view =====
+T('icon rail present', !!document.querySelector('.rail') && !!$('nav-home') && document.querySelector('.rail #nav-log') !== null);
+T('old nav-pills gone', document.querySelector('.nav-pills') === null);
+T('home view exists', !!$('view-home') && !!$('hStats') && !!$('hWeek'));
+T('topbar has log button + context', !!$('tbLogBtn') && !!$('tbTitle'));
+let homeThrew = false; try { window.renderHome(); } catch (e) { homeThrew = true; console.log('home err:', e.message); }
+T('renderHome no throw', !homeThrew);
+T('home stats populated', $('hStats').querySelectorAll('.hs-card').length === 4);
+T('home week list renders trips', $('hWeek').querySelectorAll('.hw-row').length >= 1);
+T('ghost layer fully removed', html.indexOf('ghostChips') < 0 && html.indexOf('showGhostLayer') < 0);
 // Tap-to-relog prefills the New Trip form (today's date, not the old one)
 const gt = window.__trips()[0];
-window.ghostRelog(gt.id);
+window.relogTrip(gt.id);
 T('relog prefills From street', $('tFromStreet').value === (gt.from || '').split(',')[0].trim());
 T('relog prefills To street', $('tToStreet').value === (gt.to || '').split(',')[0].trim());
 T('relog prefills miles', parseFloat($('tMiles').value) === parseFloat(gt.miles));
 T('relog dates today, not the old date', /^\d{4}-\d{2}-\d{2}$/.test($('tDate').value) && $('tDate').value !== gt.date);
-T('relog rebuilds hidden addr', $('tFrom').value.indexOf($('tFromStreet').value) >= 0);
+T('relog switches to log view', $('view-log').classList.contains('on'));
 window.__clearF();
+// switchNav home + persistence
+window.switchNav('home', $('nav-home'));
+T('home activates as fullwidth view', $('view-home').classList.contains('on') && document.body.classList.contains('fullwidth-history'));
+T('view choice persisted', window.localStorage.getItem('ml_view') === 'home');
+window.switchNav('log', $('nav-log'));
 
 // ===== ANALYTICS V3: interactivity =====
 window.__renderAnalytics();
