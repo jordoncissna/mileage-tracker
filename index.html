@@ -108,6 +108,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
   #logDetails summary{cursor:pointer;font-size:11.5px;color:var(--text2);padding:9px 0;user-select:none;}
   #logDetails[open]{padding-bottom:10px;background:var(--surface);}
   .log-foot{display:flex;align-items:center;gap:10px;padding:13px 20px;border-top:1px solid var(--border);background:var(--surface);}
+  .log-overlay.editing .dist-round,.log-overlay.editing #logDetails,.log-overlay.editing #batchSummary,.log-overlay.editing .log-foot .btn:not(.btn-primary){display:none;}
   .log-ded{font-size:11px;color:var(--text3);white-space:nowrap;margin-right:auto;}
   .log-ded b{font-family:'JetBrains Mono',monospace;color:var(--green);font-weight:500;}
   /* ── Mission Control shell: fixed left icon rail ── */
@@ -237,6 +238,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
   #logDetails summary{cursor:pointer;font-size:11.5px;color:var(--text2);padding:9px 0;user-select:none;}
   #logDetails[open]{padding-bottom:10px;background:var(--surface);}
   .log-foot{display:flex;align-items:center;gap:10px;padding:13px 20px;border-top:1px solid var(--border);background:var(--surface);}
+  .log-overlay.editing .dist-round,.log-overlay.editing #logDetails,.log-overlay.editing #batchSummary,.log-overlay.editing .log-foot .btn:not(.btn-primary){display:none;}
   .log-ded{font-size:11px;color:var(--text3);white-space:nowrap;margin-right:auto;}
   .log-ded b{font-family:'JetBrains Mono',monospace;color:var(--green);font-weight:500;}
   /* ── Mission Control shell: fixed left icon rail ── */
@@ -2148,7 +2150,7 @@ body:not(.light) .offline-pill{color:#fbbf24;}
     <div class="log-foot">
       <span class="log-ded">= <b id="logDed">$0.00</b> deductible</span>
       <button type="button" class="btn" onclick="addStop();var d=document.getElementById('logDetails');if(d)d.open=true;">＋ Add stop</button>
-      <button type="button" class="btn btn-primary" onclick="addTrip()">Save trip ↵</button>
+      <button type="button" class="btn btn-primary" id="logSaveBtn" onclick="addTrip()">Save trip ↵</button>
     </div>
   </div>
 </div>
@@ -2334,7 +2336,11 @@ async function updateTripInSupabase(trip){
   if(!currentUser||!trip.supaId)return;
   setSyncing(true);
   try{
-    const{error}=await supa.from('trips').update({category:trip.category||''}).eq('id',trip.supaId);
+    const{error}=await supa.from('trips').update({
+      date:trip.date,miles:trip.miles,from_addr:trip.from||'',to_addr:trip.to||'',
+      purpose:trip.purpose||'',category:trip.category||'',
+      coords:trip.coords||null,from_latlng:trip.fromLatLng||null,to_latlng:trip.toLatLng||null
+    }).eq('id',trip.supaId);
     if(error)throw error;
   }catch(e){console.error('Update error:',e);}
   setSyncing(false);
@@ -2993,6 +2999,27 @@ window.applyRailWidth=applyRailWidth;
 window.relogTrip=relogTrip;
 window.renderHome=renderHome;
 window.renderHomeIfActive=renderHomeIfActive;
+// ── EDIT A SAVED TRIP: reuse the log overlay in edit mode ──
+var editingTripId=null;
+function editTrip(id){
+  var t=trips.find(function(x){return x.id===id;});
+  if(!t)return;
+  clearF();
+  var setV=function(elId,v){var el=document.getElementById(elId);if(el)el.value=(v==null?'':v);};
+  var fp=(t.from||'').split(',').map(function(x){return x.trim();});
+  var tp=(t.to||'').split(',').map(function(x){return x.trim();});
+  setV('tFromStreet',fp[0]);setV('tFromCity',fp[1]);setV('tFromState',fp[2]);
+  setV('tToStreet',tp[0]);setV('tToCity',tp[1]);setV('tToState',tp[2]);
+  setV('tMiles',t.miles);setV('tPurpose',t.purpose||'');setV('tDate',t.date);
+  var cat=document.getElementById('tCat');if(cat&&t.category)cat.value=t.category;
+  buildAddr();
+  editingTripId=id;
+  openLogOverlay();
+  var ttl=document.querySelector('#logOverlay .log-title');if(ttl)ttl.textContent='Edit trip';
+  var sb=document.getElementById('logSaveBtn');if(sb)sb.textContent='Save changes ↵';
+  var ov=document.getElementById('logOverlay');if(ov)ov.classList.add('editing');
+}
+window.editTrip=editTrip;
 // ── LOG OVERLAY (Mission Control) ────────────────────────────────────
 
 // Drag the log card around by its header
@@ -3018,6 +3045,11 @@ function initLogDrag(){
   head.addEventListener('pointerup',function(){drag=null;});
 }
 function openLogOverlay(){
+  // A fresh open is a new trip; editTrip() re-applies edit chrome after calling this
+  editingTripId=null;
+  var ov0=document.getElementById('logOverlay');if(ov0)ov0.classList.remove('editing');
+  var ttl0=document.querySelector('#logOverlay .log-title');if(ttl0)ttl0.textContent='Log a trip';
+  var sb0=document.getElementById('logSaveBtn');if(sb0)sb0.textContent='Save trip ↵';
   switchNav('log',document.getElementById('nav-log'));
   var ov=document.getElementById('logOverlay');if(!ov)return;
   ov.style.display='flex';
@@ -3388,10 +3420,35 @@ function legRoute(from,to){
     }catch(e){fin(null);}
   });
 }
+// Same route already logged on a given date? Guards against double entry.
+function dupTripCount(dates,from,to){
+  var n=0;
+  trips.forEach(function(t){
+    if(dates.indexOf(t.date)>=0&&geoKey(t.from||'')===geoKey(from||'')&&geoKey(t.to||'')===geoKey(to||''))n++;
+  });
+  return n;
+}
 async function addTrip(){
   const d=document.getElementById('tDate').value;
   const m=document.getElementById('tMiles').value;
   buildAddr(); // ensure hidden fields are up to date
+  if(editingTripId!==null){
+    // Edit mode: update the trip in place (no batch semantics here)
+    if(!d||!m||parseFloat(m)<=0){toast('⚠ Enter date and miles');return;}
+    var et=trips.find(function(x){return x.id===editingTripId;});
+    editingTripId=null;
+    if(et){
+      et.date=d;et.miles=parseFloat(m);
+      et.from=document.getElementById('tFrom').value.trim();
+      et.to=document.getElementById('tTo').value.trim();
+      et.purpose=document.getElementById('tPurpose').value.trim();
+      et.category=document.getElementById('tCat').value;
+      save();clearF();updateSidebar();renderH();renderHomeIfActive();closeLogOverlay();
+      toast('Trip updated ✓');
+      updateTripInSupabase(et);
+    }
+    return;
+  }
   const stops=batchStops();
   const roundEl=document.getElementById('tRound');
   const round=!!(roundEl&&roundEl.checked);
@@ -3418,6 +3475,8 @@ async function addTrip(){
       trip.fromLatLng=pendingDist.from;
       trip.toLatLng=pendingDist.to;
     }
+    var dup1=dupTripCount([trip.date],trip.from,trip.to);
+    if(dup1&&!confirm('You already logged '+dup1+' trip'+(dup1>1?'s':'')+' with this route on '+fmt(trip.date)+'. Save another?'))return;
     trips.push(trip);
     save();clearF();updateSidebar();renderH();renderHomeIfActive();closeLogOverlay();toast('Trip saved ✓');
     saveToSupabase(trip);
@@ -3468,6 +3527,9 @@ async function addTrip(){
         category:cat});
     });
   });
+  var dupN=0;
+  batch.forEach(function(b){dupN+=dupTripCount([b.date],b.from,b.to);});
+  if(dupN&&!confirm('You already have '+dupN+' matching trip'+(dupN>1?'s':'')+' on these dates with this route. Save anyway?'))return;
   batch.forEach(function(t){trips.push(t);});
   save();clearF();updateSidebar();renderH();renderHomeIfActive();closeLogOverlay();
   toast(batch.length+' trips saved ✓');
@@ -3576,7 +3638,7 @@ function renderH(){
       <td class="mono" style="text-align:right;font-weight:500">${parseFloat(t.miles||0).toFixed(1)}</td>
       <td class="mono" style="text-align:right;color:${(isCommute(t)&&cfg.commuteExclude)||isPersonal(t)?'var(--text3)':'var(--green)'}">${(isCommute(t)&&cfg.commuteExclude)||isPersonal(t)?'<span style="text-decoration:line-through;opacity:0.5">$'+(parseFloat(t.miles||0)*rate(t.date)).toFixed(2)+'</span> $0.00':'$'+(parseFloat(t.miles||0)*rate(t.date)).toFixed(2)}</td>
       <td style="display:flex;gap:6px;align-items:center">${t.from&&t.to?`<button class="map-btn" onclick="event.stopPropagation();showHistMap(${t.id})">🗺 View Route</button>`:''}
-      <button class="map-btn" title="Relog this trip" onclick="event.stopPropagation();relogTrip(${t.id})">↺</button>
+      <button class="map-btn" title="Edit trip" onclick="event.stopPropagation();editTrip(${t.id})">✎</button>\n      <button class="map-btn" title="Relog this trip" onclick="event.stopPropagation();relogTrip(${t.id})">↺</button>
       <button class="btn btn-danger" onclick="event.stopPropagation();del(${t.id})">✕</button></td>
     </tr>`).join('')}</tbody>
     <tfoot><tr>
@@ -4645,7 +4707,12 @@ function showTripDetail(tripId){
   document.getElementById('tdTo').textContent=trip.to||'—';
   document.getElementById('tdPurpose').textContent=trip.purpose||'—';
   var commuteBtn=document.getElementById('tdCommuteBtn');
-  if(commuteBtn)commuteBtn.style.display='none';
+  if(commuteBtn){
+    commuteBtn.style.display='';
+    commuteBtn.textContent='✎ Edit trip';
+    commuteBtn.style.background='';commuteBtn.style.color='';
+    commuteBtn.onclick=function(){closeTripDetail();editTrip(trip.id);};
+  }
   const mapBtn=document.getElementById('tdMapBtn');
   mapBtn.style.display=(trip.from&&trip.to)?'block':'none';
   mapBtn.onclick=()=>{closeTripDetail();showHistMap(tripId);};

@@ -348,6 +348,31 @@ T('sign out moved to settings foot', document.querySelector('.set-foot .signout-
   T('dates differ across copies', dd[0].date === '2026-06-11' && dd[1].date === '2026-06-12');
   T('extra dates cleared after save', document.querySelectorAll('#xtraDates .xdate').length === 0);
 
+  // Round trip + repeat dates, NO stops: N dates → N rows, each with doubled miles
+  n0 = window.__trips().length;
+  fillBase(); $('tMiles').value = '81.2'; $('tRound').checked = true;
+  window.addExtraDate(); window.addExtraDate();
+  const xs = document.querySelectorAll('#xtraDates .xdate');
+  xs[0].value = '2026-06-12'; xs[1].value = '2026-06-13';
+  await window.__addTrip();
+  T('repeat+round: exactly one row per date', window.__trips().length === n0 + 3);
+  const three = window.__trips().slice(-3);
+  T('repeat+round: each row has round miles', three.every(t => t.miles === 162.4));
+  T('repeat+round: each row tagged', three.every(t => t.purpose.indexOf('(round trip)') >= 0));
+  T('repeat+round: three distinct dates', new Set(three.map(t=>t.date)).size === 3);
+
+  // Duplicate guard: same route + same date prompts; declining blocks the save
+  n0 = window.__trips().length;
+  fillBase(); $('tMiles').value = '81.2'; $('tRound').checked = true;
+  window.addExtraDate(); document.querySelector('#xtraDates .xdate').value = '2026-06-12';
+  const _conf = window.confirm; let asked = false;
+  window.confirm = () => { asked = true; return false; };
+  await window.__addTrip();
+  T('duplicate batch prompts', asked);
+  T('declining keeps history clean', window.__trips().length === n0);
+  window.confirm = _conf;
+  window.__clearF();
+
   // Composed: 1 stop + round trip + 2 dates = 3 legs × 2 dates = 6 trips
   n0 = window.__trips().length;
   fillBase(); $('tMiles').value = '12'; $('tRound').checked = true;
