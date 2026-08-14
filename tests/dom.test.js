@@ -97,7 +97,7 @@ T('cumulative legend shows year', $('aCumLegend').textContent.indexOf(String(new
 T('heatmap renders cells', $('aHeat').querySelectorAll('.hm-cell').length >= 365);
 T('heatmap has active cells', $('aHeat').innerHTML.indexOf('var(--hm') >= 0);
 T('split bar has segments', $('aSplit').querySelectorAll('.split-seg').length >= 1);
-T('split shows three rows', $('aSplit').querySelectorAll('.sr').length === 3);
+T('split shows two rows (no commute)', $('aSplit').querySelectorAll('.sr').length === 2);
 T('split deductible value shown', $('aSplit').textContent.indexOf('$') >= 0);
 T('insights render chips', $('aInsights').querySelectorAll('.insight-chip').length >= 1);
 T('period chart has y-axis ticks', $('aChart').querySelectorAll('.chart-ylabel').length >= 3);
@@ -113,7 +113,7 @@ T('quick start has 3 steps', document.querySelectorAll('.qs-step').length === 3)
 // ===== SETTINGS FLOW =====
 const h3s = [...document.querySelectorAll('#view-set .sc h3')].map(h => h.textContent.trim().split(' ')[0]);
 T('settings starts with business', h3s[0] === 'Business');
-T('locations precede commute', h3s.indexOf('Home') >= 0 && h3s.indexOf('Home') < h3s.findIndex(t => t === 'Commute'));
+T('commute settings card removed', h3s.findIndex(t => t === 'Commute') < 0);
 T('account near the end', h3s.findIndex(t => t === 'Account') > h3s.findIndex(t => t === 'Auto-classify'));
 T('single save button', [...document.querySelectorAll('#view-set button')].filter(b => b.textContent.indexOf('Save settings') >= 0).length === 1);
 
@@ -294,7 +294,7 @@ T('rows carry relog button', $('htable').innerHTML.indexOf('relogTrip(') >= 0);
 T('totals line beside filters', $('hTotals').textContent.indexOf('trips') >= 0 && $('hTotals').textContent.indexOf('$') >= 0);
 window.__renderAnalytics();
 T('monthly stacked panel renders', $('aStack').querySelectorAll('.stack-col').length === 12);
-T('stack uses viz series vars', $('aStack').innerHTML.indexOf('var(--viz-biz)') >= 0 && $('aStack').innerHTML.indexOf('var(--viz-com)') >= 0);
+T('stack uses viz series vars', $('aStack').innerHTML.indexOf('var(--viz-biz)') >= 0 && $('aStack').innerHTML.indexOf('var(--viz-per)') >= 0);
 T('top routes render', $('aEnhanced').querySelectorAll('.dest-row').length >= 1 && $('aEnhanced').textContent.indexOf('×') >= 0);
 T('settings hero cards present', !!$('shRate') && !!$('shVehicle'));
 window.renderSetHero();
@@ -313,17 +313,14 @@ T('sign out moved to settings foot', document.querySelector('.set-foot .signout-
   T('addStop exposed', typeof window.addStop === 'function');
   T('batch controls in markup', !!$('stopsWrap') && !!$('tRound') && !!$('xtraDates') && !!$('batchSummary'));
 
-  // Round trip: one leg out + mirrored return, same miles each
+  // Round trip: ONE line item with out-and-back miles
   let n0 = window.__trips().length;
   fillBase(); $('tMiles').value = '10'; $('tRound').checked = true;
-  window.updateBatchSummary();
-  T('summary previews trip count', $('batchSummary').style.display === 'block' && $('batchSummary').textContent.indexOf('2') >= 0);
   await window.__addTrip();
-  T('round trip logs 2 trips', window.__trips().length === n0 + 2);
-  let rt = window.__trips().slice(-2);
-  T('return leg is reversed', rt[1].from === rt[0].to && rt[1].to === rt[0].from);
-  T('return keeps outbound miles', rt[0].miles === 10 && rt[1].miles === 10);
-  T('return purpose marked', rt[1].purpose.indexOf('(return)') >= 0);
+  T('round trip logs ONE trip', window.__trips().length === n0 + 1);
+  let rt = window.__trips()[window.__trips().length - 1];
+  T('round trip doubles miles', rt.miles === 20);
+  T('round trip marked in purpose', rt.purpose.indexOf('(round trip)') >= 0);
   T('round toggle cleared after save', $('tRound').checked === false);
 
   // Multi-stop: From→To→Stop = 2 legs; entered 12 mi splits 6/6
@@ -359,9 +356,10 @@ T('sign out moved to settings foot', document.querySelector('.set-foot .signout-
   window.addExtraDate();
   document.querySelector('#xtraDates .xdate').value = '2026-06-13';
   await window.__addTrip();
-  T('composed batch logs legs × dates', window.__trips().length === n0 + 6);
-  const six = window.__trips().slice(-6);
-  T('composed return leg closes the loop', six[2].to === six[0].from);
+  // 2 outbound legs × 2 dates = 4 rows; return folds into each date's last leg
+  T('composed batch logs legs × dates (no return rows)', window.__trips().length === n0 + 4);
+  const four = window.__trips().slice(-4);
+  T('return miles folded into last leg', four[1].miles > four[0].miles && four[1].purpose.indexOf('(round trip)') >= 0);
 
   console.log(`\ndom.test.js: ${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);

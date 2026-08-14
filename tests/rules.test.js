@@ -63,9 +63,11 @@ const biz = { id: 22, date: '2026-06-01', miles: 10, category: 'Client Meeting',
 T('business value', Math.abs(deductibleValue(biz) - 7.0) < 1e-9);
 T('business miles', deductibleMiles(biz) === 10);
 const com = { id: 23, date: '2026-06-01', miles: 12, category: 'Office Visit', from: '1113 S 4090 W, Syracuse, UT', to: '500 Main St, Farmington, UT' };
-T('commute value $0', deductibleValue(com) === 0);
-T('commute detected', isCommute(com) === true);
-T('override false deducts', deductibleValue(Object.assign({}, com, { isCommute: false })) > 0);
+// Commute concept removed (owner decision): Home↔Office trips are ordinary
+// business write-offs; Personal is the only $0 path.
+T('home↔office trip deducts fully', Math.abs(deductibleValue(com) - 8.4) < 1e-9);
+T('commute never auto-detected', isCommute(com) === false);
+T('legacy isCommute override ignored', isCommute(Object.assign({}, com, { isCommute: true })) === false);
 T('personal rule suggests', suggestFor({ id: 24, from: '', to: '250 Gym Way, Layton, UT', purpose: '', category: 'Other Business' })?.cat === PERSONAL_CAT);
 
 // ===== HTML ESCAPING =====
@@ -140,8 +142,8 @@ eval(grab('buildTaxReportHTML'));
 const rpt = buildTaxReportHTML(2026);
 T('report titled with year', rpt.indexOf('Tax Year 2026') >= 0);
 T('report shows business name', rpt.indexOf('Ridgeline Management Group') >= 0);
-T('report deduction total $7.00', rpt.indexOf('$7.00') >= 0);
-T('commute marked excluded', rpt.indexOf('Commute §262') >= 0);
+T('report deduction total $15.40 (home↔office now deducts)', rpt.indexOf('$15.40') >= 0);
+T('no commute exclusions in report', rpt.indexOf('Commute §262') < 0);
 T('personal marked excluded', rpt.indexOf('(Personal)') >= 0);
 T('report escapes user HTML', rpt.indexOf('&lt;b&gt;client&lt;/b&gt;') >= 0 && rpt.indexOf('<b>client</b>') < 0);
 T('chronological order', rpt.indexOf('01/05/26') < rpt.indexOf('03/10/26'));

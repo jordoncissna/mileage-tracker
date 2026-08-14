@@ -84,7 +84,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
   .map-panel{border-left:none;}
   .log-overlay{position:fixed;inset:0;background:rgba(4,6,10,0.55);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;}
   .log-card{width:520px;max-width:100%;max-height:92vh;background:var(--bg2);border:1px solid var(--border2);border-radius:16px;box-shadow:0 30px 80px rgba(0,0,0,0.55);display:flex;flex-direction:column;overflow:hidden;}
-  .log-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px 0;}
+  .log-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px 10px;cursor:move;user-select:none;touch-action:none;}
   .log-title{font-size:14px;font-weight:600;color:var(--text);}
   .log-actions{display:flex;align-items:center;gap:12px;}
   .log-esc{font-size:11px;color:var(--text3);}
@@ -213,7 +213,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
   .map-panel{border-left:none;}
   .log-overlay{position:fixed;inset:0;background:rgba(4,6,10,0.55);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;}
   .log-card{width:520px;max-width:100%;max-height:92vh;background:var(--bg2);border:1px solid var(--border2);border-radius:16px;box-shadow:0 30px 80px rgba(0,0,0,0.55);display:flex;flex-direction:column;overflow:hidden;}
-  .log-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px 0;}
+  .log-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px 10px;cursor:move;user-select:none;touch-action:none;}
   .log-title{font-size:14px;font-weight:600;color:var(--text);}
   .log-actions{display:flex;align-items:center;gap:12px;}
   .log-esc{font-size:11px;color:var(--text3);}
@@ -1535,7 +1535,7 @@ body:not(.light) .offline-pill{color:#fbbf24;}
         </div>
       </div>
       <div class="onboard-headline">Your daily commute</div>
-      <div class="onboard-subhead">Personal commutes aren't deductible. Tell us your typical commute distance so we can flag it automatically.</div>
+      <div class="onboard-subhead">Tell us your typical daily drive so your first stats look right.</div>
       <div class="onboard-setup-form">
         <div class="auth-field">
           <label>Round-trip commute miles per day</label>
@@ -1813,7 +1813,7 @@ body:not(.light) .offline-pill{color:#fbbf24;}
       <div class="analytics-card span2">
         <div class="analytics-card-header">
           <div class="analytics-card-title">Monthly miles</div>
-          <div class="stack-legend"><span><i style="background:var(--viz-biz)"></i>Business</span><span><i style="background:var(--viz-com)"></i>Commute</span><span><i style="background:var(--viz-per)"></i>Personal</span></div>
+          <div class="stack-legend"><span><i style="background:var(--viz-biz)"></i>Business</span><span><i style="background:var(--viz-per)"></i>Personal</span></div>
         </div>
         <div id="aStack"></div>
       </div>
@@ -1931,7 +1931,7 @@ body:not(.light) .offline-pill{color:#fbbf24;}
         </div>
         <div class="sc"><div class="sc-icon" style="background:linear-gradient(135deg,#63cadc,#0891b2)">📍</div>
           <h3>Home &amp; office</h3>
-          <div style="font-size:12px;color:var(--text2);margin-bottom:14px">These two addresses pre-fill new trips and power the commute detection below.</div>
+          <div style="font-size:12px;color:var(--text2);margin-bottom:14px">These two addresses pre-fill new trips and power saved-route suggestions.</div>
           <div class="field" style="margin-bottom:8px">
             <span class="field-label">🏠 Home address — Street</span>
             <input type="text" id="sHomeStreet" placeholder="123 Main St" autocomplete="off"/>
@@ -1950,24 +1950,7 @@ body:not(.light) .offline-pill{color:#fbbf24;}
             <div class="field"><span class="field-label">City</span><input type="text" id="sOfficeCity" placeholder="Salt Lake City" autocomplete="off"/></div>
             <div class="field"><span class="field-label">State</span><input type="text" id="sOfficeState" placeholder="UT" maxlength="2" autocomplete="off" style="text-transform:uppercase"/></div>
           </div>
-          <span style="font-size:11px;color:var(--text3)">Used to detect commute trips (Home ↔ Office)</span>
-        </div>
-        <div class="sc"><div class="sc-icon" style="background:linear-gradient(135deg,#a78bfa,#8b5cf6)">🚫</div>
-          <h3>Commute exemption</h3>
-          <div style="font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:14px">
-            The IRS doesn't allow you to deduct personal commute miles between home and your regular office. Milo auto-flags these trips.
-          </div>
-          <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;padding:12px;background:var(--surface2);border-radius:10px;">
-            <input type="checkbox" id="sCommuteEnabled" style="width:18px;height:18px;cursor:pointer;accent-color:var(--accent)"/>
-            <label for="sCommuteEnabled" style="font-size:13px;color:var(--text);cursor:pointer;flex:1">Auto-flag commute trips (Home ↔ Office)</label>
-          </div>
-          <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;padding:12px;background:var(--surface2);border-radius:10px;">
-            <input type="checkbox" id="sCommuteExclude" style="width:18px;height:18px;cursor:pointer;accent-color:var(--accent)"/>
-            <label for="sCommuteExclude" style="font-size:13px;color:var(--text);cursor:pointer;flex:1">Exclude commute from deduction totals</label>
-          </div>
-          <div style="font-size:11px;color:var(--text3);line-height:1.5;background:rgba(167,139,250,0.08);border:1px solid rgba(167,139,250,0.2);border-radius:8px;padding:10px 12px;">
-            <strong style="color:#a78bfa">📋 IRS §262:</strong> Commuting expenses between your home and main workplace are personal and non-deductible, even if you work during the commute.
-          </div>
+          <span style="font-size:11px;color:var(--text3)">Powers Home/Office labels in lists and suggestions</span>
         </div>
         <div class="sc"><div class="sc-icon" style="background:linear-gradient(135deg,#ec4899,#db2777)">📋</div>
           <h3>IRS mileage rates</h3>
@@ -2072,6 +2055,30 @@ body:not(.light) .offline-pill{color:#fbbf24;}
         <input type="text" id="smartRoute" placeholder="Type a route — e.g. home to office" autocomplete="off" oninput="smartRouteInput()" onkeydown="smartRouteKey(event)"/>
         <div class="smart-drop" id="smartDrop" style="display:none"></div>
       </div>
+        <!-- FROM address -->
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--r2);padding:10px 12px;margin-bottom:8px;">
+          <div style="font-size:10px;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;">📍 From</div>
+          <div class="field" style="margin-bottom:6px">
+            <span class="field-label">Street</span>
+            <input type="text" id="tFromStreet" placeholder="123 Main St" autocomplete="off" oninput="clearDist();buildAddr()"/>
+          </div>
+          <div class="g2" style="margin-bottom:6px">
+            <div class="field"><span class="field-label">City</span><input type="text" id="tFromCity" placeholder="Salt Lake City" autocomplete="off" oninput="clearDist();buildAddr()"/></div>
+            <div class="field"><span class="field-label">State</span><input type="text" id="tFromState" placeholder="UT" maxlength="2" autocomplete="off" oninput="clearDist();buildAddr()" style="text-transform:uppercase"/></div>
+          </div>
+        </div>
+        <!-- TO address -->
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--r2);padding:10px 12px;margin-bottom:8px;">
+          <div style="font-size:10px;font-weight:600;color:var(--red);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;">🏁 To</div>
+          <div class="field" style="margin-bottom:6px">
+            <span class="field-label">Street</span>
+            <input type="text" id="tToStreet" placeholder="456 Business Ave" autocomplete="off" oninput="clearDist();buildAddr()"/>
+          </div>
+          <div class="g2" style="margin-bottom:6px">
+            <div class="field"><span class="field-label">City</span><input type="text" id="tToCity" placeholder="Provo" autocomplete="off" oninput="clearDist();buildAddr()"/></div>
+            <div class="field"><span class="field-label">State</span><input type="text" id="tToState" placeholder="UT" maxlength="2" autocomplete="off" oninput="clearDist();buildAddr()" style="text-transform:uppercase"/></div>
+          </div>
+        </div>
         <div class="g2" style="margin-bottom:6px">
           <div class="field"><span class="field-label">Date</span><input type="date" id="tDate" onchange="updateBatchSummary()"/></div>
           <div class="field"><span class="field-label">Miles</span>
@@ -2084,7 +2091,7 @@ body:not(.light) .offline-pill{color:#fbbf24;}
         </div>
 
         <div class="dist-round">          <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2);cursor:pointer;margin:0">
-            <input type="checkbox" id="tRound" onchange="updateBatchSummary()" style="width:auto;accent-color:var(--accent)"/> Round trip — also log the return
+            <input type="checkbox" id="tRound" onchange="updateBatchSummary()" style="width:auto;accent-color:var(--accent)"/> Round trip — out &amp; back as one entry (miles ×2)
           </label>
         </div>
         <div class="dist-box" id="distBox">
@@ -2123,31 +2130,7 @@ body:not(.light) .offline-pill{color:#fbbf24;}
           <input type="text" id="tPurpose" placeholder="e.g. Met with Acme Corp re: contract"/>
         </div>
       <details id="logDetails">
-        <summary>Address details, stops &amp; repeat dates</summary>
-        <!-- FROM address -->
-        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--r2);padding:10px 12px;margin-bottom:8px;">
-          <div style="font-size:10px;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;">📍 From</div>
-          <div class="field" style="margin-bottom:6px">
-            <span class="field-label">Street</span>
-            <input type="text" id="tFromStreet" placeholder="123 Main St" autocomplete="off" oninput="clearDist();buildAddr()"/>
-          </div>
-          <div class="g2" style="margin-bottom:6px">
-            <div class="field"><span class="field-label">City</span><input type="text" id="tFromCity" placeholder="Salt Lake City" autocomplete="off" oninput="clearDist();buildAddr()"/></div>
-            <div class="field"><span class="field-label">State</span><input type="text" id="tFromState" placeholder="UT" maxlength="2" autocomplete="off" oninput="clearDist();buildAddr()" style="text-transform:uppercase"/></div>
-          </div>
-        </div>
-        <!-- TO address -->
-        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--r2);padding:10px 12px;margin-bottom:8px;">
-          <div style="font-size:10px;font-weight:600;color:var(--red);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;">🏁 To</div>
-          <div class="field" style="margin-bottom:6px">
-            <span class="field-label">Street</span>
-            <input type="text" id="tToStreet" placeholder="456 Business Ave" autocomplete="off" oninput="clearDist();buildAddr()"/>
-          </div>
-          <div class="g2" style="margin-bottom:6px">
-            <div class="field"><span class="field-label">City</span><input type="text" id="tToCity" placeholder="Provo" autocomplete="off" oninput="clearDist();buildAddr()"/></div>
-            <div class="field"><span class="field-label">State</span><input type="text" id="tToState" placeholder="UT" maxlength="2" autocomplete="off" oninput="clearDist();buildAddr()" style="text-transform:uppercase"/></div>
-          </div>
-        </div>
+        <summary>Stops &amp; repeat dates</summary>
         <!-- Extra stops (multi-leg day). Each stop chains a new leg onto the route. -->
         <div id="stopsWrap"></div>
         <div style="margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
@@ -2253,7 +2236,7 @@ let currentUser = null;
 
 // ── LOCAL FALLBACK ───────────────────────────────────────────
 const TK='ml3_trips',SK='ml3_set';
-let trips=[],cfg={rates:{2026:0.700,2025:0.700,2024:0.670,2023:0.655},biz:'',vehicle:'Tesla',home:'',office:'',commuteEnabled:true,commuteExclude:true,rules:[],ruleDismissed:{}};
+let trips=[],cfg={rates:{2026:0.700,2025:0.700,2024:0.670,2023:0.655},biz:'',vehicle:'Tesla',home:'',office:'',commuteEnabled:false,commuteExclude:false,rules:[],ruleDismissed:{}};
 let pendingDist=null;
 
 const PCLASS={
@@ -2303,16 +2286,9 @@ function addrMatches(a,b){
   return false;
 }
 function isCommute(trip){
-  // Manual override always wins
-  if(trip.isCommute===true)return true;
-  if(trip.isCommute===false)return false;
-  // Auto-detect: Home <-> Office round trip
-  if(!cfg.commuteEnabled||!cfg.home||!cfg.office)return false;
-  var fromHome=addrMatches(trip.from,cfg.home);
-  var toHome=addrMatches(trip.to,cfg.home);
-  var fromOffice=addrMatches(trip.from,cfg.office);
-  var toOffice=addrMatches(trip.to,cfg.office);
-  return (fromHome && toOffice) || (fromOffice && toHome);
+  // Commute auto-detection removed: logging a trip means it's a business
+  // write-off. Personal (Non-deductible) is the only $0 path.
+  return false;
 }
 function deductibleValue(trip){
   // Returns trip value EXCLUDING commute if exclusion enabled
@@ -2525,6 +2501,9 @@ function catColor(c){return PCOLOR[c]||'#8b95a8';}
 function init(){
   try{const r=localStorage.getItem(TK);if(r)trips=JSON.parse(r);}catch(e){}
   try{const s=localStorage.getItem(SK);if(s)cfg=Object.assign({},cfg,JSON.parse(s));}catch(e){}
+  // Commute concept removed (owner decision): every logged trip is business.
+  // Force old stored settings off so legacy cfgs can't re-flag trips.
+  cfg.commuteEnabled=false;cfg.commuteExclude=false;
   document.getElementById('tDate').value=today();
   if(cfg.home){
     document.getElementById('tFrom').value=cfg.home;
@@ -2973,10 +2952,36 @@ window.relogTrip=relogTrip;
 window.renderHome=renderHome;
 window.renderHomeIfActive=renderHomeIfActive;
 // ── LOG OVERLAY (Mission Control) ────────────────────────────────────
+
+// Drag the log card around by its header
+function initLogDrag(){
+  var head=document.querySelector('#logOverlay .log-head');
+  var card=document.querySelector('#logOverlay .log-card');
+  if(!head||!card||head._dragWired)return;
+  head._dragWired=true;
+  var drag=null;
+  head.addEventListener('pointerdown',function(e){
+    if(e.target.closest('button'))return; // Clear button still clicks
+    var r=card.getBoundingClientRect();
+    drag={x:e.clientX,y:e.clientY,dx:card._dx||0,dy:card._dy||0};
+    head.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  });
+  head.addEventListener('pointermove',function(e){
+    if(!drag)return;
+    card._dx=drag.dx+(e.clientX-drag.x);
+    card._dy=drag.dy+(e.clientY-drag.y);
+    card.style.transform='translate('+card._dx+'px,'+card._dy+'px)';
+  });
+  head.addEventListener('pointerup',function(){drag=null;});
+}
 function openLogOverlay(){
   switchNav('log',document.getElementById('nav-log'));
   var ov=document.getElementById('logOverlay');if(!ov)return;
   ov.style.display='flex';
+  var card=ov.querySelector('.log-card');
+  if(card){card._dx=0;card._dy=0;card.style.transform='';}
+  initLogDrag();
   renderCatChips();updateLogDed();
   var sr=document.getElementById('smartRoute');
   if(sr){sr.value='';setTimeout(function(){sr.focus();},60);}
@@ -3318,8 +3323,6 @@ function batchDates(){
 function updateBatchSummary(){
   var el=document.getElementById('batchSummary');if(!el)return;
   var legs=1+batchStops().length;
-  var round=document.getElementById('tRound');
-  if(round&&round.checked)legs++;
   var nd=Math.max(batchDates().length,1);
   var n=legs*nd;
   if(n>1){
@@ -3351,15 +3354,21 @@ async function addTrip(){
   const roundEl=document.getElementById('tRound');
   const round=!!(roundEl&&roundEl.checked);
   const dates=batchDates();
-  const isBatch=stops.length>0||round||dates.length>1;
+  const isBatch=stops.length>0||dates.length>1;
 
   if(!isBatch){
-    // Single trip — behavior unchanged.
+    // Single trip. Round trip = ONE line item with out-and-back miles.
     if(!d||!m||parseFloat(m)<=0){toast('⚠ Enter date and miles');return;}
-    const trip={id:Date.now(),date:d,miles:parseFloat(m),
+    let mi=parseFloat(m);
+    let purp=document.getElementById('tPurpose').value.trim();
+    if(round){
+      mi=(pendingDist&&pendingDist.round)?pendingDist.round:mi*2;
+      if(!/round trip/i.test(purp))purp=(purp?purp+' ':'')+'(round trip)';
+    }
+    const trip={id:Date.now(),date:d,miles:mi,
       from:document.getElementById('tFrom').value.trim(),
       to:document.getElementById('tTo').value.trim(),
-      purpose:document.getElementById('tPurpose').value.trim(),
+      purpose:(typeof purp!=='undefined')?purp:document.getElementById('tPurpose').value.trim(),
       category:document.getElementById('tCat').value};
     // Save route geometry if we calculated it
     if(pendingDist&&pendingDist.coords){
@@ -3398,10 +3407,14 @@ async function addTrip(){
   }
   const legDefs=outLegs.map(function(lg,idx){return{from:lg[0],to:lg[1],miles:legMi[idx],ret:false};});
   if(round){
+    // One line item per leg set: the return distance folds into the LAST leg
+    // instead of creating a separate return trip.
     const backFrom=points[points.length-1],backTo=points[0];
     const rr=await legRoute(backFrom,backTo);
     const backMi=(rr&&rr.miles>0)?rr.miles:parseFloat(legMi.reduce(function(s,x){return s+x;},0).toFixed(1));
-    legDefs.push({from:backFrom,to:backTo,miles:backMi,ret:true});
+    const last=legDefs[legDefs.length-1];
+    last.miles=parseFloat((last.miles+backMi).toFixed(1));
+    last.ret=true;
   }
   const purpose=document.getElementById('tPurpose').value.trim();
   const cat=document.getElementById('tCat').value;
@@ -3409,7 +3422,7 @@ async function addTrip(){
   dates.forEach(function(dt){
     legDefs.forEach(function(lg){
       batch.push({id:Date.now()+(seq++),date:dt,miles:lg.miles,from:lg.from,to:lg.to,
-        purpose:(purpose+(lg.ret?' (return)':'')).trim()||(lg.ret?'Return trip':''),
+        purpose:(purpose+(lg.ret?' (round trip)':'')).trim(),
         category:cat});
     });
   });
@@ -3517,7 +3530,7 @@ function renderH(){
       <td class="mono" style="white-space:nowrap;font-size:12px;color:var(--text2)">${fmt(t.date)}</td>
       <td><div class="route-cell" title="${esc(t.from)}${t.from&&t.to?' → ':''}${esc(t.to)}">${esc(t.from)}${t.from&&t.to?' → ':''}${esc(t.to)}</div></td>
       <td style="font-size:12px;color:var(--text2);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.purpose)||'—'}</td>
-      <td><span class="pill ${pc(t.category)}">${esc(t.category)}</span>${isCommute(t)?'<span class="pill" style="background:rgba(167,139,250,0.15);color:#a78bfa;margin-left:4px;font-size:10px" title="Personal commute — not deductible">🏠 Commute</span>':''}${(function(){var s=suggestFor(t);return s?'<div style="margin-top:4px;display:flex;align-items:center;gap:4px;font-size:11px;color:#f59e0b;white-space:nowrap">💡 '+esc(s.cat)+'<button class="map-btn" style="padding:1px 7px" title="Apply" onclick="event.stopPropagation();acceptSuggestion('+t.id+','+s.id+')">✓</button><button class="map-btn" style="padding:1px 7px" title="Dismiss" onclick="event.stopPropagation();dismissSuggestion('+t.id+','+s.id+')">✕</button></div>':'';})()}</td>
+      <td><span class="pill ${pc(t.category)}">${esc(t.category)}</span>${(function(){var s=suggestFor(t);return s?'<div style="margin-top:4px;display:flex;align-items:center;gap:4px;font-size:11px;color:#f59e0b;white-space:nowrap">💡 '+esc(s.cat)+'<button class="map-btn" style="padding:1px 7px" title="Apply" onclick="event.stopPropagation();acceptSuggestion('+t.id+','+s.id+')">✓</button><button class="map-btn" style="padding:1px 7px" title="Dismiss" onclick="event.stopPropagation();dismissSuggestion('+t.id+','+s.id+')">✕</button></div>':'';})()}</td>
       <td class="mono" style="text-align:right;font-weight:500">${parseFloat(t.miles||0).toFixed(1)}</td>
       <td class="mono" style="text-align:right;color:${(isCommute(t)&&cfg.commuteExclude)||isPersonal(t)?'var(--text3)':'var(--green)'}">${(isCommute(t)&&cfg.commuteExclude)||isPersonal(t)?'<span style="text-decoration:line-through;opacity:0.5">$'+(parseFloat(t.miles||0)*rate(t.date)).toFixed(2)+'</span> $0.00':'$'+(parseFloat(t.miles||0)*rate(t.date)).toFixed(2)}</td>
       <td style="display:flex;gap:6px;align-items:center">${t.from&&t.to?`<button class="map-btn" onclick="event.stopPropagation();showHistMap(${t.id})">🗺 View Route</button>`:''}
@@ -4582,33 +4595,14 @@ function showTripDetail(tripId){
   document.getElementById('tdCat').textContent=trip.category||'Trip';
   document.getElementById('tdDate').textContent=fmt(trip.date);
   document.getElementById('tdMiles').textContent=parseFloat(trip.miles||0).toFixed(1)+' mi';
-  const isCom=isCommute(trip);
   const fullVal='$'+(parseFloat(trip.miles||0)*rate(trip.date)).toFixed(2);
-  const tdZero=(isCom&&cfg.commuteExclude)||isPersonal(trip);
+  const tdZero=isPersonal(trip);
   document.getElementById('tdValue').innerHTML=tdZero?'<span style="text-decoration:line-through;opacity:0.5">'+fullVal+'</span> $0.00 <span style="font-size:11px;color:#a78bfa">('+(isPersonal(trip)?'personal':'commute')+')</span>':fullVal;
   document.getElementById('tdFrom').textContent=trip.from||'—';
   document.getElementById('tdTo').textContent=trip.to||'—';
   document.getElementById('tdPurpose').textContent=trip.purpose||'—';
-  // Commute toggle button
   var commuteBtn=document.getElementById('tdCommuteBtn');
-  if(commuteBtn){
-    if(isCom){
-      commuteBtn.textContent='✓ Unmark as Commute';
-      commuteBtn.style.background='rgba(167,139,250,0.2)';
-      commuteBtn.style.color='#a78bfa';
-    }else{
-      commuteBtn.textContent='🏠 Mark as Commute';
-      commuteBtn.style.background='';
-      commuteBtn.style.color='';
-    }
-    commuteBtn.onclick=function(){
-      trip.isCommute=!isCom;
-      saveToSupabase&&saveToSupabase();
-      closeTripDetail();
-      renderH();
-      updateSidebar();
-    };
-  }
+  if(commuteBtn)commuteBtn.style.display='none';
   const mapBtn=document.getElementById('tdMapBtn');
   mapBtn.style.display=(trip.from&&trip.to)?'block':'none';
   mapBtn.onclick=()=>{closeTripDetail();showHistMap(tripId);};
@@ -4644,7 +4638,6 @@ function renderMonthlyStack(){
     var mi=parseFloat(t.miles||0),idx=parseInt(t.date.slice(5,7),10)-1;
     if(idx<0||idx>11)return;
     if(isPersonal(t))m[idx].per+=mi;
-    else if(cfg.commuteExclude&&isCommute(t))m[idx].com+=mi;
     else m[idx].biz+=mi;
   });
   var mx=1;m.forEach(function(x){mx=Math.max(mx,x.biz+x.com+x.per);});
@@ -4652,7 +4645,6 @@ function renderMonthlyStack(){
   box.innerHTML='<div class="stack-wrap">'+m.map(function(x,i){
     return '<div class="stack-col"><div class="stack-bar">'+
       '<div style="background:var(--viz-per);height:'+(x.per/mx*H).toFixed(1)+'px"></div>'+
-      '<div style="background:var(--viz-com);height:'+(x.com/mx*H).toFixed(1)+'px"></div>'+
       '<div style="background:var(--viz-biz);height:'+(x.biz/mx*H).toFixed(1)+'px"></div>'+
       '</div><span class="stack-m">'+MOS[i]+'</span></div>';
   }).join('')+'</div>';
@@ -4808,10 +4800,9 @@ function renderSplit(){
   var tot=biz+com+per;
   if(!tot){box.innerHTML='<div class="chart-empty">No trips yet.</div>';return;}
   var seg=function(v,color,name){return v>0?'<div class="split-seg" style="width:'+(v/tot*100).toFixed(1)+'%;background:var(--viz-'+color+')" title="'+esc(name)+': '+v.toFixed(0)+' mi"></div>':'';};
-  box.innerHTML='<div class="split-bar">'+seg(biz,'biz','Deductible business')+seg(com,'com','Commute (excluded)')+seg(per,'per','Personal (excluded)')+'</div>'+
+  box.innerHTML='<div class="split-bar">'+seg(biz,'biz','Deductible business')+seg(per,'per','Personal (excluded)')+'</div>'+
     '<div class="split-rows">'+
     '<div class="sr"><span class="lg-swatch" style="background:var(--viz-biz)"></span><span class="sr-name">Deductible business</span><span class="sr-sub">'+biz.toFixed(0)+' mi</span><span class="sr-val">$'+bizVal.toFixed(2)+'</span></div>'+
-    '<div class="sr"><span class="lg-swatch" style="background:var(--viz-com)"></span><span class="sr-name">Commute — excluded per IRS §262</span><span class="sr-sub">'+com.toFixed(0)+' mi</span><span class="sr-val" style="color:var(--text3)">$0.00</span></div>'+
     '<div class="sr"><span class="lg-swatch" style="background:var(--viz-per)"></span><span class="sr-name">Personal — non-deductible</span><span class="sr-sub">'+per.toFixed(0)+' mi</span><span class="sr-val" style="color:var(--text3)">$0.00</span></div>'+
     '</div>';
 }
