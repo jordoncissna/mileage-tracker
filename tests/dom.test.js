@@ -248,6 +248,20 @@ T('log canvas shows places map (no placeholder) when routeless', typeof window.s
 T('cmd-K wiring present', /metaKey\|\|e\.ctrlKey/.test(html) && html.indexOf("key==='k'") >= 0);
 window.__clearF();
 
+// ===== EDIT SAVED TRIP =====
+{
+  const et = window.__trips()[0];
+  window.editTrip(et.id);
+  T('editTrip opens overlay in edit mode', $('logOverlay').style.display === 'flex' && $('logOverlay').classList.contains('editing'));
+  const cntE = window.__trips().length;
+  $('tMiles').value = '77.7'; $('tPurpose').value = 'EDITED-BY-TEST';
+  window.__addTrip();
+  T('edit updates in place, no new row', window.__trips().length === cntE);
+  T('edit persists new values', window.__trips()[0].miles === 77.7 && window.__trips()[0].purpose === 'EDITED-BY-TEST');
+  T('edit closes overlay + clears mode', $('logOverlay').style.display === 'none' && !$('logOverlay').classList.contains('editing'));
+  window.__clearF();
+}
+
 // ===== ANALYTICS V3: interactivity =====
 window.__renderAnalytics();
 T('bars are keyboard-focusable', $('aChart').innerHTML.indexOf('tabindex="0"') >= 0);

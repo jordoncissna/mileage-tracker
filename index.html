@@ -114,6 +114,20 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
   /* ── Mission Control shell: fixed left icon rail ── */
   @media (max-width: 640px){
     .rail{display:none!important;}
+    .analytics-container{padding:14px;box-sizing:border-box;max-width:100%;}
+    .kpi-band{grid-template-columns:1fr!important;}
+    .kpi-band .a-card{min-width:0;}
+    .a-hero .a-hero-value{font-size:34px;}
+    .analytics-head{gap:8px;}
+    .analytics-head .head-spacer{display:none;}
+    .insight-strip{overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch;}
+    .insight-chip{flex:none;}
+    /* Overlay clears the bottom nav; footer wraps instead of colliding */
+    .log-overlay{padding:10px 10px 86px;align-items:flex-start;}
+    .log-card{max-height:calc(100vh - 108px);margin-top:6px;}
+    .log-foot{flex-wrap:wrap;gap:8px;}
+    .log-foot .log-ded{width:100%;margin-right:0;}
+    .stack-wrap{gap:6px;}
     .topbar,.main{margin-left:0!important;}
     body.fullwidth-history #view-set.on{left:0!important;}
     /* Home flows as a normal page on phones: map block up top, cards below */
@@ -244,6 +258,20 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
   /* ── Mission Control shell: fixed left icon rail ── */
   @media (max-width: 640px){
     .rail{display:none!important;}
+    .analytics-container{padding:14px;box-sizing:border-box;max-width:100%;}
+    .kpi-band{grid-template-columns:1fr!important;}
+    .kpi-band .a-card{min-width:0;}
+    .a-hero .a-hero-value{font-size:34px;}
+    .analytics-head{gap:8px;}
+    .analytics-head .head-spacer{display:none;}
+    .insight-strip{overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch;}
+    .insight-chip{flex:none;}
+    /* Overlay clears the bottom nav; footer wraps instead of colliding */
+    .log-overlay{padding:10px 10px 86px;align-items:flex-start;}
+    .log-card{max-height:calc(100vh - 108px);margin-top:6px;}
+    .log-foot{flex-wrap:wrap;gap:8px;}
+    .log-foot .log-ded{width:100%;margin-right:0;}
+    .stack-wrap{gap:6px;}
     .topbar,.main{margin-left:0!important;}
     body.fullwidth-history #view-set.on{left:0!important;}
     /* Home flows as a normal page on phones: map block up top, cards below */
@@ -3013,8 +3041,8 @@ function editTrip(id){
   setV('tMiles',t.miles);setV('tPurpose',t.purpose||'');setV('tDate',t.date);
   var cat=document.getElementById('tCat');if(cat&&t.category)cat.value=t.category;
   buildAddr();
-  editingTripId=id;
   openLogOverlay();
+  editingTripId=id; // AFTER openLogOverlay — a fresh open resets it
   var ttl=document.querySelector('#logOverlay .log-title');if(ttl)ttl.textContent='Edit trip';
   var sb=document.getElementById('logSaveBtn');if(sb)sb.textContent='Save changes ↵';
   var ov=document.getElementById('logOverlay');if(ov)ov.classList.add('editing');
@@ -3063,7 +3091,10 @@ function openLogOverlay(){
 }
 function closeLogOverlay(){
   var ov=document.getElementById('logOverlay');
-  if(ov)ov.style.display='none';
+  if(ov){ov.style.display='none';ov.classList.remove('editing');}
+  editingTripId=null;
+  var ttl=document.querySelector('#logOverlay .log-title');if(ttl)ttl.textContent='Log a trip';
+  var sb=document.getElementById('logSaveBtn');if(sb)sb.textContent='Save trip ↵';
 }
 function logOverlayOpen(){
   var ov=document.getElementById('logOverlay');
