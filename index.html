@@ -2760,7 +2760,7 @@ function initGoogleMapPanel(){
       buildAddr();
     });
   });
-  setTimeout(renderHomeIfActive,300);
+  setTimeout(function(){renderHomeIfActive();var v=document.getElementById('view-log');if(v&&v.classList.contains('on'))showLogCanvas();},300);
 }
 
 let gDirectionsRenderer=null;
@@ -2824,6 +2824,48 @@ function relogTrip(id){
   toast('Form filled from trip — review & save');
   if(googleReady&&googleMap)showRouteOnGoogleMap(t.from,t.to,t.miles,fmt(t.date)+(t.purpose?' · '+t.purpose:''));
 }
+// Log-view canvas: when no route is drawn, show the live map with the
+// user's weighted places instead of the empty placeholder.
+function showLogCanvas(){
+  if(!googleReady||!googleMap||!trips.length)return;
+  if(gDirectionsRenderer)return; // a real route is on screen — leave it alone
+  var me=document.getElementById('mapEmpty');if(me)me.style.display='none';
+  gMarkers.forEach(function(m){m.setMap(null);});gMarkers=[];
+  var places={},missing={};
+  trips.forEach(function(t){
+    [['from'],['to']].forEach(function(p){
+      var addr=(t[p[0]]||'').trim();if(!addr)return;
+      var k=geoKey(addr);
+      if(!places[k])places[k]={addr:addr,n:0,ll:null};
+      places[k].n++;
+      if(!places[k].ll)places[k].ll=placeLL(t,p[0]);
+      if(!places[k].ll&&!(k in geoCache))missing[addr]=1;
+    });
+  });
+  var keys=Object.keys(places).filter(function(k){return places[k].ll;});
+  if(keys.length){
+    var bounds=new google.maps.LatLngBounds();
+    keys.forEach(function(k){
+      var p=places[k];
+      gMarkers.push(new google.maps.Marker({
+        map:googleMap,position:p.ll,title:p.addr+' · '+p.n+' visit'+(p.n!==1?'s':''),
+        icon:{path:google.maps.SymbolPath.CIRCLE,scale:Math.min(14,5+2*Math.log2(p.n)),fillColor:'#4f9eff',fillOpacity:0.75,strokeColor:'#ffffff',strokeWeight:1.5}
+      }));
+      bounds.extend(p.ll);
+    });
+    googleMap.fitBounds(bounds,60);
+  }
+  var toFetch=Object.keys(missing);
+  if(toFetch.length&&google.maps.Geocoder&&!showLogCanvas._fetching){
+    showLogCanvas._fetching=true;
+    placeGeocode(toFetch,function(){
+      showLogCanvas._fetching=false;
+      var v=document.getElementById('view-log');
+      if(v&&v.classList.contains('on'))showLogCanvas();
+    });
+  }
+}
+window.showLogCanvas=showLogCanvas;
 var homeMap=null,homeMarkers=[];
 function renderHomeIfActive(){
   var v=document.getElementById('view-home');
@@ -3615,6 +3657,7 @@ function switchNav(name,el){
   }
   if(name==='hist')renderH();
   if(name==='home')renderHome();
+  if(name==='log')setTimeout(showLogCanvas,80);
   var tbt=document.getElementById('tbTitle');
   if(tbt)tbt.textContent=({home:'Home',log:'Log Trip',hist:'History',analytics:'Analytics',set:'Settings'})[name]||'Milo';
   try{localStorage.setItem('ml_view',name);}catch(e){}
@@ -4962,7 +5005,7 @@ function applyMapMode(mode){
   console.log('Map recreated in',mode,'mode');
   // Home map carries its own style set — rebuild it in the new mode.
   homeMap=null;homeMarkers=[];
-  setTimeout(renderHomeIfActive,350);
+  setTimeout(function(){renderHomeIfActive();var v=document.getElementById('view-log');if(v&&v.classList.contains('on'))showLogCanvas();},350);
 }
 
 function setMode(mode){

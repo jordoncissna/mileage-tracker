@@ -244,6 +244,7 @@ T('picking a route prefills miles', parseFloat($('tMiles').value) > 0);
 // Esc closes
 document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
 T('Esc closes overlay', $('logOverlay').style.display === 'none');
+T('log canvas shows places map (no placeholder) when routeless', typeof window.showLogCanvas === 'function' && /if\(name==='log'\)setTimeout\(showLogCanvas/.test(html));
 T('cmd-K wiring present', /metaKey\|\|e\.ctrlKey/.test(html) && html.indexOf("key==='k'") >= 0);
 window.__clearF();
 
