@@ -47,10 +47,15 @@ is **local only** — it is not persisted to Supabase yet.
 Business Errand, Conference / Event, Bank / Finance, Office Supplies, Other
 Business, Personal (Non-deductible).
 
-**Deductibility:** `deductibleValue()` / `deductibleMiles()` return 0 for a trip
-that is a commute (when `cfg.commuteExclude`) or has category
-`Personal (Non-deductible)`. Commute is auto-detected as Home↔Office via
-`isCommute()` / `addrMatches()` / `normalizeAddr()`.
+**Deductibility:** `deductibleValue()` / `deductibleMiles()` return 0 only for
+category `Personal (Non-deductible)`. The commute concept was REMOVED by owner
+decision (isCommute() always returns false; legacy cfg flags are forced off on
+load) — every logged trip is a business write-off. `addrMatches()` /
+`normalizeAddr()` survive for Home/Office labels and saved-route matching.
+
+**Round trips are ONE line item:** the round-trip toggle doubles the trip's
+miles (or uses the Maps round distance) instead of logging a separate return
+trip; in multi-stop batches the return distance folds into the last leg.
 
 ## Key functions (search these names in index.html)
 
@@ -117,13 +122,13 @@ no longer a numbered-download step — edit `index.html` directly.
 
 ## Roadmap
 
-- [x] Commute exemption
+- [x] ~~Commute exemption~~ (removed by owner decision — see Deductibility)
 - [x] Auto-classify rules
 - [x] Modernized analytics charts
 - [x] Offline-capable PWA (service worker, manifest, offline trip sync-on-reconnect)
 - [x] Tax-ready PDF reports (audit-defensible IRS export)
 - [x] Invite a coworker (referral link; groundwork for a rewards system)
 - [ ] Receipt capture (photo attached to a trip)
-- [ ] Persist commute override + rules to Supabase (currently local only)
+- [ ] Persist auto-classify rules to Supabase (currently local only)
 
 Deferred: Capacitor native wrap (iOS/Android + auto-detect), native mobile app, paid tiers, marketing landing page.
