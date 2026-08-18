@@ -1809,6 +1809,7 @@ body:not(.light) .offline-pill{color:#fbbf24;}
           <option>Personal (Non-deductible)</option>
         </select>
         <div style="flex:1"></div>
+        <button class="btn" id="dupBtn" onclick="openDupReview()" style="display:none">⧉ Review duplicates</button>
         <button class="btn" onclick="doExport()">↓ Export CSV</button>
         <button class="btn" onclick="openTaxReport()">🧾 Tax Report</button>
         <label class="btn" style="cursor:pointer">↑ Import<input type="file" accept=".csv" style="display:none" onchange="importCSV(event)"/></label>
@@ -2187,6 +2188,27 @@ body:not(.light) .offline-pill{color:#fbbf24;}
 <div id="undoToast"><span id="undoToastMsg"></span><button id="undoToastBtn" type="button">Undo</button></div>
 
 <!-- Invite a coworker modal (top-level so it opens from any view) -->
+<div id="dupModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:1200;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:14px;max-width:760px;width:100%;max-height:86vh;display:flex;flex-direction:column;box-shadow:0 24px 60px rgba(0,0,0,.35)">
+    <div style="padding:18px 20px 12px;border-bottom:1px solid var(--border2)">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="flex:1">
+          <div style="font-size:15px;font-weight:650;color:var(--text)">Review duplicates</div>
+          <div style="font-size:12px;color:var(--text3);margin-top:3px" id="dupSub"></div>
+        </div>
+        <button class="btn" onclick="closeDupReview()">✕</button>
+      </div>
+    </div>
+    <div id="dupBody" style="overflow:auto;padding:14px 20px;flex:1"></div>
+    <div style="padding:12px 20px;border-top:1px solid var(--border2);display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <button class="btn" onclick="dupSelectExtras()">Select all but the first in each group</button>
+      <button class="btn" onclick="dupSelectNone()">Clear selection</button>
+      <div style="flex:1"></div>
+      <span id="dupCount" style="font-size:12px;color:var(--text3)"></span>
+      <button class="btn btn-danger" id="dupDelBtn" onclick="deleteDupSelection()">Delete selected</button>
+    </div>
+  </div>
+</div>
 <div id="inviteModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:1200;align-items:center;justify-content:center;padding:20px;">
   <div style="background:var(--surface);border:1px solid var(--border2);border-radius:var(--r3);padding:28px;width:400px;max-width:100%;display:flex;flex-direction:column;gap:14px;">
     <div style="font-size:17px;font-weight:700;color:var(--text)">📨 Invite a coworker</div>
@@ -2436,7 +2458,9 @@ window.delRule=delRule;
 
 function fmt(d){if(!d)return'';const p=d.split("-");return p[1]+'/'+p[2]+'/'+p[0].slice(2);}
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
-function save(){localStorage.setItem(TK,JSON.stringify(trips));}
+// _saving is an in-flight marker, not trip data — never let it survive a
+// reload, or a trip interrupted mid-insert would look permanently "in flight".
+function save(){localStorage.setItem(TK,JSON.stringify(trips,function(k,v){return (k==='_saving'||k==='_dupExact')?undefined:v;}));}
 
 // ── SUPABASE SYNC ─────────────────────────────────────────────
 function setSyncing(on){
@@ -2444,15 +2468,30 @@ function setSyncing(on){
   if(dot)dot.className='sync-dot'+(on?' syncing':'');
 }
 
+// Identity of a trip as data, independent of which id it carries. Used to
+// match a local trip against a server row so a re-sync adopts the existing
+// row instead of inserting a second copy of it.
+function tripFingerprint(t){
+  return [t.date||'',geoKey(t.from||''),geoKey(t.to||''),
+          parseFloat(t.miles||0).toFixed(1),(t.purpose||'').trim().toLowerCase()].join('|');
+}
+// loadFromSupabase can be triggered by several events (sign-in, token refresh,
+// coming back online). Overlapping runs used to each re-push the same unsynced
+// trip, which is how duplicate rows piled up. One run at a time.
+var _supaLoading=false;
 async function loadFromSupabase(){
   if(!currentUser)return;
+  if(_supaLoading)return;
+  _supaLoading=true;
   setSyncing(true);
   try{
     const{data,error}=await supa.from('trips').select('*').order('date',{ascending:false});
     if(error)throw error;
     // Trips created while offline exist only locally (no supaId) — keep them
-    // through the server refresh and push them up now.
-    const unsynced=trips.filter(t=>!t.supaId);
+    // through the server refresh and push them up now. A trip whose insert is
+    // still in flight (_saving) is NOT re-pushed: its row is on its way.
+    const unsynced=trips.filter(t=>!t.supaId&&!t._saving);
+    const kept=trips.filter(t=>!t.supaId&&t._saving);
     trips=data.map(r=>({
       id:r.id, date:r.date, miles:parseFloat(r.miles),
       from:r.from_addr||'', to:r.to_addr||'',
@@ -2461,14 +2500,31 @@ async function loadFromSupabase(){
       supaId:r.id
     }));
     if(unsynced.length){
-      trips=unsynced.concat(trips);
-      unsynced.forEach(t=>saveToSupabase(t));
-      toast(unsynced.length+' offline trip'+(unsynced.length!==1?'s':'')+' syncing ↑');
+      // Adopt: if the server already holds a row that is this same trip, take
+      // its id rather than inserting a duplicate. Each server row can only be
+      // claimed once, so N local copies of one trip don't all adopt one row.
+      const claimed={};
+      const toPush=[];
+      unsynced.forEach(function(t){
+        const fp=tripFingerprint(t);
+        const hit=trips.find(function(r){return !claimed[r.supaId]&&tripFingerprint(r)===fp;});
+        if(hit){claimed[hit.supaId]=true;t.id=hit.id;t.supaId=hit.supaId;}
+        else toPush.push(t);
+      });
+      // Adopted trips are already represented by the server rows above; only
+      // genuinely new ones get prepended and pushed.
+      if(toPush.length){
+        trips=toPush.concat(trips);
+        toPush.forEach(t=>saveToSupabase(t));
+        toast(toPush.length+' offline trip'+(toPush.length!==1?'s':'')+' syncing ↑');
+      }
     }
+    if(kept.length)trips=kept.concat(trips);
     save();
     updateSidebar();renderH();
     renderHomeIfActive();
   }catch(e){console.error('Load error:',e);}
+  _supaLoading=false;
   setSyncing(false);
 
 }
@@ -2489,12 +2545,18 @@ async function saveToSupabase(trip){
       from_latlng:trip.fromLatLng||null,
       to_latlng:trip.toLatLng||null
     };
+    trip._saving=true;
     const{data,error}=await supa.from('trips').insert(row).select().single();
     if(error)throw error;
-    // Update local trip with supabase id
+    // Stamp the id on the trip object itself: a refresh may have swapped the
+    // trips array out from under us, and an id lookup would then miss and
+    // leave the trip looking unsynced forever (re-pushed on every load).
+    trip.supaId=data.id;
     const idx=trips.findIndex(t=>t.id===trip.id);
-    if(idx>=0){trips[idx].supaId=data.id;save();}
+    if(idx>=0)trips[idx].supaId=data.id;
+    save();
   }catch(e){console.error('Save error:',e);}
+  delete trip._saving;
   setSyncing(false);
 }
 
@@ -2509,16 +2571,19 @@ async function saveBatchToSupabase(list){
       from_addr:t.from||'',to_addr:t.to||'',purpose:t.purpose||'',
       category:t.category||'',coords:t.coords||null,
       from_latlng:t.fromLatLng||null,to_latlng:t.toLatLng||null};});
+    list.forEach(function(t){t._saving=true;});
     const{data,error}=await supa.from('trips').insert(rows).select();
     if(error)throw error;
     if(data&&data.length===list.length){
       data.forEach(function(row,i){
+        list[i].supaId=row.id;
         const idx=trips.findIndex(function(t){return t.id===list[i].id;});
         if(idx>=0)trips[idx].supaId=row.id;
       });
       save();
     }
   }catch(e){console.error('Batch save error:',e);}
+  list.forEach(function(t){delete t._saving;});
   setSyncing(false);
 }
 
@@ -3607,6 +3672,118 @@ function del(id){
   });
 }
 
+// ── DUPLICATE REVIEW ────────────────────────────────────────
+// Groups trips that share a date AND a route. Exact duplicates (same miles and
+// purpose too) are the ones safe to preselect; same-route-different-miles rows
+// are shown but left unchecked, because two real trips can share a route.
+function dupGroups(){
+  var by={};
+  trips.forEach(function(t){
+    if(!t.date)return;
+    var k=t.date+'|'+geoKey(t.from||'')+'|'+geoKey(t.to||'');
+    (by[k]=by[k]||[]).push(t);
+  });
+  return Object.keys(by).filter(function(k){return by[k].length>1;})
+    .sort().reverse()
+    .map(function(k){
+      var rows=by[k].slice().sort(function(a,b){return parseFloat(b.miles||0)-parseFloat(a.miles||0);});
+      // A row is preselected only when an earlier row in the group is byte-for-byte
+      // the same trip. Same route, different miles could be two real trips, so
+      // those are shown but left for the owner to judge.
+      var seen={},fps={};
+      rows.forEach(function(t){
+        var fp=tripFingerprint(t);
+        t._dupExact=!!seen[fp];seen[fp]=true;fps[fp]=1;
+      });
+      return {key:k,date:rows[0].date,from:rows[0].from,to:rows[0].to,rows:rows,exact:Object.keys(fps).length===1};
+    });
+}
+function dupCount(){
+  return dupGroups().reduce(function(n,g){return n+g.rows.length-1;},0);
+}
+function updateDupBtn(){
+  var b=document.getElementById('dupBtn');if(!b)return;
+  var n=dupCount();
+  b.style.display=n?'':'none';
+  b.textContent='⧉ Review duplicates ('+n+')';
+}
+function openDupReview(){
+  var m=document.getElementById('dupModal'),body=document.getElementById('dupBody');
+  if(!m||!body)return;
+  var gs=dupGroups();
+  document.getElementById('dupSub').textContent=gs.length?
+    (gs.length+' route'+(gs.length!==1?'s':'')+' logged more than once on the same day. Check the rows to remove — nothing is deleted until you press Delete.'):
+    'No repeated routes found.';
+  body.innerHTML=gs.map(function(g){
+    var head='<div style="display:flex;align-items:baseline;gap:8px;margin:0 0 6px"><b style="font-size:13px;color:var(--text)">'+fmt(g.date)+'</b>'+
+      '<span style="font-size:12px;color:var(--text2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(g.from||'')+' → '+esc(g.to||'')+'</span>'+
+      '<span style="font-size:11px;color:'+(g.exact?'var(--red)':'var(--text3)')+'">'+(g.exact?'identical rows':'same route, different miles')+'</span>'+
+      '<button class="map-btn" onclick="dupSelectGroup('+JSON.stringify(g.key)+')">keep first</button></div>';
+    var rows=g.rows.map(function(t,i){
+      return '<label style="display:flex;align-items:center;gap:10px;padding:7px 10px;border-top:1px solid var(--border2);cursor:pointer">'+
+        '<input type="checkbox" class="dup-ck" data-id="'+esc(String(t.id))+'" data-key="'+esc(g.key)+'" '+(t._dupExact?'checked':'')+' onchange="updateDupSelCount()"/>'+
+        '<span style="flex:1;font-size:12px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(esc(t.purpose||'')||'—')+'</span>'+
+        '<span class="pill '+pc(t.category)+'" style="font-size:10px">'+esc(t.category||'')+'</span>'+
+        '<span class="mono" style="font-size:12px;color:var(--text);min-width:64px;text-align:right">'+parseFloat(t.miles||0).toFixed(1)+' mi</span>'+
+        '<span class="mono" style="font-size:12px;color:var(--green);min-width:70px;text-align:right">$'+deductibleValue(t).toFixed(2)+'</span>'+
+      '</label>';
+    }).join('');
+    return '<div style="border:1px solid var(--border2);border-radius:10px;padding:10px 12px;margin-bottom:12px">'+head+rows+'</div>';
+  }).join('')||'<div style="padding:24px;text-align:center;color:var(--text3);font-size:13px">Nothing to clean up — no route is logged twice on the same day.</div>';
+  m.style.display='flex';
+  updateDupSelCount();
+}
+function closeDupReview(){var m=document.getElementById('dupModal');if(m)m.style.display='none';}
+function dupChecks(){return Array.prototype.slice.call(document.querySelectorAll('#dupBody .dup-ck'));}
+function updateDupSelCount(){
+  var n=dupChecks().filter(function(c){return c.checked;}).length;
+  var el=document.getElementById('dupCount');if(el)el.textContent=n+' selected';
+  var b=document.getElementById('dupDelBtn');if(b)b.disabled=!n;
+}
+function dupSelectExtras(){
+  var seen={};
+  dupChecks().forEach(function(c){
+    var k=c.getAttribute('data-key');
+    c.checked=!!seen[k];seen[k]=true;
+  });
+  updateDupSelCount();
+}
+function dupSelectGroup(key){
+  var seen=false;
+  dupChecks().forEach(function(c){
+    if(c.getAttribute('data-key')!==key)return;
+    c.checked=seen;seen=true;
+  });
+  updateDupSelCount();
+}
+function dupSelectNone(){dupChecks().forEach(function(c){c.checked=false;});updateDupSelCount();}
+function deleteDupSelection(){
+  var ids={};
+  dupChecks().forEach(function(c){if(c.checked)ids[c.getAttribute('data-id')]=true;});
+  var doomed=trips.filter(function(t){return ids[String(t.id)];});
+  if(!doomed.length)return;
+  if(!confirm('Delete '+doomed.length+' trip'+(doomed.length!==1?'s':'')+'? This removes them from your ledger and from the server.'))return;
+  var snapshot=trips.slice();
+  trips=trips.filter(function(t){return !ids[String(t.id)];});
+  save();updateSidebar();renderH();renderHomeIfActive();
+  closeDupReview();
+  undoToast(doomed.length+' trips deleted',function(){
+    trips=snapshot;
+    save();updateSidebar();renderH();renderHomeIfActive();
+    doomed.forEach(function(t){if(!t.supaId&&currentUser)saveToSupabase(t);});
+    toast('Restored ✓');
+  },function(){
+    doomed.forEach(function(t){deleteFromSupabase(t);});
+  });
+}
+window.openDupReview=openDupReview;
+window.closeDupReview=closeDupReview;
+window.dupSelectExtras=dupSelectExtras;
+window.dupSelectGroup=dupSelectGroup;
+window.dupSelectNone=dupSelectNone;
+window.updateDupSelCount=updateDupSelCount;
+window.deleteDupSelection=deleteDupSelection;
+
 // Ledger month header: shown when date-sorted; subtotal for that month within the filtered set
 function _mh(fl,t,i,sortMode){
   if(String(sortMode).indexOf('date')!==0)return'';
@@ -3651,6 +3828,7 @@ function renderH(){
   const sugBanner=sugTrips.length?`<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;margin-bottom:10px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:10px"><span style="font-size:13px;color:var(--text);flex:1">💡 ${sugTrips.length} trip${sugTrips.length!==1?'s':''} match your auto-classify rules</span><button class="btn btn-primary" onclick="applyAllSuggestions()">Apply all</button></div>`:'';
   var _ht=document.getElementById('hTotals');
   if(_ht)_ht.textContent=fl.length+' trips · '+tmi.toFixed(1)+' mi · $'+tv.toFixed(2);
+  updateDupBtn();
   box.innerHTML=sugBanner+`<table>
     <thead><tr>
       <th class="sortable" onclick="sortBy('date')">Date <span class="sort-ind" data-col="date"></span></th>
