@@ -20,7 +20,7 @@ const store = {};
 window.localStorage = { getItem: k => k in store ? store[k] : null, setItem: (k, v) => { store[k] = String(v); }, removeItem: k => { delete store[k]; }, clear: () => { for (const k in store) delete store[k]; } };
 
 const inline = html.match(/<script>([\s\S]*?)<\/script>/g).pop().replace(/^<script>/, '').replace(/<\/script>$/, '');
-const runner = new window.Function(inline + '\n;window.__clearF=clearF;window.__addTrip=addTrip;window.__trips=()=>trips;window.__renderH=renderH;window.__renderAnalytics=renderAnalytics;window.__showTip=showChartTip;');
+const runner = new window.Function(inline + '\n;window.__clearF=clearF;window.__addTrip=addTrip;window.__trips=()=>trips;window.__renderH=renderH;window.__renderAnalytics=renderAnalytics;window.__showTip=showChartTip;window.__logEndpoints=logRouteEndpoints;');
 try { runner.call(window); } catch (e) { console.log('init threw (often benign):', e.message); }
 
 let pass = 0, fail = 0;
@@ -400,6 +400,19 @@ T('sign out moved to settings foot', document.querySelector('.set-foot .signout-
   T('composed batch logs legs × dates (no return rows)', window.__trips().length === n0 + 4);
   const four = window.__trips().slice(-4);
   T('return miles folded into last leg', four[1].miles > four[0].miles && four[1].purpose.indexOf('(round trip)') >= 0);
+
+  // ===== LIVE MAP PREVIEW (every logged trip shows on the map) =====
+  window.__clearF();
+  T('no preview until both ends are known', window.__logEndpoints() === null);
+  $('tFromStreet').value = '1113 S 4090 W'; $('tFromCity').value = 'Syracuse';
+  T('half an address is still not enough', window.__logEndpoints() === null);
+  $('tToStreet').value = '456 Business Ave'; $('tToCity').value = 'Lehi';
+  const eps = window.__logEndpoints();
+  T('both ends filled -> a pair to draw', !!eps && /Syracuse/.test(eps.from) && /Lehi/.test(eps.to));
+  T('preview handler is exposed for the inputs', typeof window.previewLogRoute === 'function');
+  T('address inputs drive the preview', (html.match(/previewLogRoute\(\)/g) || []).length >= 6);
+  T('a drawn route survives a theme rebuild', html.indexOf('const keepTrip=gShownTrip;') >= 0);
+  window.__clearF();
 
   console.log(`\ndom.test.js: ${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);

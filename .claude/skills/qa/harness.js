@@ -49,12 +49,22 @@ const INIT = `
               signOut: async function(){ return {}; } },
       from: function(){ return table; } }; } };
   })();
+  window.__map = { directions: 0, markers: [], polylines: 0, fits: 0, lastReq: null, routeStatus: 'OK', log: [] };
   window.google = { maps: {
     places:{ Autocomplete:function(){ return { addListener(){}, getPlace(){ return {}; } }; }, AutocompleteService:function(){ this.getPlacePredictions=function(){}; } },
-    Geocoder:function(){ this.geocode=function(){}; },
-    Map:function(){ this.addListener=function(){}; this.getCenter=function(){ return {lat:function(){return 41;},lng:function(){return -112;}}; }; this.getZoom=function(){return 10;}; this.setOptions=function(){}; this.setCenter=function(){}; this.fitBounds=function(){}; },
-    Marker:function(){ this.setMap=function(){}; }, Polyline:function(){ this.setMap=function(){}; },
-    DirectionsService:function(){ this.route=function(){}; }, DirectionsRenderer:function(){ this.setMap=function(){}; },
+    Geocoder:function(){ this.geocode=function(req,cb){ setTimeout(function(){ cb([{ geometry:{ location:{ lat:function(){return 40.9;}, lng:function(){return -111.9;} } } }],'OK'); },5); }; },
+    Map:function(){ this.addListener=function(){}; this.getCenter=function(){ return {lat:function(){return 41;},lng:function(){return -112;}}; }; this.getZoom=function(){return 10;}; this.setOptions=function(){}; this.setCenter=function(){}; this.fitBounds=function(){ window.__map.fits++; }; },
+    Marker:function(o){ var l=(o&&o.label&&o.label.text)||'dot'; window.__map.markers.push(l); window.__map.log.push('marker '+l); this.setMap=function(m){ if(!m){ window.__map.markers.pop(); window.__map.log.push('marker cleared'); } }; },
+    Polyline:function(){ window.__map.polylines++; this.setMap=function(m){ if(!m) window.__map.polylines--; }; },
+    DirectionsService:function(){ this.route=function(req,cb){
+      window.__map.lastReq = { origin: req.origin, destination: req.destination };
+      setTimeout(function(){
+        if(window.__map.routeStatus !== 'OK') return cb(null, window.__map.routeStatus);
+        var pt = { lat:function(){return 40.9;}, lng:function(){return -111.9;} };
+        cb({ routes:[{ legs:[{ distance:{ value: 65000 }, duration:{ value: 1500 }, start_location: pt, end_location: pt }] }] }, 'OK');
+      }, 10);
+    }; },
+    DirectionsRenderer:function(){ this.setDirections=function(){ window.__map.directions++; window.__map.log.push('setDirections'); }; this.setMap=function(m){ if(!m){ window.__map.directions--; window.__map.log.push('renderer cleared'); } }; },
     LatLngBounds:function(){ this.extend=function(){}; }, geometry:{ spherical:{ computeDistanceBetween:function(){ return 1609; } } },
     event:{ addListenerOnce:function(){} }, importLibrary:function(){ return Promise.resolve({}); },
     SymbolPath:{ CIRCLE:0 }, TravelMode:{ DRIVING:'DRIVING' } } };
@@ -62,6 +72,15 @@ const INIT = `
 `;
 
 const settle = p => p.waitForTimeout(450);
+// Waits until exactly one route with both pins is on the map. Returns false on
+// timeout rather than throwing, so a miss is reported as a failed check.
+async function mapSettled(page, ms = 8000) {
+  try {
+    await page.waitForFunction(() => window.__map.directions === 1 &&
+      window.__map.markers.filter(m => m === 'A' || m === 'B').length === 2, null, { timeout: ms, polling: 100 });
+    return true;
+  } catch (e) { return false; }
+}
 const tripCount = p => p.evaluate(() => window.__qaTrips().length);
 const rowsOnScreen = p => p.evaluate(() => document.querySelectorAll('#htable tbody tr:not(.month-row)').length);
 
@@ -91,7 +110,11 @@ async function fillLog(page, o) {
   await page.evaluate(() => {
     ['authOverlay', 'onboardOverlay'].forEach(i => { const el = document.getElementById(i); if (el) { el.style.display = 'none'; el.classList.remove('active'); } });
     window.__qaTrips = () => window.__trips ? window.__trips() : JSON.parse(localStorage.getItem('ml3_trips') || '[]');
+    if (window.initGoogleMaps) window.initGoogleMaps();   // the CDN callback, which the route block above prevents
   });
+  // initGoogleMaps re-styles the map 500ms later and that rebuild takes another
+  // 350ms — let it finish before any test measures what is on the map
+  await page.waitForTimeout(1600);
   // trips is module-scoped; read it through localStorage, which save() keeps current
   await page.evaluate(() => { window.__qaTrips = () => JSON.parse(localStorage.getItem('ml3_trips') || '[]'); });
 
@@ -139,7 +162,8 @@ async function fillLog(page, o) {
   await page.evaluate(() => window.addTrip()); await page.waitForTimeout(900);
   const rep = await page.evaluate(() => window.__qaTrips().filter(t => (t.purpose || '').indexOf('repeat') === 0));
   R('3 dates → exactly 3 rows', rep.length === 3, 'rows=' + rep.length);
-  R('each repeat row carries round miles', rep.length === 3 && rep.every(t => Math.abs(t.miles - 162.4) < 0.05), rep.map(t => t.miles).join('/'));
+  // stubbed Directions answers 40.4 mi per leg, so a round trip row is 80.8
+  R('each repeat row carries round-trip miles', rep.length === 3 && rep.every(t => Math.abs(t.miles - 80.8) < 0.05), rep.map(t => t.miles).join('/'));
 
   // ── duplicate guard fires on same route + same date
   let asked = false;
@@ -214,6 +238,66 @@ async function fillLog(page, o) {
   await page.reload({ waitUntil: 'domcontentloaded' }); await page.waitForTimeout(1400);
   await page.evaluate(() => { window.__qaTrips = () => JSON.parse(localStorage.getItem('ml3_trips') || '[]'); ['authOverlay','onboardOverlay'].forEach(i=>{const e=document.getElementById(i);if(e){e.style.display='none';e.classList.remove('active');}}); });
   R('cleanup survives a reload', await tripCount(page) === beforeClean - 2);
+
+  // ── the trip always shows on the map: typing addresses draws it, saving keeps it
+  await page.evaluate(() => { window.__map.markers = []; window.__map.directions = 0; window.__map.polylines = 0; window.__map.lastReq = null; });
+  await page.evaluate(() => window.openLogOverlay()); await settle(page);
+  for (const [id, v] of [['tFromStreet', '1113 S 4090 W'], ['tFromCity', 'Syracuse'], ['tFromState', 'UT'],
+                         ['tToStreet', '77 Map Preview Rd'], ['tToCity', 'Ogden'], ['tToState', 'UT']]) {
+    await page.fill('#' + id, v);                    // real typing → real oninput
+  }
+  const drawn = await mapSettled(page);              // debounce, then the Directions round trip
+  R('typing an address draws the route', drawn);
+  R('route asks Directions for the typed pair', await page.evaluate(() => /Map Preview/.test(window.__map.lastReq.destination)));
+  R('A and B pins dropped', drawn);
+  R('map info shows the distance', await page.evaluate(() => /mi/.test(document.getElementById('mainMapInfo').textContent)));
+
+  // saving keeps that trip on the map, with its date
+  await page.evaluate(() => { document.getElementById('tMiles').value = '40.4'; document.getElementById('tPurpose').value = 'map preview'; });
+  await page.evaluate(() => window.addTrip());
+  R('saved trip stays drawn', await mapSettled(page));
+  R('map info labels the saved trip', await page.evaluate(() => /2026|mi/.test(document.getElementById('mainMapInfo').textContent)));
+
+  // no driving route available → straight line rather than an empty map
+  await page.evaluate(() => { window.__map.routeStatus = 'ZERO_RESULTS'; window.__map.polylines = 0; window.__map.markers = []; });
+  await page.evaluate(() => window.openLogOverlay()); await settle(page);
+  for (const [id, v] of [['tFromStreet', '5 Nowhere Ln'], ['tFromCity', 'Bluff'], ['tFromState', 'UT'],
+                         ['tToStreet', '9 Offgrid Trl'], ['tToCity', 'Boulder'], ['tToState', 'UT']]) {
+    await page.fill('#' + id, v);
+  }
+  try { await page.waitForFunction(() => window.__map.polylines === 1, null, { timeout: 8000, polling: 100 }); } catch (e) {}
+  R('unroutable pair falls back to a straight line', await page.evaluate(() => window.__map.polylines === 1));
+  R('fallback still drops both pins', await page.evaluate(() => window.__map.markers.filter(m => m === 'A' || m === 'B').length === 2));
+  R('fallback says so in the info bar', await page.evaluate(() => /straight line/.test(document.getElementById('mainMapInfo').textContent)));
+  await page.evaluate(() => { window.__map.routeStatus = 'OK'; });
+  await page.evaluate(() => window.closeLogOverlay());
+
+  // relogging from History draws that trip too
+  await page.evaluate(() => { window.__map.directions = 0; window.__map.markers = []; });
+  await page.evaluate(() => window.switchNav('hist', document.getElementById('nav-hist'))); await settle(page);
+  const relogId = await page.evaluate(() => window.__qaTrips().find(t => t.purpose === 'map preview').id);
+  await page.evaluate(id => window.relogTrip(id), relogId);
+  const relogDrawn = await mapSettled(page);
+  R('relog draws the trip on the map', relogDrawn);
+  R('relog asks Directions only once', relogDrawn && await page.evaluate(() => window.__map.markers.length === 2));
+  await page.evaluate(() => window.closeLogOverlay());
+
+  // ── a theme switch must not wipe the trip off the map
+  await page.evaluate(() => window.openLogOverlay()); await settle(page);
+  for (const [id, v] of [['tFromStreet', '1113 S 4090 W'], ['tFromCity', 'Syracuse'], ['tFromState', 'UT'],
+                         ['tToStreet', '12 Theme Test Rd'], ['tToCity', 'Provo'], ['tToState', 'UT']]) {
+    await page.fill('#' + id, v);
+  }
+  await mapSettled(page);
+  await page.evaluate(() => { window.__map.log = []; window.applyMapMode('dark'); });
+  // the rebuild tears the map down; what matters is that the trip comes back
+  const survived = await mapSettled(page);
+  R('route survives a theme switch', survived && await page.evaluate(() =>
+    window.__map.log.slice(-3).join(',') === 'setDirections,marker A,marker B'),
+    await page.evaluate(() => window.__map.log.join(' | ')));
+  await page.evaluate(() => window.applyMapMode('light'));
+  await page.waitForTimeout(900);
+  await page.evaluate(() => window.closeLogOverlay());
 
   // ── no commute anywhere
   await page.evaluate(() => window.switchNav('hist', document.getElementById('nav-hist'))); await settle(page);

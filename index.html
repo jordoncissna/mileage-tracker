@@ -2091,11 +2091,11 @@ body:not(.light) .offline-pill{color:#fbbf24;}
           <div style="font-size:10px;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;">📍 From</div>
           <div class="field" style="margin-bottom:6px">
             <span class="field-label">Street</span>
-            <input type="text" id="tFromStreet" placeholder="123 Main St" autocomplete="off" oninput="clearDist();buildAddr()"/>
+            <input type="text" id="tFromStreet" placeholder="123 Main St" autocomplete="off" oninput="clearDist();buildAddr();previewLogRoute()"/>
           </div>
           <div class="g2" style="margin-bottom:6px">
-            <div class="field"><span class="field-label">City</span><input type="text" id="tFromCity" placeholder="Salt Lake City" autocomplete="off" oninput="clearDist();buildAddr()"/></div>
-            <div class="field"><span class="field-label">State</span><input type="text" id="tFromState" placeholder="UT" maxlength="2" autocomplete="off" oninput="clearDist();buildAddr()" style="text-transform:uppercase"/></div>
+            <div class="field"><span class="field-label">City</span><input type="text" id="tFromCity" placeholder="Salt Lake City" autocomplete="off" oninput="clearDist();buildAddr();previewLogRoute()"/></div>
+            <div class="field"><span class="field-label">State</span><input type="text" id="tFromState" placeholder="UT" maxlength="2" autocomplete="off" oninput="clearDist();buildAddr();previewLogRoute()" style="text-transform:uppercase"/></div>
           </div>
         </div>
         <!-- TO address -->
@@ -2103,11 +2103,11 @@ body:not(.light) .offline-pill{color:#fbbf24;}
           <div style="font-size:10px;font-weight:600;color:var(--red);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;">🏁 To</div>
           <div class="field" style="margin-bottom:6px">
             <span class="field-label">Street</span>
-            <input type="text" id="tToStreet" placeholder="456 Business Ave" autocomplete="off" oninput="clearDist();buildAddr()"/>
+            <input type="text" id="tToStreet" placeholder="456 Business Ave" autocomplete="off" oninput="clearDist();buildAddr();previewLogRoute()"/>
           </div>
           <div class="g2" style="margin-bottom:6px">
-            <div class="field"><span class="field-label">City</span><input type="text" id="tToCity" placeholder="Provo" autocomplete="off" oninput="clearDist();buildAddr()"/></div>
-            <div class="field"><span class="field-label">State</span><input type="text" id="tToState" placeholder="UT" maxlength="2" autocomplete="off" oninput="clearDist();buildAddr()" style="text-transform:uppercase"/></div>
+            <div class="field"><span class="field-label">City</span><input type="text" id="tToCity" placeholder="Provo" autocomplete="off" oninput="clearDist();buildAddr();previewLogRoute()"/></div>
+            <div class="field"><span class="field-label">State</span><input type="text" id="tToState" placeholder="UT" maxlength="2" autocomplete="off" oninput="clearDist();buildAddr();previewLogRoute()" style="text-transform:uppercase"/></div>
           </div>
         </div>
         <div class="g2" style="margin-bottom:6px">
@@ -2865,10 +2865,15 @@ function initGoogleMapPanel(){
 let gDirectionsRenderer=null;
 let gMarkers=[];
 
+var gRouteDrawn=false;   // a specific trip is on the map (route or straight line)
+var gMapShowing='';      // which from→to pair is currently drawn
+var _routeReq='';        // which pair a draw was last requested for
+var gShownTrip=null;     // {from,to,label} of the trip on the map, so it can be redrawn
 function clearGoogleMap(){
   if(gDirectionsRenderer){gDirectionsRenderer.setMap(null);gDirectionsRenderer=null;}
   gMarkers.forEach(m=>m.setMap(null));
   gMarkers=[];
+  gRouteDrawn=false;gMapShowing='';gShownTrip=null;
 }
 
 // ── HOME VIEW (Mission Control) ──────────────────────────────────────
@@ -2921,13 +2926,13 @@ function relogTrip(id){
   if(typeof updateBatchSummary==='function')updateBatchSummary();
   openLogOverlay();
   toast('Form filled from trip — review & save');
-  if(googleReady&&googleMap)showRouteOnGoogleMap(t.from,t.to,t.miles,fmt(t.date)+(t.purpose?' · '+t.purpose:''));
+  drawTripOnMap(t.from,t.to,fmt(t.date)+(t.purpose?' · '+t.purpose:''));
 }
 // Log-view canvas: when no route is drawn, show the live map with the
 // user's weighted places instead of the empty placeholder.
 function showLogCanvas(){
   if(!googleReady||!googleMap||!trips.length)return;
-  if(gDirectionsRenderer)return; // a real route is on screen — leave it alone
+  if(gDirectionsRenderer||gRouteDrawn)return; // a trip is on screen — leave it alone
   var me=document.getElementById('mapEmpty');if(me)me.style.display='none';
   gMarkers.forEach(function(m){m.setMap(null);});gMarkers=[];
   var places={},missing={};
@@ -2965,6 +2970,102 @@ function showLogCanvas(){
   }
 }
 window.showLogCanvas=showLogCanvas;
+
+// ── LIVE ROUTE PREVIEW ────────────────────────────────────────────────
+// Every trip shows on the map, not only the ones that used Calculate distance.
+// The map follows the address fields as they are filled in, and the saved trip
+// stays drawn after the overlay closes. When Directions can't answer (no quota,
+// offline, an address it doesn't recognise as routable) we fall back to a
+// dashed straight line between the geocoded endpoints — something is always
+// drawn if the two ends can be placed at all.
+function abMarker(pos,letter,color){
+  return new google.maps.Marker({
+    position:pos,map:googleMap,zIndex:10,
+    icon:{path:google.maps.SymbolPath.CIRCLE,scale:12,fillColor:color,fillOpacity:1,strokeColor:'#fff',strokeWeight:3},
+    label:{text:letter,color:'#fff',fontSize:'12px',fontWeight:'bold'}
+  });
+}
+function mapInfo(txt){var el=document.getElementById('mainMapInfo');if(el)el.textContent=txt||'';}
+// Both ends need at least a street and a city before a lookup is worth making.
+function logRouteEndpoints(){
+  if(!document.getElementById('tFrom'))return null;
+  buildAddr();
+  var f=(document.getElementById('tFrom').value||'').trim();
+  var t=(document.getElementById('tTo').value||'').trim();
+  var ok=function(a){return a.split(',').filter(function(x){return x.trim();}).length>=2;};
+  return (ok(f)&&ok(t))?{from:f,to:t}:null;
+}
+var _routeTimer=null;
+function previewLogRoute(delay){
+  if(_routeTimer)clearTimeout(_routeTimer);
+  _routeTimer=setTimeout(function(){
+    var e=logRouteEndpoints();if(!e)return;
+    var k=geoKey(e.from)+'→'+geoKey(e.to);
+    if(k===gMapShowing||k===_routeReq)return; // already drawn, or a draw is in flight
+    drawTripOnMap(e.from,e.to,'');
+  },delay==null?700:delay);
+}
+function drawTripOnMap(from,to,label){
+  if(!from||!to)return;
+  _routeReq=geoKey(from)+'→'+geoKey(to);
+  if(!googleReady||!googleMap){
+    // Maps still booting — try once more rather than silently showing nothing.
+    if(drawTripOnMap._retry)return;
+    drawTripOnMap._retry=setTimeout(function(){drawTripOnMap._retry=null;drawTripOnMap(from,to,label);},900);
+    return;
+  }
+  var me=document.getElementById('mapEmpty');if(me)me.style.display='none';
+  if(!google.maps.DirectionsService)return drawStraightRoute(from,to,label);
+  var mode=(google.maps.TravelMode&&google.maps.TravelMode.DRIVING)||'DRIVING';
+  try{
+  new google.maps.DirectionsService().route({origin:from,destination:to,travelMode:mode},function(res,status){
+    if(status!=='OK'||!res||!res.routes||!res.routes[0])return drawStraightRoute(from,to,label);
+    clearGoogleMap();
+    gDirectionsRenderer=new google.maps.DirectionsRenderer({
+      map:googleMap,suppressMarkers:true,
+      polylineOptions:{strokeColor:'#4f9eff',strokeWeight:6,strokeOpacity:0.95,strokeLinecap:'round'}
+    });
+    gDirectionsRenderer.setDirections(res);
+    gRouteDrawn=true;gMapShowing=geoKey(from)+'→'+geoKey(to);gShownTrip={from:from,to:to,label:label||''};
+    var leg=res.routes[0].legs[0];
+    gMarkers.push(abMarker(leg.start_location,'A','#3dd68c'));
+    gMarkers.push(abMarker(leg.end_location,'B','#f87171'));
+    var b=new google.maps.LatLngBounds();b.extend(leg.start_location);b.extend(leg.end_location);
+    googleMap.fitBounds(b,{top:40,right:40,bottom:40,left:40});
+    var mins=Math.round(leg.duration.value/60);
+    mapInfo((label?label+' · ':'')+(leg.distance.value*0.000621371).toFixed(1)+' mi · ~'+(mins>=60?(Math.floor(mins/60)+'h '+(mins%60)+'m'):(mins+' min')));
+  });
+  }catch(e){drawStraightRoute(from,to,label);} // Maps present but not fully initialised
+}
+function drawStraightRoute(from,to,label){
+  if(!googleReady||!googleMap)return;
+  var need=[];
+  if(!Array.isArray(geoCache[geoKey(from)])&&!(geoKey(from) in geoCache))need.push(from);
+  if(!Array.isArray(geoCache[geoKey(to)])&&!(geoKey(to) in geoCache))need.push(to);
+  if(need.length){
+    if(drawStraightRoute._busy||!google.maps.Geocoder)return;
+    drawStraightRoute._busy=true;
+    try{placeGeocode(need,function(){drawStraightRoute._busy=false;drawStraightRoute(from,to,label);});}
+    catch(e){drawStraightRoute._busy=false;}
+    return;
+  }
+  var a=geoCache[geoKey(from)],b=geoCache[geoKey(to)];
+  if(!Array.isArray(a)||!Array.isArray(b)){mapInfo('Couldn\u2019t place '+(Array.isArray(a)?shortAddr(to):shortAddr(from))+' on the map');return;}
+  clearGoogleMap();
+  var p1={lat:+a[1],lng:+a[0]},p2={lat:+b[1],lng:+b[0]};
+  gMarkers.push(new google.maps.Polyline({
+    map:googleMap,path:[p1,p2],geodesic:true,strokeOpacity:0,
+    icons:[{icon:{path:'M 0,-1 0,1',strokeColor:'#4f9eff',strokeOpacity:0.9,strokeWeight:4,scale:3},offset:'0',repeat:'14px'}]
+  }));
+  gMarkers.push(abMarker(p1,'A','#3dd68c'));
+  gMarkers.push(abMarker(p2,'B','#f87171'));
+  gRouteDrawn=true;gMapShowing=geoKey(from)+'→'+geoKey(to);gShownTrip={from:from,to:to,label:label||''};
+  var bd=new google.maps.LatLngBounds();bd.extend(p1);bd.extend(p2);
+  googleMap.fitBounds(bd,{top:40,right:40,bottom:40,left:40});
+  mapInfo((label?label+' · ':'')+'straight line — no driving route available');
+}
+window.previewLogRoute=previewLogRoute;
+window.drawTripOnMap=drawTripOnMap;
 var homeMap=null,homeMarkers=[];
 function renderHomeIfActive(){
   var v=document.getElementById('view-home');
@@ -3111,6 +3212,7 @@ function editTrip(id){
   var ttl=document.querySelector('#logOverlay .log-title');if(ttl)ttl.textContent='Edit trip';
   var sb=document.getElementById('logSaveBtn');if(sb)sb.textContent='Save changes ↵';
   var ov=document.getElementById('logOverlay');if(ov)ov.classList.add('editing');
+  drawTripOnMap(t.from,t.to,fmt(t.date)+(t.purpose?' · '+t.purpose:''));
 }
 window.editTrip=editTrip;
 // ── LOG OVERLAY (Mission Control) ────────────────────────────────────
@@ -3153,6 +3255,9 @@ function openLogOverlay(){
   var sr=document.getElementById('smartRoute');
   if(sr){sr.value='';setTimeout(function(){sr.focus();},60);}
   var sd=document.getElementById('smartDrop');if(sd)sd.style.display='none';
+  // Opened with addresses already in place (relog, edit, saved route): draw now
+  // rather than waiting for a keystroke that may never come.
+  if(logRouteEndpoints())previewLogRoute(0);else showLogCanvas();
 }
 function closeLogOverlay(){
   var ov=document.getElementById('logOverlay');
@@ -3209,7 +3314,7 @@ function applySmartRoute(i){
   setV('tToStreet',tp[0]);setV('tToCity',tp[1]);setV('tToState',tp[2]);
   setV('tMiles',r.miles);
   var cat=document.getElementById('tCat');if(cat&&r.category)cat.value=r.category;
-  buildAddr();renderCatChips();updateLogDed();
+  buildAddr();renderCatChips();updateLogDed();previewLogRoute(0);
   var sr=document.getElementById('smartRoute');
   if(sr)sr.value=labelAddr(r.from)+' → '+labelAddr(r.to);
   sd.style.display='none';
@@ -3304,6 +3409,8 @@ async function showRouteOnGoogleMap(fromAddr,toAddr,miles,durText){
         polylineOptions:{strokeColor:'#4f9eff',strokeWeight:6,strokeOpacity:0.95,strokeLinecap:'round'}
       });
       gDirectionsRenderer.setDirections(result);
+      gRouteDrawn=true;gMapShowing=geoKey(fromAddr)+'→'+geoKey(toAddr);_routeReq='';
+      gShownTrip={from:fromAddr,to:toAddr,label:durText?('~'+durText):''};
       const leg=result.routes[0].legs[0];
       gMarkers.push(new google.maps.Marker({
         position:leg.start_location,map:googleMap,zIndex:10,
@@ -3385,6 +3492,7 @@ async function calcDist(){
       polylineOptions:{strokeColor:'#4f9eff',strokeWeight:6,strokeOpacity:0.95}
     });
     gDirectionsRenderer.setDirections(result);
+    gRouteDrawn=true;gMapShowing=geoKey(from)+'→'+geoKey(to);_routeReq=gMapShowing;gShownTrip={from:from,to:to,label:''};
     const startLoc=leg.start_location;
     const endLoc=leg.end_location;
     gMarkers.push(new google.maps.Marker({
@@ -3541,6 +3649,7 @@ async function addTrip(){
       et.category=document.getElementById('tCat').value;
       save();clearF();updateSidebar();renderH();renderHomeIfActive();closeLogOverlay();
       toast('Trip updated ✓');
+      drawTripOnMap(et.from,et.to,fmt(et.date));
       updateTripInSupabase(et);
     }
     return;
@@ -3575,6 +3684,7 @@ async function addTrip(){
     if(dup1&&!confirm('You already logged '+dup1+' trip'+(dup1>1?'s':'')+' with this route on '+fmt(trip.date)+'. Save another?'))return;
     trips.push(trip);
     save();clearF();updateSidebar();renderH();renderHomeIfActive();closeLogOverlay();toast('Trip saved ✓');
+    drawTripOnMap(trip.from,trip.to,fmt(trip.date));
     saveToSupabase(trip);
     return;
   }
@@ -3629,6 +3739,8 @@ async function addTrip(){
   batch.forEach(function(t){trips.push(t);});
   save();clearF();updateSidebar();renderH();renderHomeIfActive();closeLogOverlay();
   toast(batch.length+' trips saved ✓');
+  var lastLeg=legDefs[legDefs.length-1];
+  drawTripOnMap(legDefs[0].from,lastLeg.to,fmt(dates[0]));
   saveBatchToSupabase(batch);
 }
 
@@ -5251,9 +5363,9 @@ function applyMapMode(mode){
   // Destroy and recreate map with new style - most reliable approach
   const mapEl=document.getElementById('mainMap');
   if(!mapEl)return;
-  // Clear existing map
-  if(gDirectionsRenderer){gDirectionsRenderer.setMap(null);gDirectionsRenderer=null;}
-  gMarkers.forEach(m=>m.setMap(null));gMarkers=[];
+  // Clear existing map, remembering what was drawn so it can come back
+  const keepTrip=gShownTrip;
+  clearGoogleMap();
   // Get current center/zoom before destroying
   const center=googleMap?googleMap.getCenter():{lat:40.76,lng:-111.89};
   const zoom=googleMap?googleMap.getZoom():10;
@@ -5281,7 +5393,11 @@ function applyMapMode(mode){
   console.log('Map recreated in',mode,'mode');
   // Home map carries its own style set — rebuild it in the new mode.
   homeMap=null;homeMarkers=[];
-  setTimeout(function(){renderHomeIfActive();var v=document.getElementById('view-log');if(v&&v.classList.contains('on'))showLogCanvas();},350);
+  setTimeout(function(){
+    renderHomeIfActive();
+    if(keepTrip&&keepTrip.from&&keepTrip.to){_routeReq='';drawTripOnMap(keepTrip.from,keepTrip.to,keepTrip.label);return;}
+    var v=document.getElementById('view-log');if(v&&v.classList.contains('on'))showLogCanvas();
+  },350);
 }
 
 function setMode(mode){

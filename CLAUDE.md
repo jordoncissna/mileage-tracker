@@ -32,6 +32,11 @@ Live: https://jordoncissna.github.io/mileage-tracker
     `ml3_routew` (remembered Route column width), `ml3_geo` (address→[lng,lat]
     geocode cache for the map ghost layer; failures cached as null).
 - **Maps:** Google Maps JS API (Places autocomplete + Geometry for distance).
+  The log map is **always** driven: `previewLogRoute()` follows the address
+  fields (debounced), `drawTripOnMap()` draws the pair — Directions when it can
+  answer, a dashed geocoded straight line when it can't — and the saved trip
+  stays drawn after the overlay closes. `gShownTrip` remembers what is on the
+  map so `applyMapMode()` can redraw it after a theme rebuild.
 - **Auth email:** Resend SMTP via Supabase.
 
 ## Data model
@@ -74,6 +79,8 @@ trip; in multi-stop batches the return distance folds into the last leg.
 - `renderH()` — render the history table.
 - `renderAnalytics()` — render hero stats, the SVG period chart, category bars.
 - `suggestFor()` / `ruleMatches()` — auto-classify rules engine (suggest-and-confirm).
+- `previewLogRoute()` / `drawTripOnMap()` / `drawStraightRoute()` — the live map
+  preview behind the log overlay.
 - `saveToSupabase()` / `updateTripInSupabase()` — sync.
 - `dupGroups()` / `openDupReview()` — the duplicate-review tool in History:
   groups trips sharing a date and route, preselects only byte-identical
