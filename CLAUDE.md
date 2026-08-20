@@ -53,6 +53,15 @@ decision (isCommute() always returns false; legacy cfg flags are forced off on
 load) — every logged trip is a business write-off. `addrMatches()` /
 `normalizeAddr()` survive for Home/Office labels and saved-route matching.
 
+**Sync is idempotent, deliberately:** duplicate rows in the ledger came from
+the sync path, not from `addTrip()`. `loadFromSupabase()` is single-flight
+(`_supaLoading`), skips trips whose insert is still in flight (`_saving`), and
+*adopts* a matching server row (`tripFingerprint()`: date + route + miles +
+purpose) instead of inserting a second copy. `saveToSupabase()` stamps `supaId`
+on the trip object itself, so a refresh swapping the `trips` array mid-insert
+can't strand a trip as permanently unsynced. Don't loosen any of these without
+running `tests/sync.test.js`.
+
 **Round trips are ONE line item:** the round-trip toggle doubles the trip's
 miles (or uses the Maps round distance) instead of logging a separate return
 trip; in multi-stop batches the return distance folds into the last leg.
@@ -66,6 +75,9 @@ trip; in multi-stop batches the return distance folds into the last leg.
 - `renderAnalytics()` — render hero stats, the SVG period chart, category bars.
 - `suggestFor()` / `ruleMatches()` — auto-classify rules engine (suggest-and-confirm).
 - `saveToSupabase()` / `updateTripInSupabase()` — sync.
+- `dupGroups()` / `openDupReview()` — the duplicate-review tool in History:
+  groups trips sharing a date and route, preselects only byte-identical
+  repeats, bulk-deletes with a 6s undo.
 
 ## Conventions
 
@@ -91,12 +103,24 @@ cd tests && npm install && npm test
 - `tests/dom.test.js` — DOM-level tests via jsdom with Google/Supabase stubbed
   (Clear button, add-trip flow, analytics render). Externals can't be reached in
   a test env, so they are stubbed.
+- `tests/sync.test.js` — sync + duplicate hygiene against a recording Supabase
+  stub (concurrent loads, adoption, in-flight markers, the duplicate-review
+  tool). These are the regression tests for the duplicate pile-up.
 - `tests/auth.test.js` — auth-flow tests (Supabase email+password: signup
   validation, login, GoTrue session events incl. TOKEN_REFRESHED/SIGNED_OUT,
   error mapping via `authErrorMessage()`) against a controllable Supabase stub.
 
-**Always run both suites after changing logic or DOM.** Add a test when you add
-a feature.
+**Always run all four suites after changing logic or DOM.** Add a test when you
+add a feature.
+
+Unit tests are not sufficient evidence on their own — every bug the owner has
+reported passed them. Before calling anything done, follow `.claude/skills/qa/`
+(`SKILL.md` for the protocol, `harness.js` for the browser pass):
+
+```bash
+cd tests && npm test              # 4 suites, jsdom
+node .claude/skills/qa/harness.js # real Chromium, real clicks, real reloads
+```
 
 ## Deploy
 
@@ -130,5 +154,6 @@ no longer a numbered-download step — edit `index.html` directly.
 - [x] Invite a coworker (referral link; groundwork for a rewards system)
 - [ ] Receipt capture (photo attached to a trip)
 - [ ] Persist auto-classify rules to Supabase (currently local only)
+- [x] Duplicate review + idempotent sync
 
 Deferred: Capacitor native wrap (iOS/Android + auto-detect), native mobile app, paid tiers, marketing landing page.

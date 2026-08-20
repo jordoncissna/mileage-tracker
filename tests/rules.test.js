@@ -123,7 +123,8 @@ T('sw never caches supabase API', sw.indexOf('supabase.co') >= 0);
 T('index links manifest', html.indexOf('rel="manifest"') >= 0);
 T('index registers sw', html.indexOf("serviceWorker.register('sw.js')") >= 0 || html.indexOf('serviceWorker.register("sw.js")') >= 0);
 T('supabase client is guarded', html.indexOf('window.supabase&&window.supabase.createClient') >= 0);
-T('offline unsynced trips preserved', html.indexOf('trips.filter(t=>!t.supaId)') >= 0);
+T('offline unsynced trips preserved', html.indexOf('trips.filter(t=>!t.supaId&&!t._saving)') >= 0);
+T('sync load is single-flight', html.indexOf('if(_supaLoading)return;') >= 0);
 
 // ===== TAX REPORT =====
 eval(grab('fmt'));
