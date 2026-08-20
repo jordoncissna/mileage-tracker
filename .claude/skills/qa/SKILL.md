@@ -71,6 +71,9 @@ node .claude/skills/qa/harness.js        # boots index.html with Supabase + Maps
 ```
 
 Rules for browser checks:
+- Never assert on a fixed `waitForTimeout` for something the app draws
+  asynchronously — poll for the end state (`mapSettled()` in the harness). A
+  fixed sleep turns a real race into a test that passes two runs out of three.
 - Click through `elementFromPoint(x, y)` on the element's own center — that
   catches the "something invisible is on top of it" class of bug that a direct
   `.click()` on the node hides.
@@ -112,6 +115,11 @@ things that have broken before, in the ways they broke:
 - [ ] Delete a trip → it stays deleted after a reload (server row gone too).
 - [ ] Two overlapping `loadFromSupabase()` calls → **one** insert.
 - [ ] No trip anywhere shows a Commute flag; no commute rows in the tax report.
+- [ ] Typing both addresses draws the route on the log map; the saved trip is
+      still drawn after the overlay closes.
+- [ ] An unroutable pair still draws something (dashed straight line), never a
+      blank map.
+- [ ] Switching theme does not wipe the drawn route.
 - [ ] Every view is reachable from every other view (Settings has trapped the
       user before).
 - [ ] Light is the default theme; dark renders without unreadable text.
