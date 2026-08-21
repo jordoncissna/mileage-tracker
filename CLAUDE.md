@@ -58,6 +58,13 @@ decision (isCommute() always returns false; legacy cfg flags are forced off on
 load) — every logged trip is a business write-off. `addrMatches()` /
 `normalizeAddr()` survive for Home/Office labels and saved-route matching.
 
+**Deletes commit upstream immediately.** `del()` and `deleteDupSelection()`
+call `deleteFromSupabase()` straight away and use the undo toast only to
+*re-insert*. The delete used to be deferred to the toast's 6s expiry, so a
+refresh inside that window left the row on the server and the next load pulled
+it back — the "I deleted it and it came back" bug. Don't move it back onto a
+timer.
+
 **Sync is idempotent, deliberately:** duplicate rows in the ledger came from
 the sync path, not from `addTrip()`. `loadFromSupabase()` is single-flight
 (`_supaLoading`), skips trips whose insert is still in flight (`_saving`), and

@@ -1809,7 +1809,7 @@ body:not(.light) .offline-pill{color:#fbbf24;}
           <option>Personal (Non-deductible)</option>
         </select>
         <div style="flex:1"></div>
-        <button class="btn" id="dupBtn" onclick="openDupReview()" style="display:none">⧉ Review duplicates</button>
+        <button class="btn btn-danger" id="dupBtn" onclick="openDupReview()" style="display:none">⧉ Review duplicates</button>
         <button class="btn" onclick="doExport()">↓ Export CSV</button>
         <button class="btn" onclick="openTaxReport()">🧾 Tax Report</button>
         <label class="btn" style="cursor:pointer">↑ Import<input type="file" accept=".csv" style="display:none" onchange="importCSV(event)"/></label>
@@ -2201,8 +2201,8 @@ body:not(.light) .offline-pill{color:#fbbf24;}
     </div>
     <div id="dupBody" style="overflow:auto;padding:14px 20px;flex:1"></div>
     <div style="padding:12px 20px;border-top:1px solid var(--border2);display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-      <button class="btn" onclick="dupSelectExtras()">Select all but the first in each group</button>
-      <button class="btn" onclick="dupSelectNone()">Clear selection</button>
+      <button class="btn" onclick="dupSelectExtras()">Select every extra</button>
+      <button class="btn" onclick="dupSelectNone()">Keep everything</button>
       <div style="flex:1"></div>
       <span id="dupCount" style="font-size:12px;color:var(--text3)"></span>
       <button class="btn btn-danger" id="dupDelBtn" onclick="deleteDupSelection()">Delete selected</button>
@@ -3771,16 +3771,14 @@ function del(id){
   // Optimistic delete with a 6s undo window — no blocking confirm dialog.
   trips=trips.filter(t=>t.id!==id);
   save();updateSidebar();renderH();renderHomeIfActive();
+  deleteFromSupabase(trip); // commit upstream immediately — see comment above
   undoToast('Trip deleted',function(){
     // Undo: restore at original position; re-insert to Supabase (new row).
     trips.splice(Math.min(idx,trips.length),0,trip);
     trip.supaId=null;
-    save();updateSidebar();renderH();
+    save();updateSidebar();renderH();renderHomeIfActive();
     if(currentUser)saveToSupabase(trip);
     toast('Restored ✓');
-  },function(){
-    // Window closed untouched: commit the server delete.
-    deleteFromSupabase(trip);
   });
 }
 
@@ -3823,8 +3821,9 @@ function openDupReview(){
   var m=document.getElementById('dupModal'),body=document.getElementById('dupBody');
   if(!m||!body)return;
   var gs=dupGroups();
+  var extras=gs.reduce(function(n,g){return n+g.rows.length-1;},0);
   document.getElementById('dupSub').textContent=gs.length?
-    (gs.length+' route'+(gs.length!==1?'s':'')+' logged more than once on the same day. Check the rows to remove — nothing is deleted until you press Delete.'):
+    (extras+' extra row'+(extras!==1?'s':'')+' across '+gs.length+' route'+(gs.length!==1?'s':'')+' logged more than once on the same day. The top row of each group is kept — press Delete to remove the rest, or uncheck anything that was a genuinely separate drive.'):
     'No repeated routes found.';
   body.innerHTML=gs.map(function(g){
     var head='<div style="display:flex;align-items:baseline;gap:8px;margin:0 0 6px"><b style="font-size:13px;color:var(--text)">'+fmt(g.date)+'</b>'+
@@ -3833,7 +3832,8 @@ function openDupReview(){
       '<button class="map-btn" onclick="dupSelectGroup('+JSON.stringify(g.key)+')">keep first</button></div>';
     var rows=g.rows.map(function(t,i){
       return '<label style="display:flex;align-items:center;gap:10px;padding:7px 10px;border-top:1px solid var(--border2);cursor:pointer">'+
-        '<input type="checkbox" class="dup-ck" data-id="'+esc(String(t.id))+'" data-key="'+esc(g.key)+'" '+(t._dupExact?'checked':'')+' onchange="updateDupSelCount()"/>'+
+        '<input type="checkbox" class="dup-ck" data-id="'+esc(String(t.id))+'" data-key="'+esc(g.key)+'" '+(i>0?'checked':'')+' onchange="updateDupSelCount()"/>'+
+        (i===0?'<span style="font-size:10px;font-weight:600;color:var(--green);text-transform:uppercase;letter-spacing:.06em;white-space:nowrap">keep</span>':'<span style="font-size:10px;color:'+(t._dupExact?'var(--red)':'var(--text3)')+';white-space:nowrap">'+(t._dupExact?'exact repeat':'differs')+'</span>')+
         '<span style="flex:1;font-size:12px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(esc(t.purpose||'')||'—')+'</span>'+
         '<span class="pill '+pc(t.category)+'" style="font-size:10px">'+esc(t.category||'')+'</span>'+
         '<span class="mono" style="font-size:12px;color:var(--text);min-width:64px;text-align:right">'+parseFloat(t.miles||0).toFixed(1)+' mi</span>'+
@@ -3850,7 +3850,8 @@ function dupChecks(){return Array.prototype.slice.call(document.querySelectorAll
 function updateDupSelCount(){
   var n=dupChecks().filter(function(c){return c.checked;}).length;
   var el=document.getElementById('dupCount');if(el)el.textContent=n+' selected';
-  var b=document.getElementById('dupDelBtn');if(b)b.disabled=!n;
+  var b=document.getElementById('dupDelBtn');
+  if(b){b.disabled=!n;b.textContent=n?('Delete '+n+' trip'+(n!==1?'s':'')):'Delete selected';}
 }
 function dupSelectExtras(){
   var seen={};
@@ -3879,13 +3880,13 @@ function deleteDupSelection(){
   trips=trips.filter(function(t){return !ids[String(t.id)];});
   save();updateSidebar();renderH();renderHomeIfActive();
   closeDupReview();
+  doomed.forEach(function(t){deleteFromSupabase(t);}); // upstream now, not on a timer
   undoToast(doomed.length+' trips deleted',function(){
     trips=snapshot;
+    doomed.forEach(function(t){t.supaId=null;});
     save();updateSidebar();renderH();renderHomeIfActive();
-    doomed.forEach(function(t){if(!t.supaId&&currentUser)saveToSupabase(t);});
+    if(currentUser)doomed.forEach(function(t){saveToSupabase(t);});
     toast('Restored ✓');
-  },function(){
-    doomed.forEach(function(t){deleteFromSupabase(t);});
   });
 }
 window.openDupReview=openDupReview;
