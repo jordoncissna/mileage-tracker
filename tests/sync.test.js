@@ -184,6 +184,13 @@ const trip = o => Object.assign({ id: Date.now() + Math.random(), date: '2026-08
   T('exact repeats are labelled as such', $('dupBody').innerHTML.indexOf('exact repeat') >= 0);
   T('variants are labelled as differing', $('dupBody').innerHTML.indexOf('differs') >= 0);
   T('the kept row is marked', $('dupBody').innerHTML.indexOf('>keep<') >= 0);
+  T('duplicate modal escapes user HTML', (function(){
+    var t = window.__trips();
+    t[0].purpose = '<img src=x onerror="boom()">';
+    window.openDupReview();
+    var h = $('dupBody').innerHTML;
+    return h.indexOf('&lt;img') >= 0 && h.indexOf('<img src=x') < 0;
+  })());
 
   window.dupSelectExtras();
   T('select-extras keeps one per group', cks().filter(c => c.checked).length === 3);

@@ -302,6 +302,70 @@ async function fillLog(page, o) {
   await page.waitForTimeout(900);
   await page.evaluate(() => window.closeLogOverlay());
 
+  // ── offline save → reconnect → exactly one server row, and refreshes don't clone it
+  await ctx.setOffline(true);
+  await page.evaluate(() => window.dispatchEvent(new Event('offline')));
+  await page.evaluate(() => window.openLogOverlay()); await settle(page);
+  await fillLog(page, { date: '2026-05-05', miles: 12.5, purpose: 'offline trip', to: '5 Offline Rd' });
+  await page.evaluate(() => window.addTrip()); await settle(page);
+  R('offline save lands in the ledger', await page.evaluate(() => window.__qaTrips().some(t => t.purpose === 'offline trip')));
+  await ctx.setOffline(false);
+  await page.evaluate(() => window.dispatchEvent(new Event('online')));
+  await page.waitForTimeout(1200);
+  R('reconnect syncs the offline trip exactly once', await page.evaluate(() =>
+    JSON.parse(localStorage.getItem('qa_srv') || '[]').filter(r => r.purpose === 'offline trip').length === 1));
+  await page.evaluate(() => { window.loadFromSupabase(); window.loadFromSupabase(); });
+  await page.waitForTimeout(1200);
+  R('later refreshes do not clone the offline trip', await page.evaluate(() =>
+    window.__qaTrips().filter(t => t.purpose === 'offline trip').length === 1));
+
+  // ── undo after a delete restores exactly one row, and it stays one after a reload
+  const preUndo = await tripCount(page);
+  await page.evaluate(() => window.del(window.__qaTrips().find(t => t.purpose === 'offline trip').id));
+  await page.waitForTimeout(200);
+  await page.evaluate(() => document.getElementById('undoToastBtn').click());
+  await page.waitForTimeout(700);
+  R('undo restores the deleted trip', await tripCount(page) === preUndo);
+  await page.reload({ waitUntil: 'domcontentloaded' }); await page.waitForTimeout(1500);
+  await page.evaluate(() => { window.__qaTrips = () => JSON.parse(localStorage.getItem('ml3_trips') || '[]'); ['authOverlay','onboardOverlay'].forEach(i=>{const e=document.getElementById(i);if(e){e.style.display='none';e.classList.remove('active');}}); if(window.initGoogleMaps)window.initGoogleMaps(); });
+  await page.waitForTimeout(1600);
+  R('an undone delete is not duplicated by the reload', await page.evaluate(() =>
+    window.__qaTrips().filter(t => t.purpose === 'offline trip').length === 1),
+    await page.evaluate(() => window.__qaTrips().filter(t => t.purpose === 'offline trip').length));
+
+  // ── Export CSV must export what the ledger is showing, not the whole year
+  await page.evaluate(() => window.switchNav('hist', document.getElementById('nav-hist'))); await settle(page);
+  await page.evaluate(() => {
+    URL.createObjectURL = function (b) { window.__blob = b; return 'blob:qa'; };
+    URL.revokeObjectURL = function () { };
+    HTMLAnchorElement.prototype.click = function () { window.__dl = this.download; };
+  });
+  await page.selectOption('#fCat', 'Client Meeting'); await settle(page);
+  const shown = await rowsOnScreen(page);
+  await page.evaluate(() => window.doExport()); await page.waitForTimeout(300);
+  const csv = await page.evaluate(async () => window.__blob ? await window.__blob.text() : '');
+  R('CSV exports exactly the filtered ledger', csv && csv.trim().split('\n').length - 1 === shown,
+    'on screen=' + shown + ' in csv=' + (csv ? csv.trim().split('\n').length - 1 : 'none'));
+  R('CSV has no dead Commute column', csv.indexOf('Commute') < 0);
+  await page.selectOption('#fCat', ''); await settle(page);
+
+  // ── the log overlay must be closable without a keyboard (phones have no Esc)
+  await page.evaluate(() => window.openLogOverlay()); await settle(page);
+  const xHit = await page.evaluate(() => {
+    const b = document.getElementById('logCloseBtn'); if (!b) return 'missing';
+    const r = b.getBoundingClientRect();
+    const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    return (b === hit || b.contains(hit)) ? 'ok' : 'covered';
+  });
+  R('log overlay has a reachable close button', xHit === 'ok', xHit);
+  await page.click('#logCloseBtn'); await settle(page);
+  R('close button actually closes it', await page.evaluate(() => document.getElementById('logOverlay').style.display === 'none'));
+
+  // ── tax report carries no commute line item
+  let taxHtml = '';
+  try { taxHtml = await page.evaluate(() => window.buildTaxReportHTML ? window.buildTaxReportHTML(2026) : ''); } catch (e) {}
+  R('tax report has no commute row', taxHtml === '' || taxHtml.indexOf('Commute miles') < 0, taxHtml ? 'built' : 'not exposed');
+
   // ── no commute anywhere
   await page.evaluate(() => window.switchNav('hist', document.getElementById('nav-hist'))); await settle(page);
   R('no commute flags in the ledger', await page.evaluate(() => !/commute/i.test(document.getElementById('htable').textContent)));
