@@ -79,6 +79,9 @@ Rules for browser checks:
   `.click()` on the node hides.
 - Do the whole user flow, including the boring parts: open, type, save, close,
   **reload**, look again.
+- Do the destructive parts at human speed, which is *fast*. Never insert a wait
+  that a person would not take — a sleep placed before a reload can hide the
+  exact race the owner is hitting.
 - Count what's on screen and compare it to what should be there.
 - Google Maps tiles do not load in this sandbox (`maps.googleapis.com` is
   reset at the proxy). Anything depending on live tiles is **unverifiable
@@ -112,7 +115,11 @@ things that have broken before, in the ways they broke:
 - [ ] Save the same route on the same date twice → the duplicate confirm fires.
 - [ ] Edit a saved trip → the values change, survive a reload, and the trip
       count does **not** grow.
-- [ ] Delete a trip → it stays deleted after a reload (server row gone too).
+- [ ] Delete a trip, then reload **immediately** — no waiting for the undo
+      window. It must stay deleted, and the server row must be gone. Giving the
+      undo timer time to lapse first is how a deferred server delete passed QA
+      while the owner watched rows come back after a refresh.
+- [ ] Bulk-clean duplicates, then reload immediately — same rule.
 - [ ] Two overlapping `loadFromSupabase()` calls → **one** insert.
 - [ ] No trip anywhere shows a Commute flag; no commute rows in the tax report.
 - [ ] Typing both addresses draws the route on the log map; the saved trip is

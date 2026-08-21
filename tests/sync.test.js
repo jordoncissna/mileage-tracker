@@ -173,13 +173,17 @@ const trip = o => Object.assign({ id: Date.now() + Math.random(), date: '2026-08
   T('modal opens', $('dupModal').style.display === 'flex');
   const cks = () => Array.prototype.slice.call(document.querySelectorAll('#dupBody .dup-ck'));
   T('every duplicate row is listed', cks().length === 5);
-  T('exact duplicates preselected', cks().filter(c => c.checked).length === 1);
-  T('selection count rendered', ($('dupCount').textContent || '').indexOf('1 selected') >= 0);
+  // every extra is preselected — the top row of each group is the keeper
+  T('all extras preselected', cks().filter(c => c.checked).length === 3);
+  T('one keeper survives per group', cks().filter(c => !c.checked).length === 2);
+  T('selection count rendered', ($('dupCount').textContent || '').indexOf('3 selected') >= 0);
+  T('delete button says what it will do', ($('dupDelBtn').textContent || '').indexOf('Delete 3 trips') >= 0);
 
   // a mixed group (two identical rows + a different-miles variant) preselects
   // only the byte-identical repeat — the variant might be a real second trip
-  const mixed = cks().filter(c => c.closest('label').textContent.indexOf('162.3') < 0);
-  T('mixed group preselects only exact repeats', cks().filter(c => c.checked).every(c => mixed.indexOf(c) >= 0));
+  T('exact repeats are labelled as such', $('dupBody').innerHTML.indexOf('exact repeat') >= 0);
+  T('variants are labelled as differing', $('dupBody').innerHTML.indexOf('differs') >= 0);
+  T('the kept row is marked', $('dupBody').innerHTML.indexOf('>keep<') >= 0);
 
   window.dupSelectExtras();
   T('select-extras keeps one per group', cks().filter(c => c.checked).length === 3);
@@ -211,8 +215,18 @@ const trip = o => Object.assign({ id: Date.now() + Math.random(), date: '2026-08
   window.openDupReview();
   window.dupSelectExtras();
   window.deleteDupSelection();
-  await wait(6600); // let the undo window lapse so the server delete commits
-  T('server delete runs once the undo window lapses', server.deletes === 1);
+  await wait(50);
+  T('server delete commits immediately, not after the undo window', server.deletes === 1);
+  T('server row is gone right away', server.rows.length === 1);
+
+  // a single-row delete must commit upstream immediately too: closing the tab
+  // inside the old 6s window left the row on the server, and it came back
+  reset();
+  server.rows.push({ id: 'srv-solo' });
+  window.__setTrips([trip({ id: 40, date: '2026-08-15', supaId: 'srv-solo' })]);
+  window.del(40);
+  await wait(50);
+  T('single delete commits upstream immediately', server.deletes === 1 && server.rows.length === 0);
 
   console.log(`sync.test.js: ${pass} passed${fail ? ', ' + fail + ' failed' : ''}`);
   process.exit(fail ? 1 : 0);

@@ -194,11 +194,15 @@ async function fillLog(page, o) {
   const afterReload = await tripCount(page);
 
   // ── delete stays deleted through a reload (server row gone, not just local)
+  // Delete and reload IMMEDIATELY — the way a person does it. Waiting for the
+  // undo window to lapse first is what let a deferred server delete pass QA
+  // while the owner watched rows come back after a refresh.
   const doomed = await page.evaluate(() => window.__qaTrips().find(t => t.purpose === 'edited').id);
-  await page.evaluate(id => window.del(id), doomed); await page.waitForTimeout(7000); // let the undo window lapse
+  await page.evaluate(id => window.del(id), doomed); await page.waitForTimeout(150);
   await page.reload({ waitUntil: 'domcontentloaded' }); await page.waitForTimeout(1400);
   await page.evaluate(() => { window.__qaTrips = () => JSON.parse(localStorage.getItem('ml3_trips') || '[]'); ['authOverlay','onboardOverlay'].forEach(i=>{const e=document.getElementById(i);if(e){e.style.display='none';e.classList.remove('active');}}); });
-  R('delete survives a reload', await page.evaluate(() => !window.__qaTrips().some(t => t.purpose === 'edited')));
+  R('delete survives an immediate reload', await page.evaluate(() => !window.__qaTrips().some(t => t.purpose === 'edited')));
+  R('deleted row is gone from the server too', await page.evaluate(() => !JSON.parse(localStorage.getItem('qa_srv') || '[]').some(r => r.purpose === 'edited')));
   R('reload does not multiply trips', await tripCount(page) === afterReload - 1, 'before=' + afterReload + ' after=' + await tripCount(page));
 
   // ── repeated sign-in refreshes never duplicate rows
@@ -224,20 +228,19 @@ async function fillLog(page, o) {
   }));
   await page.click('#dupBtn'); await settle(page);
   R('review modal lists the group', await page.evaluate(() => document.querySelectorAll('#dupBody .dup-ck').length === 3));
-  R('byte-identical extra preselected, variant left alone', await page.evaluate(() => {
+  R('every extra preselected, one keeper per group', await page.evaluate(() => {
     const cks = Array.from(document.querySelectorAll('#dupBody .dup-ck'));
-    const milesOf = c => c.closest('label').textContent.match(/([\d.]+) mi/)[1];
-    const checked = cks.filter(c => c.checked);
-    // the repeat of the 81.2 row is checked; the 162.4 variant is left for the owner
-    return checked.length === 1 && milesOf(checked[0]) === '81.2';
+    return cks.filter(c => c.checked).length === 2 && cks.filter(c => !c.checked).length === 1;
   }));
   const beforeClean = await tripCount(page);
-  await page.click('text=Select all but the first in each group'); await settle(page);
-  await page.click('#dupDelBtn'); await page.waitForTimeout(7500);
+
+  await page.click('#dupDelBtn'); await page.waitForTimeout(300);
   R('cleanup removes exactly the extras', await tripCount(page) === beforeClean - 2, 'before=' + beforeClean + ' after=' + await tripCount(page));
   await page.reload({ waitUntil: 'domcontentloaded' }); await page.waitForTimeout(1400);
   await page.evaluate(() => { window.__qaTrips = () => JSON.parse(localStorage.getItem('ml3_trips') || '[]'); ['authOverlay','onboardOverlay'].forEach(i=>{const e=document.getElementById(i);if(e){e.style.display='none';e.classList.remove('active');}}); });
-  R('cleanup survives a reload', await tripCount(page) === beforeClean - 2);
+  R('cleanup survives an immediate reload', await tripCount(page) === beforeClean - 2);
+  R('cleaned rows are gone from the server', await page.evaluate(() =>
+    JSON.parse(localStorage.getItem('qa_srv') || '[]').filter(r => /^dupe/.test(r.purpose || '')).length === 1));
 
   // ── the trip always shows on the map: typing addresses draws it, saving keeps it
   await page.evaluate(() => { window.__map.markers = []; window.__map.directions = 0; window.__map.polylines = 0; window.__map.lastReq = null; });
