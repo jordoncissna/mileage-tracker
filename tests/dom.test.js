@@ -121,8 +121,12 @@ T('single save button', [...document.querySelectorAll('#view-set button')].filte
 T('year filter defaults to current year', $('aYear').value === String(new Date().getFullYear()));
 
 // ===== WELCOME TOUR =====
-T('8 onboarding screens', document.querySelectorAll('.onboard-screen').length === 8);
-T('8 progress dots', document.querySelectorAll('#onboardDots .onboard-dot').length === 8);
+// 7 since the daily-commute screen was removed with the commute concept
+T('7 onboarding screens', document.querySelectorAll('.onboard-screen').length === 7);
+T('7 progress dots', document.querySelectorAll('#onboardDots .onboard-dot').length === 7);
+T('dots match screens', document.querySelectorAll('#onboardDots .onboard-dot').length === document.querySelectorAll('.onboard-screen').length);
+T('screens are numbered 1..7 with no gap', Array.from(document.querySelectorAll('.onboard-screen')).map(s => s.getAttribute('data-screen')).join(',') === '1,2,3,4,5,6,7');
+T('onboarding never asks about a commute', !/onbCommute|daily commute/i.test(html));
 T('no fake location-permission screen', html.indexOf('Allow "Milo" to use') < 0);
 T('no fake notification screen', html.indexOf('Send You Notifications') < 0);
 T('install screen present', html.indexOf('Put Milo on your phone') >= 0);

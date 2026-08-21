@@ -48,6 +48,10 @@ Live: https://jordoncissna.github.io/mileage-tracker
 fromLatLng, toLatLng, supaId, isCommute? }`. Note `isCommute` (manual override)
 is **local only** — it is not persisted to Supabase yet.
 
+**CSV export** carries Date, From, To, Purpose, Category, Miles, Rate,
+Deductible Value, Vehicle — no Commute column, and it exports the *filtered*
+ledger, not the whole year.
+
 **Categories:** Office Visit, Blockchain Work, Team Meeting, Client Meeting,
 Business Errand, Conference / Event, Bank / Finance, Office Supplies, Other
 Business, Personal (Non-deductible).
@@ -83,6 +87,8 @@ trip; in multi-stop batches the return distance folds into the last leg.
 - `addTrip()` — create a trip from the entry form (builds `from`/`to` from the
   visible street/city/state fields via `buildAddr()`).
 - `clearF()` — reset the entry form.
+- `filteredTrips()` — the year/month/category slice the ledger is showing;
+  `renderH()` and `doExport()` both use it so Export CSV matches the screen.
 - `renderH()` — render the history table.
 - `renderAnalytics()` — render hero stats, the SVG period chart, category bars.
 - `suggestFor()` / `ruleMatches()` — auto-classify rules engine (suggest-and-confirm).
