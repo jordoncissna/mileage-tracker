@@ -51,17 +51,32 @@ const INIT = `
   })();
   window.__map = { directions: 0, markers: [], polylines: 0, fits: 0, lastReq: null, routeStatus: 'OK', log: [] };
   window.google = { maps: {
-    places:{ Autocomplete:function(){ return { addListener(){}, getPlace(){ return {}; } }; }, AutocompleteService:function(){ this.getPlacePredictions=function(req,cb){
+    places:{ Autocomplete:function(){ return { addListener(){}, getPlace(){ return {}; } }; }, PlacesService:function(){ this.getDetails=function(req,cb){
+      setTimeout(function(){
+        if(req.placeId!=='p3')return cb(null,'NOT_FOUND');
+        cb({ name:"Chili's Grill & Bar",
+             address_components:[
+               {types:['street_number'],long_name:'1550',short_name:'1550'},
+               {types:['route'],long_name:'N Main St',short_name:'N Main St'},
+               {types:['locality'],long_name:'Layton',short_name:'Layton'},
+               {types:['administrative_area_level_1'],long_name:'Utah',short_name:'UT'}
+             ],
+             geometry:{ location:{ lat:function(){return 41.07;}, lng:function(){return -111.97;} } } }, 'OK');
+      }, 12);
+    }; },
+    AutocompleteService:function(){ this.getPlacePredictions=function(req,cb){
       window.__map.acReq = req && req.input;
       setTimeout(function(){
         if(window.__map.acStatus && window.__map.acStatus !== 'OK') return cb(null, window.__map.acStatus);
         cb([
-          { description:'900 Convention Center Dr, Salt Lake City, UT, USA', structured_formatting:{ main_text:'900 Convention Center Dr', secondary_text:'Salt Lake City, UT, USA' } },
-          { description:'910 Convention Center Dr, Provo, UT, USA', structured_formatting:{ main_text:'910 Convention Center Dr', secondary_text:'Provo, UT, USA' } },
-          { description:'<img src=x onerror="window.__acPwned=1">', structured_formatting:{ main_text:'<img src=x onerror="window.__acPwned=1">', secondary_text:'Nowhere, UT, USA' } }
+          { place_id:'p1', types:['street_address'], description:'900 Convention Center Dr, Salt Lake City, UT, USA', structured_formatting:{ main_text:'900 Convention Center Dr', secondary_text:'Salt Lake City, UT, USA' } },
+          { place_id:'p2', types:['street_address'], description:'910 Convention Center Dr, Provo, UT, USA', structured_formatting:{ main_text:'910 Convention Center Dr', secondary_text:'Provo, UT, USA' } },
+          { place_id:'p3', types:['establishment','restaurant'], description:"Chili's Grill & Bar, 1550 N Main St, Layton, UT, USA", structured_formatting:{ main_text:"Chili's Grill & Bar", secondary_text:'1550 N Main St, Layton, UT, USA' } },
+          { place_id:'p4', types:['establishment'], description:'<img src=x onerror="window.__acPwned=1">', structured_formatting:{ main_text:'<img src=x onerror="window.__acPwned=1">', secondary_text:'Nowhere, UT, USA' } }
         ], 'OK');
       }, 15);
     }; } },
+    places_details_stub: true,
     Geocoder:function(){ this.geocode=function(req,cb){ setTimeout(function(){ cb([{ geometry:{ location:{ lat:function(){return 40.9;}, lng:function(){return -111.9;} } } }],'OK'); },5); }; },
     Map:function(){ this.addListener=function(){}; this.getCenter=function(){ return {lat:function(){return 41;},lng:function(){return -112;}}; }; this.getZoom=function(){return 10;}; this.setOptions=function(){}; this.setCenter=function(){}; this.fitBounds=function(){ window.__map.fits++; }; },
     Marker:function(o){ var l=(o&&o.label&&o.label.text)||'dot'; window.__map.markers.push(l); window.__map.log.push('marker '+l); this.setMap=function(m){ if(!m){ window.__map.markers.pop(); window.__map.log.push('marker cleared'); } }; },
@@ -348,6 +363,45 @@ async function fillLog(page, o) {
     window.__qaTrips().filter(t => t.purpose === 'offline trip').length === 1),
     await page.evaluate(() => window.__qaTrips().filter(t => t.purpose === 'offline trip').length));
 
+  // ── Calculate distance: the result must be readable, and Miles must fill in
+  await page.evaluate(() => window.openLogOverlay()); await settle(page);
+  await fillLog(page, { date: '2026-06-20', miles: '', purpose: 'calc check', to: '77 Calc Rd' });
+  await page.click('#calcBtn');
+  await page.waitForFunction(() => document.getElementById('distBox').classList.contains('show'), null, { timeout: 6000 }).catch(() => {});
+  const calc = await ask(page, () => {
+    const b = document.getElementById('distBox'), r = b.getBoundingClientRect();
+    return { h: Math.round(r.height), one: document.getElementById('distMi1').textContent,
+             round: document.getElementById('distMi2').textContent,
+             miles: document.getElementById('tMiles').value,
+             ded: (document.getElementById('logDed') || {}).textContent };
+  }, {});
+  R('distance result is actually readable, not a sliver', calc.h > 40, 'height=' + calc.h + 'px');
+  R('both one-way and round-trip figures shown', /\d/.test(calc.one || '') && /\d/.test(calc.round || ''), calc.one + ' / ' + calc.round);
+  R('Calculate fills the Miles field', parseFloat(calc.miles) > 0, 'miles=' + calc.miles);
+  R('deductible readout follows the calculated miles', /\$\d/.test(calc.ded || '') && calc.ded !== '$0.00', calc.ded);
+
+  // with round trip ticked, the round figure is the one that lands
+  await page.evaluate(() => { document.getElementById('tMiles').value = ''; document.getElementById('tRound').checked = true; });
+  await page.click('#calcBtn');
+  await page.waitForTimeout(700);
+  const rtMiles = await ask(page, () => ({ m: document.getElementById('tMiles').value,
+                                           r: document.getElementById('distMi2').textContent }), {});
+  R('round trip ticked → Miles gets the round figure', parseFloat(rtMiles.m) === parseFloat(rtMiles.r), rtMiles.m + ' vs ' + rtMiles.r);
+
+  // "Use →" still switches between the two
+  await page.click('#distBox .dist-opt:first-child .dist-use').catch(() => {});
+  await page.waitForTimeout(300);
+  R('Use → sets the one-way figure', await ask(page, () =>
+    parseFloat(document.getElementById('tMiles').value) === parseFloat(document.getElementById('distMi1').textContent), false));
+
+  // nothing else in the overlay is squeezed to nothing by the scrolling column
+  const squeezed = await ask(page, () => Array.from(document.querySelectorAll('.log-body > *'))
+    .filter(el => el.textContent.trim() && getComputedStyle(el).display !== 'none' && el.getBoundingClientRect().height < 8)
+    .map(el => el.id || el.className).slice(0, 4), ['threw']);
+  R('no overlay section is collapsed by the flex column', squeezed.length === 0, squeezed.join(','));
+  await page.evaluate(() => { document.getElementById('tRound').checked = false; window.closeLogOverlay(); });
+  await settle(page);
+
   // ── ADDRESS SUGGESTIONS: type a destination, click a result
   await page.evaluate(() => window.openLogOverlay()); await settle(page);
   await page.fill('#tToStreet', 'Co').catch(() => {});
@@ -406,6 +460,45 @@ async function fillLog(page, o) {
   await page.evaluate(() => window.closeLogOverlay()); await settle(page);
   R('closing the overlay leaves no dropdown behind', await ask(page, () =>
     (document.getElementById('acTo')||{style:{}}).style.display === 'none' && (document.getElementById('acFrom')||{style:{}}).style.display === 'none'));
+
+  // ── a place by NAME (restaurant, office building) must be findable
+  await page.evaluate(() => window.openLogOverlay()); await settle(page);
+  await page.fill('#tToStreet', "Chili's").catch(() => {});
+  await page.waitForFunction(() => document.querySelectorAll('#acTo .ac-row').length > 0, null, { timeout: 5000 }).catch(() => {});
+  R('a named place appears in the suggestions', await ask(page, () =>
+    /Chili/.test(document.getElementById('acTo').textContent), false),
+    await ask(page, () => (document.getElementById('acTo') || {}).textContent, ''));
+  R('the place row shows its street underneath', await ask(page, () =>
+    /1550 N Main St/.test(document.getElementById('acTo').textContent), false));
+  R('Places is asked without a type filter', await ask(page, () => !window.__map.acTypes, true));
+
+  const bizIdx = await ask(page, () => Array.from(document.querySelectorAll('#acTo .ac-row'))
+    .findIndex(r => /Chili/.test(r.textContent)), -1);
+  await page.click('#acTo .ac-row:nth-child(' + (bizIdx + 1) + ')').catch(() => {});
+  await page.waitForTimeout(700);
+  const biz = await ask(page, () => ({
+    street: document.getElementById('tToStreet').value,
+    city: document.getElementById('tToCity').value,
+    state: document.getElementById('tToState').value
+  }), {});
+  R('picking a place fills its street address, not its name', biz.street === '1550 N Main St', JSON.stringify(biz));
+  R('picking a place fills city and state', biz.city === 'Layton' && biz.state === 'UT', JSON.stringify(biz));
+  R('the place is geocoded into the address cache', await ask(page, () => {
+    const g = JSON.parse(localStorage.getItem('ml3_geo') || '{}');
+    return Object.keys(g).some(k => /1550 n main st/.test(k) && Array.isArray(g[k]));
+  }, false));
+
+  // a dead lookup must SAY it is dead, not look like a missing feature
+  await page.evaluate(() => { window.__map.acStatus = 'REQUEST_DENIED'; });
+  await page.fill('#tToStreet', 'Traverse Parkway').catch(() => {});
+  await page.waitForFunction(() => (document.getElementById('acTo') || {}).textContent &&
+    /unavailable/i.test(document.getElementById('acTo').textContent), null, { timeout: 5000 }).catch(() => {});
+  R('a failed lookup explains itself in the UI', await ask(page, () =>
+    /unavailable \(REQUEST_DENIED\)/.test(document.getElementById('acTo').textContent), false),
+    await ask(page, () => (document.getElementById('acTo') || {}).textContent, ''));
+  R('the failing status is readable for diagnosis', await ask(page, () => window.acStatus() === 'REQUEST_DENIED', false));
+  await page.evaluate(() => { window.__map.acStatus = 'OK'; });
+  await page.evaluate(() => window.closeLogOverlay()); await settle(page);
 
   // ── Export CSV must export what the ledger is showing, not the whole year
   await page.evaluate(() => window.switchNav('hist', document.getElementById('nav-hist'))); await settle(page);
