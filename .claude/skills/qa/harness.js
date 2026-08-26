@@ -51,7 +51,17 @@ const INIT = `
   })();
   window.__map = { directions: 0, markers: [], polylines: 0, fits: 0, lastReq: null, routeStatus: 'OK', log: [] };
   window.google = { maps: {
-    places:{ Autocomplete:function(){ return { addListener(){}, getPlace(){ return {}; } }; }, AutocompleteService:function(){ this.getPlacePredictions=function(){}; } },
+    places:{ Autocomplete:function(){ return { addListener(){}, getPlace(){ return {}; } }; }, AutocompleteService:function(){ this.getPlacePredictions=function(req,cb){
+      window.__map.acReq = req && req.input;
+      setTimeout(function(){
+        if(window.__map.acStatus && window.__map.acStatus !== 'OK') return cb(null, window.__map.acStatus);
+        cb([
+          { description:'900 Convention Center Dr, Salt Lake City, UT, USA', structured_formatting:{ main_text:'900 Convention Center Dr', secondary_text:'Salt Lake City, UT, USA' } },
+          { description:'910 Convention Center Dr, Provo, UT, USA', structured_formatting:{ main_text:'910 Convention Center Dr', secondary_text:'Provo, UT, USA' } },
+          { description:'<img src=x onerror="window.__acPwned=1">', structured_formatting:{ main_text:'<img src=x onerror="window.__acPwned=1">', secondary_text:'Nowhere, UT, USA' } }
+        ], 'OK');
+      }, 15);
+    }; } },
     Geocoder:function(){ this.geocode=function(req,cb){ setTimeout(function(){ cb([{ geometry:{ location:{ lat:function(){return 40.9;}, lng:function(){return -111.9;} } } }],'OK'); },5); }; },
     Map:function(){ this.addListener=function(){}; this.getCenter=function(){ return {lat:function(){return 41;},lng:function(){return -112;}}; }; this.getZoom=function(){return 10;}; this.setOptions=function(){}; this.setCenter=function(){}; this.fitBounds=function(){ window.__map.fits++; }; },
     Marker:function(o){ var l=(o&&o.label&&o.label.text)||'dot'; window.__map.markers.push(l); window.__map.log.push('marker '+l); this.setMap=function(m){ if(!m){ window.__map.markers.pop(); window.__map.log.push('marker cleared'); } }; },
@@ -81,6 +91,11 @@ async function mapSettled(page, ms = 8000) {
     return true;
   } catch (e) { return false; }
 }
+// A check whose element is missing must report FAIL, not throw and abort the
+// whole run — one absent node used to hide every check after it.
+const ask = async (page, fn, fallback = null) => {
+  try { return await page.evaluate(fn); } catch (e) { return fallback; }
+};
 const tripCount = p => p.evaluate(() => window.__qaTrips().length);
 const rowsOnScreen = p => p.evaluate(() => document.querySelectorAll('#htable tbody tr:not(.month-row)').length);
 
@@ -333,6 +348,65 @@ async function fillLog(page, o) {
     window.__qaTrips().filter(t => t.purpose === 'offline trip').length === 1),
     await page.evaluate(() => window.__qaTrips().filter(t => t.purpose === 'offline trip').length));
 
+  // ── ADDRESS SUGGESTIONS: type a destination, click a result
+  await page.evaluate(() => window.openLogOverlay()); await settle(page);
+  await page.fill('#tToStreet', 'Co').catch(() => {});
+  await page.waitForTimeout(500);
+  R('no dropdown for a 2-character scrap', await ask(page, () =>
+    (document.getElementById('acTo')||{style:{}}).style.display === 'none'));
+  await page.fill('#tToStreet', '900 Convention').catch(() => {});
+  await page.waitForFunction(() => document.querySelectorAll('#acTo .ac-row').length > 0, null, { timeout: 5000 }).catch(() => {});
+  const rows = await ask(page, () => document.querySelectorAll('#acTo .ac-row').length);
+  R('typing a destination offers options', rows > 0, 'rows=' + rows);
+  R('the query reached Places', await ask(page, () => /900 Convention/.test(window.__map.acReq || '')));
+  R('suggestion text is escaped, not executed', await ask(page, () => !window.__acPwned &&
+    (document.getElementById('acTo')||{}).innerHTML || ''.indexOf('<img src=x') < 0));
+
+  // clicking one fills the address fields
+  await page.click('#acTo .ac-row:first-child').catch(() => {});
+  await page.waitForTimeout(500);
+  const filled = await ask(page, () => ({
+    street: (document.getElementById('tToStreet') || {}).value,
+    city: (document.getElementById('tToCity') || {}).value,
+    state: (document.getElementById('tToState') || {}).value,
+    full: (document.getElementById('tTo') || {}).value,
+    open: (document.getElementById('acTo') || {}).style && document.getElementById('acTo').style.display
+  }), {});
+  R('clicking a suggestion fills street/city/state', /Convention Center/.test(filled.street) && !!filled.city && /^[A-Z]{2}$/.test(filled.state), JSON.stringify(filled));
+  R('the hidden address is rebuilt from the pick', /Convention Center/.test(filled.full) && filled.full.split(',').length >= 3, filled.full);
+  R('the dropdown closes after picking', filled.open === 'none');
+
+  // keyboard: arrow down + Enter picks the second one
+  await page.fill('#tToStreet', '900 Convention').catch(() => {});
+  await page.waitForFunction(() => document.querySelectorAll('#acTo .ac-row').length > 1, null, { timeout: 5000 }).catch(() => {});
+  await page.press('#tToStreet', 'ArrowDown').catch(() => {});
+  await page.press('#tToStreet', 'Enter').catch(() => {});
+  await page.waitForTimeout(400);
+  R('keyboard picks a suggestion without saving the trip', await ask(page, () =>
+    /910 Convention|Convention Center/.test((document.getElementById('tToStreet')||{}).value || '') &&
+    document.getElementById('logOverlay').style.display === 'flex'));
+
+  // Escape closes the list, not the overlay
+  await page.fill('#tToStreet', '900 Convention').catch(() => {});
+  await page.waitForFunction(() => document.querySelectorAll('#acTo .ac-row').length > 0, null, { timeout: 5000 }).catch(() => {});
+  await page.press('#tToStreet', 'Escape').catch(() => {});
+  await page.waitForTimeout(300);
+  R('Escape closes the list but keeps the overlay open', await ask(page, () =>
+    (document.getElementById('acTo')||{style:{}}).style.display === 'none' &&
+    document.getElementById('logOverlay').style.display === 'flex'));
+
+  // Places unreachable → previously driven addresses still offered
+  await page.evaluate(() => { window.__map.acStatus = 'ZERO_RESULTS'; });
+  await page.fill('#tToStreet', '456 Business').catch(() => {});
+  await page.waitForTimeout(700);
+  R('saved routes still suggested when Places is unavailable', await ask(page, () =>
+    document.querySelectorAll('#acTo .ac-row').length > 0),
+    await ask(page, () => (document.getElementById('acTo')||{}).innerHTML || ''.slice(0, 80)));
+  await page.evaluate(() => { window.__map.acStatus = 'OK'; });
+  await page.evaluate(() => window.closeLogOverlay()); await settle(page);
+  R('closing the overlay leaves no dropdown behind', await ask(page, () =>
+    (document.getElementById('acTo')||{style:{}}).style.display === 'none' && (document.getElementById('acFrom')||{style:{}}).style.display === 'none'));
+
   // ── Export CSV must export what the ledger is showing, not the whole year
   await page.evaluate(() => window.switchNav('hist', document.getElementById('nav-hist'))); await settle(page);
   await page.evaluate(() => {
@@ -383,6 +457,22 @@ async function fillLog(page, o) {
     const over = await mob.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     R(`390px: ${v} does not scroll sideways`, over <= 1, 'overflow=' + over + 'px');
   }
+  // the suggestion list must be usable on a phone, not clipped by the card
+  await mob.evaluate(() => window.openLogOverlay()); await mob.waitForTimeout(600);
+  await mob.fill('#tToStreet', '900 Convention').catch(() => {});
+  await mob.waitForFunction(() => document.querySelectorAll('#acTo .ac-row').length > 0, null, { timeout: 5000 }).catch(() => {});
+  const acFit = await ask(mob, () => {
+    const d = document.getElementById('acTo'); if (!d || d.style.display === 'none') return 'hidden';
+    const r = d.getBoundingClientRect();
+    if (r.width < 100) return 'too narrow: ' + Math.round(r.width);
+    if (r.top > innerHeight || r.bottom < 0) return 'offscreen';
+    const row = d.querySelector('.ac-row'); const rr = row.getBoundingClientRect();
+    const hit = document.elementFromPoint(rr.left + rr.width / 2, rr.top + rr.height / 2);
+    return (row === hit || row.contains(hit)) ? 'ok' : 'covered';
+  }, 'threw');
+  R('390px: suggestions are visible and tappable', acFit === 'ok', acFit);
+  await mob.evaluate(() => window.closeLogOverlay());
+
   R('390px: bottom nav present', await mob.evaluate(() => {
     const n = document.getElementById('mobileBottomNav');
     return !!n && getComputedStyle(n).display !== 'none';

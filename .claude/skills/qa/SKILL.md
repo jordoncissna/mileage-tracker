@@ -83,6 +83,9 @@ Rules for browser checks:
   that a person would not take — a sleep placed before a reload can hide the
   exact race the owner is hitting.
 - Count what's on screen and compare it to what should be there.
+- A check whose element is missing must FAIL, not throw — guard `evaluate`
+  (`ask()`) and `fill`/`click`/`press` with catches. An unguarded call aborts
+  the run and hides every check after it, which reads as "fewer failures".
 - Google Maps tiles do not load in this sandbox (`maps.googleapis.com` is
   reset at the proxy). Anything depending on live tiles is **unverifiable
   here** — say that in the report rather than implying you saw it.
@@ -122,6 +125,9 @@ things that have broken before, in the ways they broke:
 - [ ] Bulk-clean duplicates, then reload immediately — same rule.
 - [ ] Two overlapping `loadFromSupabase()` calls → **one** insert.
 - [ ] No trip anywhere shows a Commute flag; no commute rows in the tax report.
+- [ ] Typing 3+ characters into a Street field offers suggestions; clicking one
+      fills street/city/state; ↑/↓ + Enter picks without saving the trip; Esc
+      closes the list and not the overlay; suggestions are tappable at 390px.
 - [ ] Typing both addresses draws the route on the log map; the saved trip is
       still drawn after the overlay closes.
 - [ ] An unroutable pair still draws something (dashed straight line), never a
