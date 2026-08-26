@@ -91,6 +91,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
   .log-x{background:none;border:none;color:var(--text3);font-size:16px;line-height:1;padding:2px 4px;cursor:pointer;border-radius:6px;}
   .log-x:hover{color:var(--text);background:var(--surface2);}
   .log-body{padding:14px 20px;display:flex;flex-direction:column;gap:2px;overflow-y:auto;}
+  .log-body>*{flex-shrink:0;}
   .smart-wrap{position:relative;margin-bottom:10px;}
   .smart-glass{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:13px;pointer-events:none;}
   #smartRoute{width:100%;background:var(--surface);border:1px solid var(--accent);border-radius:9px;padding:11px 13px 11px 34px;font-size:13.5px;color:var(--text);box-shadow:0 0 0 3px var(--accent-glow);box-sizing:border-box;}
@@ -112,6 +113,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
   .ac-line1{font-size:12.5px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .ac-line2{font-size:10.5px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .ac-tag{font-size:9.5px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);white-space:nowrap;}
+  .ac-note{padding:9px 12px;font-size:11px;color:var(--text3);border-top:1px solid var(--border);}
   .dist-round{display:flex;justify-content:flex-end;margin:4px 0 6px;}
   .cat-chips{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 2px;}
   .cat-chip{font-size:11px;font-weight:500;padding:5px 11px;border-radius:20px;cursor:pointer;background:transparent;color:var(--text2);border:1px solid var(--border2);white-space:nowrap;}
@@ -248,6 +250,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
   .log-x{background:none;border:none;color:var(--text3);font-size:16px;line-height:1;padding:2px 4px;cursor:pointer;border-radius:6px;}
   .log-x:hover{color:var(--text);background:var(--surface2);}
   .log-body{padding:14px 20px;display:flex;flex-direction:column;gap:2px;overflow-y:auto;}
+  .log-body>*{flex-shrink:0;}
   .smart-wrap{position:relative;margin-bottom:10px;}
   .smart-glass{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:13px;pointer-events:none;}
   #smartRoute{width:100%;background:var(--surface);border:1px solid var(--accent);border-radius:9px;padding:11px 13px 11px 34px;font-size:13.5px;color:var(--text);box-shadow:0 0 0 3px var(--accent-glow);box-sizing:border-box;}
@@ -269,6 +272,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
   .ac-line1{font-size:12.5px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .ac-line2{font-size:10.5px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .ac-tag{font-size:9.5px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);white-space:nowrap;}
+  .ac-note{padding:9px 12px;font-size:11px;color:var(--text3);border-top:1px solid var(--border);}
   .dist-round{display:flex;justify-content:flex-end;margin:4px 0 6px;}
   .cat-chips{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 2px;}
   .cat-chip{font-size:11px;font-weight:500;padding:5px 11px;border-radius:20px;cursor:pointer;background:transparent;color:var(--text2);border:1px solid var(--border2);white-space:nowrap;}
@@ -3083,6 +3087,18 @@ window.previewLogRoute=previewLogRoute;
 // owner has already driven are always offered, so the field is useful even
 // when Places is unreachable (offline, quota, no key).
 var _acState={from:{sel:0,items:[],timer:null},to:{sel:0,items:[],timer:null}};
+var _acLastStatus='';   // last Places status, for diagnosing a dead lookup
+// A one-line explanation under the field, kept alongside any saved matches.
+function acNote(which,msg,keep){
+  var e=acEls(which),st=_acState[which];
+  if(!e.drop)return;
+  st.items=keep||[];st.sel=0;
+  var rows=st.items.length?e.drop.innerHTML:'';
+  acRender(which);
+  e.drop.innerHTML=(st.items.length?e.drop.innerHTML:'')+
+    "<div class='ac-note'>"+esc(msg)+"</div>";
+  e.drop.style.display='block';
+}
 function acEls(which){
   return {inp:document.getElementById(which==='from'?'tFromStreet':'tToStreet'),
           drop:document.getElementById(which==='from'?'acFrom':'acTo')};
@@ -3108,11 +3124,14 @@ function acRender(which){
   if(!e.drop)return;
   if(!st.items.length){e.drop.style.display='none';e.drop.innerHTML='';return;}
   e.drop.innerHTML=st.items.map(function(it,i){
-    var l2=[it.city,it.state].filter(Boolean).join(', ');
+    var line1=it.biz&&it.name?it.name:it.street;
+    var line2=it.biz&&it.name
+      ? [it.street,it.city,it.state].filter(Boolean).join(', ')
+      : [it.city,it.state].filter(Boolean).join(', ');
     return "<div class='ac-row"+(i===st.sel?' sel':'')+"' data-i='"+i+"' onmousedown=\"event.preventDefault();acPick('"+which+"',"+i+")\">"+
-      "<span class='ac-pin'>"+(it.saved?'↺':'📍')+"</span>"+
-      "<span class='ac-main'><span class='ac-line1'>"+esc(it.street)+"</span>"+
-      (l2?"<span class='ac-line2'>"+esc(l2)+"</span>":'')+"</span>"+
+      "<span class='ac-pin'>"+(it.saved?'↺':(it.biz?'🏢':'📍'))+"</span>"+
+      "<span class='ac-main'><span class='ac-line1'>"+esc(line1)+"</span>"+
+      (line2?"<span class='ac-line2'>"+esc(line2)+"</span>":'')+"</span>"+
       (it.saved?"<span class='ac-tag'>"+esc(it.label||'saved')+"</span>":'')+
     "</div>";
   }).join('');
@@ -3135,15 +3154,41 @@ function addrSuggest(which){
     if(!(googleReady&&window.google&&google.maps&&google.maps.places&&google.maps.places.AutocompleteService))return;
     try{
       new google.maps.places.AutocompleteService().getPlacePredictions(
-        {input:q,componentRestrictions:{country:'us'},types:['address']},
+        // No `types` filter: with one, Places returns street addresses only and
+        // a place by name ("Chili's Layton") finds nothing. Unfiltered gives
+        // both, which is what a business trip log actually needs.
+        {input:q,componentRestrictions:{country:'us'}},
         function(preds,status){
-          if(status!=='OK'||!preds||!preds.length)return; // keep the saved matches
+          _acLastStatus=status||'(none)';
+          if(status!=='OK'||!preds||!preds.length){
+            // Say what happened instead of showing an empty box that looks
+            // identical to a missing feature. REQUEST_DENIED means the Places
+            // API isn't enabled (or the key is restricted) for this site.
+            acNote(which,status==='ZERO_RESULTS'
+              ? 'No match yet — keep typing, or enter it by hand'
+              : 'Address lookup unavailable ('+(status||'no response')+') — type it in',saved);
+            return;
+          }
           var places=preds.slice(0,5).map(function(p){
             var sf=p.structured_formatting||{};
             var main=sf.main_text||(p.description||'').split(',')[0];
             var rest=(sf.secondary_text||(p.description||'').split(',').slice(1).join(',')||'')
                      .replace(/,\s*USA$/,'').split(',').map(function(x){return x.trim();}).filter(Boolean);
-            return {street:main,city:rest[0]||'',state:(rest[1]||'').slice(0,2).toUpperCase(),saved:false};
+            // A business prediction puts its NAME in main_text and the street in
+            // secondary_text; an address prediction puts the street in main_text.
+            var isBiz=(p.types||[]).indexOf('establishment')>=0;
+            var it={placeId:p.place_id||'',saved:false,biz:isBiz};
+            if(isBiz){
+              it.name=main;
+              it.street=rest[0]||main;      // refined by place details on pick
+              it.city=rest[1]||'';
+              it.state=(rest[2]||'').slice(0,2).toUpperCase();
+            }else{
+              it.street=main;
+              it.city=rest[0]||'';
+              it.state=(rest[1]||'').slice(0,2).toUpperCase();
+            }
+            return it;
           });
           // saved routes stay on top: they are the ones actually driven
           st.items=saved.concat(places).slice(0,8);st.sel=0;acRender(which);
@@ -3151,14 +3196,53 @@ function addrSuggest(which){
     }catch(err){}
   },220);
 }
+function acFill(which,parts){
+  var set=function(id,v){var el=document.getElementById(id);if(el&&v)el.value=v;};
+  var street=which==='from'?'tFromStreet':'tToStreet';
+  var el=document.getElementById(street);if(el)el.value=parts.street||'';
+  if(which==='from'){set('tFromCity',parts.city);set('tFromState',parts.state);}
+  else{set('tToCity',parts.city);set('tToState',parts.state);}
+  buildAddr();clearDist();previewLogRoute(0);
+}
+// Turn a Places address_components array into our three fields.
+function acComponents(comps){
+  var out={street:'',city:'',state:''},num='',route='';
+  (comps||[]).forEach(function(c){
+    var t=c.types||[];
+    if(t.indexOf('street_number')>=0)num=c.long_name;
+    else if(t.indexOf('route')>=0)route=c.long_name;
+    else if(t.indexOf('locality')>=0)out.city=c.long_name;
+    else if(!out.city&&t.indexOf('sublocality')>=0)out.city=c.long_name;
+    else if(!out.city&&t.indexOf('postal_town')>=0)out.city=c.long_name;
+    else if(t.indexOf('administrative_area_level_1')>=0)out.state=(c.short_name||'').slice(0,2).toUpperCase();
+  });
+  out.street=[num,route].filter(Boolean).join(' ');
+  return out;
+}
 function acPick(which,i){
   var st=_acState[which],it=st.items[i];
   if(!it)return;
-  var set=function(id,v){var el=document.getElementById(id);if(el)el.value=v||'';};
-  if(which==='from'){set('tFromStreet',it.street);if(it.city)set('tFromCity',it.city);if(it.state)set('tFromState',it.state);}
-  else{set('tToStreet',it.street);if(it.city)set('tToCity',it.city);if(it.state)set('tToState',it.state);}
   acClose(which);
-  buildAddr();clearDist();previewLogRoute(0);
+  acFill(which,it); // show the pick immediately; details refine it below
+  if(!it.placeId||!(googleReady&&window.google&&google.maps&&google.maps.places&&google.maps.places.PlacesService))return;
+  var typed=it.street;
+  try{
+    var svc=new google.maps.places.PlacesService(googleMap||document.createElement('div'));
+    svc.getDetails({placeId:it.placeId,fields:['address_components','geometry','name']},function(place,status){
+      if(status!=='OK'||!place)return;
+      var el=document.getElementById(which==='from'?'tFromStreet':'tToStreet');
+      if(!el||el.value!==typed)return; // the owner kept typing — leave them alone
+      var parts=acComponents(place.address_components);
+      if(!parts.street)return;         // no street number/route: keep what we had
+      acFill(which,parts);
+      // Exact coordinates, so the map and distance don't wait on a re-geocode.
+      try{
+        var full=(document.getElementById(which==='from'?'tFrom':'tTo')||{}).value||'';
+        var loc=place.geometry&&place.geometry.location;
+        if(full&&loc){geoCache[geoKey(full)]=[loc.lng(),loc.lat()];saveGeoCache();}
+      }catch(e2){}
+    });
+  }catch(e){}
 }
 function addrSuggestKey(e,which){
   var st=_acState[which];
@@ -3175,6 +3259,8 @@ window.addrSuggestKey=addrSuggestKey;
 window.addrSuggestBlur=addrSuggestBlur;
 window.acPick=acPick;
 window.savedAddrMatches=savedAddrMatches;
+window.acComponents=acComponents;
+window.acStatus=function(){return _acLastStatus;}; // console check: acStatus()
 
 window.drawTripOnMap=drawTripOnMap;
 var homeMap=null,homeMarkers=[];
@@ -3595,6 +3681,13 @@ async function calcDist(){
     document.getElementById('distMi2').textContent=(miles*2).toFixed(1)+' mi';
     document.getElementById('distInfo2').textContent='~'+dur(mins*2)+' total';
     document.getElementById('distBox').classList.add('show');
+    // The owner asked for the distance, so fill Miles straight away — matching
+    // the round-trip toggle — instead of making them press "Use →" first. The
+    // box stays up so they can switch between the two.
+    var _rt=document.getElementById('tRound');
+    var _mEl=document.getElementById('tMiles');
+    if(_mEl){_mEl.value=(_rt&&_rt.checked)?pendingDist.round:pendingDist.one;}
+    if(typeof updateLogDed==='function')updateLogDed();
     // Render the route on Google Maps
     clearGoogleMap();
     document.getElementById('mapEmpty').style.display='none';
