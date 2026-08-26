@@ -92,6 +92,10 @@ trip; in multi-stop batches the return distance folds into the last leg.
 - `renderH()` — render the history table.
 - `renderAnalytics()` — render hero stats, the SVG period chart, category bars.
 - `suggestFor()` / `ruleMatches()` — auto-classify rules engine (suggest-and-confirm).
+- `addrSuggest()` / `acPick()` / `savedAddrMatches()` — the address suggestion
+  dropdown under each Street field. Our own list, not Google's `.pac-container`
+  (which fights the draggable overlay's stacking and scrolling). Previously
+  driven addresses rank first and are offered even when Places can't answer.
 - `previewLogRoute()` / `drawTripOnMap()` / `drawStraightRoute()` — the live map
   preview behind the log overlay.
 - `saveToSupabase()` / `updateTripInSupabase()` — sync.

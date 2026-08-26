@@ -418,6 +418,19 @@ T('sign out moved to settings foot', document.querySelector('.set-foot .signout-
   T('a drawn route survives a theme rebuild', html.indexOf('const keepTrip=gShownTrip;') >= 0);
   window.__clearF();
 
+  // ===== ADDRESS SUGGESTIONS =====
+  T('both street fields have a suggestion list', !!$('acFrom') && !!$('acTo'));
+  T('street fields ask for suggestions as you type', /addrSuggest\('from'\)/.test(html) && /addrSuggest\('to'\)/.test(html));
+  T('suggestion keyboard + blur handlers wired', /addrSuggestKey\(event,'to'\)/.test(html) && /addrSuggestBlur\('to'\)/.test(html));
+  T('suggestion handlers exposed on window', typeof window.addrSuggest === 'function' && typeof window.acPick === 'function');
+  T('saved routes are offered without Places', typeof window.savedAddrMatches === 'function');
+  // previously driven addresses match on a fragment
+  window.__trips().push({ id: 88001, date: '2026-06-01', miles: 5, from: '1113 S 4090 W, Syracuse, UT', to: '77 Suggestion Way, Ogden, UT', purpose: 'x', category: 'Client Meeting' });
+  const sm = window.savedAddrMatches('suggestion');
+  T('saved-route suggestions match a fragment', sm.length === 1 && sm[0].city === 'Ogden' && sm[0].state === 'UT');
+  T('saved-route suggestions are marked as saved', sm[0].saved === true);
+  T('short input yields nothing to show', window.savedAddrMatches('zzzznope').length === 0);
+
   console.log(`\ndom.test.js: ${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);
 })();

@@ -102,6 +102,16 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
   .sd-route{font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .sd-sub{font-size:10px;color:var(--text3);}
   .sd-mi{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text2);white-space:nowrap;}
+  .ac-wrap{position:relative;}
+  .ac-drop{position:absolute;left:0;right:0;top:100%;margin-top:4px;background:var(--surface);border:1px solid var(--border2);border-radius:9px;overflow:hidden;z-index:20;box-shadow:0 12px 32px rgba(0,0,0,0.35);max-height:230px;overflow-y:auto;}
+  .ac-row{display:flex;align-items:center;gap:9px;padding:9px 12px;cursor:pointer;border-top:1px solid var(--border);}
+  .ac-row:first-child{border-top:none;}
+  .ac-row:hover,.ac-row.sel{background:var(--accent-bg);}
+  .ac-pin{font-size:12px;opacity:.7;}
+  .ac-main{flex:1;min-width:0;}
+  .ac-line1{font-size:12.5px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .ac-line2{font-size:10.5px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .ac-tag{font-size:9.5px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);white-space:nowrap;}
   .dist-round{display:flex;justify-content:flex-end;margin:4px 0 6px;}
   .cat-chips{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 2px;}
   .cat-chip{font-size:11px;font-weight:500;padding:5px 11px;border-radius:20px;cursor:pointer;background:transparent;color:var(--text2);border:1px solid var(--border2);white-space:nowrap;}
@@ -249,6 +259,16 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
   .sd-route{font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .sd-sub{font-size:10px;color:var(--text3);}
   .sd-mi{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text2);white-space:nowrap;}
+  .ac-wrap{position:relative;}
+  .ac-drop{position:absolute;left:0;right:0;top:100%;margin-top:4px;background:var(--surface);border:1px solid var(--border2);border-radius:9px;overflow:hidden;z-index:20;box-shadow:0 12px 32px rgba(0,0,0,0.35);max-height:230px;overflow-y:auto;}
+  .ac-row{display:flex;align-items:center;gap:9px;padding:9px 12px;cursor:pointer;border-top:1px solid var(--border);}
+  .ac-row:first-child{border-top:none;}
+  .ac-row:hover,.ac-row.sel{background:var(--accent-bg);}
+  .ac-pin{font-size:12px;opacity:.7;}
+  .ac-main{flex:1;min-width:0;}
+  .ac-line1{font-size:12.5px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .ac-line2{font-size:10.5px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .ac-tag{font-size:9.5px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);white-space:nowrap;}
   .dist-round{display:flex;justify-content:flex-end;margin:4px 0 6px;}
   .cat-chips{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 2px;}
   .cat-chip{font-size:11px;font-weight:500;padding:5px 11px;border-radius:20px;cursor:pointer;background:transparent;color:var(--text2);border:1px solid var(--border2);white-space:nowrap;}
@@ -2074,9 +2094,12 @@ body:not(.light) .offline-pill{color:#fbbf24;}
         <!-- FROM address -->
         <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--r2);padding:10px 12px;margin-bottom:8px;">
           <div style="font-size:10px;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;">📍 From</div>
-          <div class="field" style="margin-bottom:6px">
+          <div class="field ac-wrap" style="margin-bottom:6px">
             <span class="field-label">Street</span>
-            <input type="text" id="tFromStreet" placeholder="123 Main St" autocomplete="off" oninput="clearDist();buildAddr();previewLogRoute()"/>
+            <input type="text" id="tFromStreet" placeholder="Start typing an address…" autocomplete="off"
+                   oninput="clearDist();buildAddr();previewLogRoute();addrSuggest('from')"
+                   onkeydown="addrSuggestKey(event,'from')" onblur="addrSuggestBlur('from')"/>
+            <div class="ac-drop" id="acFrom" style="display:none"></div>
           </div>
           <div class="g2" style="margin-bottom:6px">
             <div class="field"><span class="field-label">City</span><input type="text" id="tFromCity" placeholder="Salt Lake City" autocomplete="off" oninput="clearDist();buildAddr();previewLogRoute()"/></div>
@@ -2086,9 +2109,12 @@ body:not(.light) .offline-pill{color:#fbbf24;}
         <!-- TO address -->
         <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--r2);padding:10px 12px;margin-bottom:8px;">
           <div style="font-size:10px;font-weight:600;color:var(--red);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;">🏁 To</div>
-          <div class="field" style="margin-bottom:6px">
+          <div class="field ac-wrap" style="margin-bottom:6px">
             <span class="field-label">Street</span>
-            <input type="text" id="tToStreet" placeholder="456 Business Ave" autocomplete="off" oninput="clearDist();buildAddr();previewLogRoute()"/>
+            <input type="text" id="tToStreet" placeholder="Start typing an address…" autocomplete="off"
+                   oninput="clearDist();buildAddr();previewLogRoute();addrSuggest('to')"
+                   onkeydown="addrSuggestKey(event,'to')" onblur="addrSuggestBlur('to')"/>
+            <div class="ac-drop" id="acTo" style="display:none"></div>
           </div>
           <div class="g2" style="margin-bottom:6px">
             <div class="field"><span class="field-label">City</span><input type="text" id="tToCity" placeholder="Provo" autocomplete="off" oninput="clearDist();buildAddr();previewLogRoute()"/></div>
@@ -3050,6 +3076,106 @@ function drawStraightRoute(from,to,label){
   mapInfo((label?label+' · ':'')+'straight line — no driving route available');
 }
 window.previewLogRoute=previewLogRoute;
+// ── ADDRESS SUGGESTIONS ───────────────────────────────────────────────
+// Typing a destination offers real places to click. This is our own list
+// rather than Google's floating .pac-container, which fights the draggable
+// overlay's stacking and scroll. Places predictions first; the routes the
+// owner has already driven are always offered, so the field is useful even
+// when Places is unreachable (offline, quota, no key).
+var _acState={from:{sel:0,items:[],timer:null},to:{sel:0,items:[],timer:null}};
+function acEls(which){
+  return {inp:document.getElementById(which==='from'?'tFromStreet':'tToStreet'),
+          drop:document.getElementById(which==='from'?'acFrom':'acTo')};
+}
+// Saved routes matching what has been typed — instant, no network.
+function savedAddrMatches(q){
+  var seen={},out=[];
+  q=(q||'').toLowerCase();
+  trips.forEach(function(t){
+    [t.from,t.to].forEach(function(a){
+      if(!a)return;
+      var k=geoKey(a);
+      if(seen[k]||a.toLowerCase().indexOf(q)<0)return;
+      seen[k]=1;
+      var parts=a.split(',').map(function(x){return x.trim();});
+      out.push({street:parts[0]||a,city:parts[1]||'',state:parts[2]||'',label:labelAddr(a),saved:true});
+    });
+  });
+  return out.slice(0,3);
+}
+function acRender(which){
+  var e=acEls(which),st=_acState[which];
+  if(!e.drop)return;
+  if(!st.items.length){e.drop.style.display='none';e.drop.innerHTML='';return;}
+  e.drop.innerHTML=st.items.map(function(it,i){
+    var l2=[it.city,it.state].filter(Boolean).join(', ');
+    return "<div class='ac-row"+(i===st.sel?' sel':'')+"' data-i='"+i+"' onmousedown=\"event.preventDefault();acPick('"+which+"',"+i+")\">"+
+      "<span class='ac-pin'>"+(it.saved?'↺':'📍')+"</span>"+
+      "<span class='ac-main'><span class='ac-line1'>"+esc(it.street)+"</span>"+
+      (l2?"<span class='ac-line2'>"+esc(l2)+"</span>":'')+"</span>"+
+      (it.saved?"<span class='ac-tag'>"+esc(it.label||'saved')+"</span>":'')+
+    "</div>";
+  }).join('');
+  e.drop.style.display='block';
+}
+function acClose(which){
+  var st=_acState[which];st.items=[];st.sel=0;
+  var e=acEls(which);
+  if(e.drop){e.drop.style.display='none';e.drop.innerHTML='';}
+}
+function addrSuggest(which){
+  var e=acEls(which),st=_acState[which];
+  if(!e.inp)return;
+  var q=e.inp.value.trim();
+  if(st.timer)clearTimeout(st.timer);
+  if(q.length<3){acClose(which);return;}
+  st.timer=setTimeout(function(){
+    var saved=savedAddrMatches(q);
+    st.items=saved;st.sel=0;acRender(which);   // show what we have immediately
+    if(!(googleReady&&window.google&&google.maps&&google.maps.places&&google.maps.places.AutocompleteService))return;
+    try{
+      new google.maps.places.AutocompleteService().getPlacePredictions(
+        {input:q,componentRestrictions:{country:'us'},types:['address']},
+        function(preds,status){
+          if(status!=='OK'||!preds||!preds.length)return; // keep the saved matches
+          var places=preds.slice(0,5).map(function(p){
+            var sf=p.structured_formatting||{};
+            var main=sf.main_text||(p.description||'').split(',')[0];
+            var rest=(sf.secondary_text||(p.description||'').split(',').slice(1).join(',')||'')
+                     .replace(/,\s*USA$/,'').split(',').map(function(x){return x.trim();}).filter(Boolean);
+            return {street:main,city:rest[0]||'',state:(rest[1]||'').slice(0,2).toUpperCase(),saved:false};
+          });
+          // saved routes stay on top: they are the ones actually driven
+          st.items=saved.concat(places).slice(0,8);st.sel=0;acRender(which);
+        });
+    }catch(err){}
+  },220);
+}
+function acPick(which,i){
+  var st=_acState[which],it=st.items[i];
+  if(!it)return;
+  var set=function(id,v){var el=document.getElementById(id);if(el)el.value=v||'';};
+  if(which==='from'){set('tFromStreet',it.street);if(it.city)set('tFromCity',it.city);if(it.state)set('tFromState',it.state);}
+  else{set('tToStreet',it.street);if(it.city)set('tToCity',it.city);if(it.state)set('tToState',it.state);}
+  acClose(which);
+  buildAddr();clearDist();previewLogRoute(0);
+}
+function addrSuggestKey(e,which){
+  var st=_acState[which];
+  if(!st.items.length)return;
+  if(e.key==='ArrowDown'){e.preventDefault();st.sel=Math.min(st.sel+1,st.items.length-1);acRender(which);}
+  else if(e.key==='ArrowUp'){e.preventDefault();st.sel=Math.max(st.sel-1,0);acRender(which);}
+  else if(e.key==='Enter'){e.preventDefault();e.stopPropagation();acPick(which,st.sel);}
+  else if(e.key==='Escape'){e.stopPropagation();acClose(which);}
+}
+// mousedown on a row fires before blur, so the click still lands
+function addrSuggestBlur(which){setTimeout(function(){acClose(which);},120);}
+window.addrSuggest=addrSuggest;
+window.addrSuggestKey=addrSuggestKey;
+window.addrSuggestBlur=addrSuggestBlur;
+window.acPick=acPick;
+window.savedAddrMatches=savedAddrMatches;
+
 window.drawTripOnMap=drawTripOnMap;
 var homeMap=null,homeMarkers=[];
 function renderHomeIfActive(){
@@ -3245,6 +3371,7 @@ function openLogOverlay(){
   if(logRouteEndpoints())previewLogRoute(0);else showLogCanvas();
 }
 function closeLogOverlay(){
+  if(typeof acClose==='function'){acClose('from');acClose('to');}
   var ov=document.getElementById('logOverlay');
   if(ov){ov.style.display='none';ov.classList.remove('editing');}
   editingTripId=null;
