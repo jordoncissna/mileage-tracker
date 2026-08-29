@@ -12,10 +12,28 @@ const { window } = dom;
 const { document } = window;
 
 // ---- recording Supabase stub: server rows live in `server` ----
-const server = { rows: [], inserts: 0, deletes: 0, nextId: 1, delay: 0 };
+const server = { rows: [], inserts: 0, deletes: 0, nextId: 1, delay: 0, prefs: null, prefsReads: 0, prefsWrites: 0, prefsMissing: false };
 const wait = ms => new Promise(r => setTimeout(r, ms));
-function reset() { server.rows = []; server.inserts = 0; server.deletes = 0; server.nextId = 1; server.delay = 0; }
+function reset() { server.rows = []; server.inserts = 0; server.deletes = 0; server.nextId = 1; server.delay = 0; server.prefs = null; server.prefsReads = 0; server.prefsWrites = 0; server.prefsMissing = false; }
 function rowFrom(r) { return Object.assign({}, r, { id: 'srv-' + (server.nextId++) }); }
+// user_prefs: one row per user, or a "table missing" error when prefsMissing
+const prefsTable = {
+  select: () => ({
+    eq: () => ({
+      maybeSingle: async () => {
+        if (server.prefsMissing) return { data: null, error: { code: 'PGRST205', message: "Could not find the table 'public.user_prefs' in the schema cache" } };
+        server.prefsReads++;
+        return { data: server.prefs, error: null };
+      }
+    })
+  }),
+  upsert: async (row) => {
+    if (server.prefsMissing) return { error: { code: 'PGRST205', message: "Could not find the table 'public.user_prefs' in the schema cache" } };
+    server.prefsWrites++;
+    server.prefs = JSON.parse(JSON.stringify(row));
+    return { error: null };
+  }
+};
 const table = {
   select: () => ({
     order: async () => { await wait(server.delay); return { data: server.rows.slice(), error: null }; },
@@ -36,7 +54,7 @@ const table = {
   delete: () => ({ eq: async (col, id) => { server.deletes++; server.rows = server.rows.filter(r => r.id !== id); return { error: null }; } })
 };
 window.google = { maps: { places: { Autocomplete: function () { return { addListener() {}, getPlace() { return {}; } }; }, AutocompleteService: function () { this.getPlacePredictions = () => {}; } }, Geocoder: function () { this.geocode = () => {}; }, Map: function () { this.addListener = () => {}; this.getCenter = () => ({ lat: () => 41, lng: () => -112 }); this.getZoom = () => 10; this.setOptions = () => {}; this.setCenter = () => {}; this.fitBounds = () => {}; }, Marker: function () {}, DirectionsService: function () { this.route = () => {}; }, DirectionsRenderer: function () { this.setMap = () => {}; }, LatLngBounds: function () { this.extend = () => {}; }, geometry: { spherical: { computeDistanceBetween: () => 1609 } }, event: { addListenerOnce: () => {} }, importLibrary: () => Promise.resolve({}) } };
-window.supabase = { createClient: () => ({ auth: { getSession: async () => ({ data: { session: null } }), onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }), signInWithPassword: async () => ({}), signUp: async () => ({}), signOut: async () => ({}) }, from: () => table }) };
+window.supabase = { createClient: () => ({ auth: { getSession: async () => ({ data: { session: null } }), onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }), signInWithPassword: async () => ({}), signUp: async () => ({}), signOut: async () => ({}) }, from: (name) => (name === 'user_prefs' ? prefsTable : table) }) };
 window.QRCode = function () {};
 window.initGoogleMaps = window.initGoogleMaps || function () {};
 window.alert = () => {};
@@ -59,6 +77,12 @@ const exports_ = `
 ;window.__dupCount=dupCount;
 ;window.__persisted=()=>localStorage.getItem(TK);
 ;window.__renderH=renderH;
+;window.__cfg=()=>cfg;
+;window.__setCfg=v=>{cfg=v;};
+;window.__loadPrefs=loadPrefsFromSupabase;
+;window.__savePrefs=savePrefsToSupabase;
+;window.__persistCfg=persistCfg;
+;window.__prefsSync=()=>prefsSync;
 `;
 const runner = new window.Function(inline + exports_);
 try { runner.call(window); } catch (e) { console.log('init threw (often benign):', e.message); }
@@ -234,6 +258,63 @@ const trip = o => Object.assign({ id: Date.now() + Math.random(), date: '2026-08
   window.del(40);
   await wait(50);
   T('single delete commits upstream immediately', server.deletes === 1 && server.rows.length === 0);
+
+  // ===== RULES SYNC =====
+  reset();
+  window.__setUser({ id: 'u1' });
+  window.__prefsSync().state = 'idle'; window.__prefsSync().last = '';
+  var cfg = window.__cfg();
+  cfg.rules = [{ id: 1, name: 'Lehi runs', to: 'Lehi', cat: 'Client Meeting' }];
+  cfg.ruleDismissed = { 'trip-a:1': true };
+  cfg.rulesUpdatedAt = 1000;
+
+  // first run seeds the server row from this device
+  await window.__loadPrefs(); await wait(30);
+  T('first sync seeds the server from local rules', server.prefsWrites === 1 && server.prefs.rules.length === 1);
+  T('sync reports itself as working', window.__prefsSync().state === 'synced');
+
+  // a newer set of rules on the server replaces the local copy (delete sticks)
+  server.prefs = { user_id: 'u1', rules: [{ id: 2, name: 'Ogden', to: 'Ogden', cat: 'Team Meeting' }], dismissed: {}, updated_at: new Date(5000).toISOString() };
+  await window.__loadPrefs(); await wait(30);
+  T('newer server rules win', window.__cfg().rules.length === 1 && window.__cfg().rules[0].id === 2);
+
+  // an older server copy does NOT clobber a rule just added here
+  window.__cfg().rules = [{ id: 3, name: 'fresh', to: 'Provo', cat: 'Client Meeting' }];
+  window.__cfg().rulesUpdatedAt = 9000;
+  server.prefs = { user_id: 'u1', rules: [{ id: 2 }], dismissed: {}, updated_at: new Date(5000).toISOString() };
+  await window.__loadPrefs(); await wait(30);
+  T('older server rules do not clobber a newer local edit', window.__cfg().rules[0].id === 3);
+
+  // dismissals are unioned, never lost
+  window.__cfg().ruleDismissed = { 'here:1': true };
+  server.prefs = { user_id: 'u1', rules: [{ id: 3 }], dismissed: { 'there:2': true }, updated_at: new Date(20000).toISOString() };
+  await window.__loadPrefs(); await wait(30);
+  T('dismissals from both devices survive', window.__cfg().ruleDismissed['here:1'] && window.__cfg().ruleDismissed['there:2']);
+
+  // editing rules pushes, and an unrelated cfg save does not
+  server.prefsWrites = 0;
+  window.__cfg().rules.push({ id: 4, to: 'Layton', cat: 'Business Errand' });
+  window.__persistCfg(); await wait(900);
+  T('a rule change is pushed upstream', server.prefsWrites === 1);
+  server.prefsWrites = 0;
+  window.__cfg().vehicle = 'Truck';   // settings change, rules untouched
+  window.__persistCfg(); await wait(900);
+  T('an unrelated setting does not push rules', server.prefsWrites === 0);
+
+  // the table not existing yet must not break anything
+  reset();
+  server.prefsMissing = true;
+  window.__prefsSync().state = 'idle'; window.__prefsSync().last = '';
+  let threw = false;
+  try { await window.__loadPrefs(); await wait(30); } catch (e) { threw = true; }
+  T('a missing user_prefs table does not throw', !threw);
+  T('missing table switches sync off, not the app', window.__prefsSync().state === 'unavailable');
+  const noteBefore = $('rulesSyncNote') ? $('rulesSyncNote').textContent : '';
+  T('the owner is told rules are device-only', /device only|this device/i.test(noteBefore), noteBefore);
+  window.__cfg().rules.push({ id: 9, to: 'X', cat: 'Other Business' });
+  window.__persistCfg(); await wait(900);
+  T('no writes are attempted once the table is known missing', server.prefsWrites === 0);
+  T('rules still work locally without the table', window.__cfg().rules.length > 0);
 
   console.log(`sync.test.js: ${pass} passed${fail ? ', ' + fail + ' failed' : ''}`);
   process.exit(fail ? 1 : 0);

@@ -43,11 +43,26 @@ const INIT = `
       update: function(patch){ return { eq: async function(col,id){ put(rows().map(function(r){ return r.id===id ? Object.assign(r,patch) : r; })); return { error:null }; } }; },
       delete: function(){ return { eq: async function(col,id){ window.__srv.deletes++; put(rows().filter(function(r){ return r.id!==id; })); return { error:null }; } }; }
     };
+    var PK='qa_prefs';
+    var prefsTable = {
+      select: function(){ return { eq: function(){ return { maybeSingle: async function(){
+        if(localStorage.getItem('qa_prefs_missing')==='1')
+          return { data:null, error:{ code:'PGRST205', message:"Could not find the table 'public.user_prefs' in the schema cache" } };
+        var raw=localStorage.getItem(PK);
+        return { data: raw?JSON.parse(raw):null, error:null };
+      } }; } }; },
+      upsert: async function(row){
+        if(localStorage.getItem('qa_prefs_missing')==='1')
+          return { error:{ code:'PGRST205', message:"Could not find the table 'public.user_prefs' in the schema cache" } };
+        localStorage.setItem(PK, JSON.stringify(row));
+        return { error:null };
+      }
+    };
     window.supabase = { createClient: function(){ return {
       auth: { getSession: async function(){ return { data: { session: { user:{ id:'u1', email:'qa@test.co' } } } }; },
               onAuthStateChange: function(cb){ setTimeout(function(){ cb('SIGNED_IN', { user:{ id:'u1', email:'qa@test.co' } }); }, 30); return { data:{ subscription:{ unsubscribe:function(){} } } }; },
               signOut: async function(){ return {}; } },
-      from: function(){ return table; } }; } };
+      from: function(name){ return name==='user_prefs' ? prefsTable : table; } }; } };
   })();
   window.__map = { directions: 0, markers: [], polylines: 0, fits: 0, lastReq: null, routeStatus: 'OK', log: [] };
   window.google = { maps: {
@@ -362,6 +377,68 @@ async function fillLog(page, o) {
   R('an undone delete is not duplicated by the reload', await page.evaluate(() =>
     window.__qaTrips().filter(t => t.purpose === 'offline trip').length === 1),
     await page.evaluate(() => window.__qaTrips().filter(t => t.purpose === 'offline trip').length));
+
+  // ── RULES SYNC: a rule made here must show up on another device
+  await page.evaluate(() => window.switchNav('set', document.getElementById('nav-set'))); await settle(page);
+  await page.fill('#rName', 'Lehi office runs').catch(() => {});
+  await page.fill('#rTo', 'Lehi').catch(() => {});
+  await page.selectOption('#rCat', 'Office Visit').catch(() => {});
+  await page.click('button:has-text("Add rule")').catch(() => {});
+  await page.waitForTimeout(1200);
+  R('the rule appears in the list', await ask(page, () =>
+    /Lehi office runs/.test(document.getElementById('rulesList').textContent), false));
+  R('the rule reached the server', await ask(page, () => {
+    const p = JSON.parse(localStorage.getItem('qa_prefs') || 'null');
+    return !!p && p.rules.some(r => r.name === 'Lehi office runs');
+  }, false));
+  R('sync status is shown to the owner', await ask(page, () =>
+    /sync/i.test(document.getElementById('rulesSyncNote').textContent), false));
+
+  // wipe the local copy — this is what a second device looks like
+  await ask(page, () => {
+    const c = JSON.parse(localStorage.getItem('ml3_set') || '{}');
+    c.rules = []; c.ruleDismissed = {}; c.rulesUpdatedAt = 0;
+    localStorage.setItem('ml3_set', JSON.stringify(c));
+    return true;
+  });
+  await page.reload({ waitUntil: 'domcontentloaded' }); await page.waitForTimeout(1600);
+  await page.evaluate(() => { ['authOverlay','onboardOverlay'].forEach(i=>{const e=document.getElementById(i);if(e){e.style.display='none';e.classList.remove('active');}}); window.__qaTrips = () => JSON.parse(localStorage.getItem('ml3_trips') || '[]'); if(window.initGoogleMaps)window.initGoogleMaps(); });
+  await page.waitForTimeout(1400);
+  await page.evaluate(() => window.switchNav('set', document.getElementById('nav-set'))); await settle(page);
+  R('a fresh device pulls the rule down', await ask(page, () =>
+    /Lehi office runs/.test(document.getElementById('rulesList').textContent), false),
+    await ask(page, () => (document.getElementById('rulesList') || {}).textContent, ''));
+
+  // deleting a rule sticks — it must not be resurrected by the next sync
+  await ask(page, () => {
+    const c = JSON.parse(localStorage.getItem('ml3_set') || '{}');
+    const r = (c.rules || [])[0];
+    if (r && window.delRule) window.delRule(r.id);
+    return true;
+  });
+  await page.waitForTimeout(1200);
+  await ask(page, () => { if (window.loadPrefsFromSupabase) window.loadPrefsFromSupabase(); return true; });
+  await page.waitForTimeout(900);
+  R('a deleted rule stays deleted after a sync', await ask(page, () =>
+    !/Lehi office runs/.test(document.getElementById('rulesList').textContent), false));
+
+  // no user_prefs table yet: the app must keep working and say so
+  await ask(page, () => { localStorage.setItem('qa_prefs_missing', '1'); return true; });
+  await page.reload({ waitUntil: 'domcontentloaded' }); await page.waitForTimeout(1600);
+  await page.evaluate(() => { ['authOverlay','onboardOverlay'].forEach(i=>{const e=document.getElementById(i);if(e){e.style.display='none';e.classList.remove('active');}}); window.__qaTrips = () => JSON.parse(localStorage.getItem('ml3_trips') || '[]'); if(window.initGoogleMaps)window.initGoogleMaps(); });
+  await page.waitForTimeout(1400);
+  await page.evaluate(() => window.switchNav('set', document.getElementById('nav-set'))); await settle(page);
+  R('without the table, the owner is told rules are device-only', await ask(page, () =>
+    /this device only/i.test(document.getElementById('rulesSyncNote').textContent), false),
+    await ask(page, () => (document.getElementById('rulesSyncNote') || {}).textContent, ''));
+  await page.fill('#rTo', 'Ogden').catch(() => {});
+  await page.selectOption('#rCat', 'Team Meeting').catch(() => {});
+  await page.click('button:has-text("Add rule")').catch(() => {});
+  await page.waitForTimeout(800);
+  R('rules still work locally with no table', await ask(page, () =>
+    /Ogden/.test(document.getElementById('rulesList').textContent), false));
+  R('trip logging is unaffected by the missing table', await tripCount(page) > 0);
+  await ask(page, () => { localStorage.removeItem('qa_prefs_missing'); return true; });
 
   // ── Calculate distance: the result must be readable, and Miles must fill in
   await page.evaluate(() => window.openLogOverlay()); await settle(page);

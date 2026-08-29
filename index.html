@@ -2009,6 +2009,7 @@ body:not(.light) .offline-pill{color:#fbbf24;}
             Set rules like “trips to 123 Main St = Office Visit.” Matching trips get a 💡 suggestion in History — nothing changes until you confirm.
           </div>
           <div id="rulesList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px"></div>
+          <div id="rulesSyncNote" style="display:none;font-size:11px;color:var(--text3);margin-bottom:12px"></div>
           <div style="background:var(--surface2);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:10px">
             <div class="field"><span class="field-label">Rule name (optional)</span><input type="text" id="rName" placeholder="e.g. Lehi office runs"/></div>
             <div class="field"><span class="field-label">From address contains</span><input type="text" id="rFrom" placeholder="leave blank to ignore"/></div>
@@ -2374,7 +2375,10 @@ function deductibleMiles(trip){
 const PERSONAL_CAT='Personal (Non-deductible)';
 function isPersonal(trip){return trip.category===PERSONAL_CAT;}
 function tripKey(t){return String(t.supaId||t.id);}
-function persistCfg(){localStorage.setItem(SK,JSON.stringify(cfg));}
+function persistCfg(){
+  localStorage.setItem(SK,JSON.stringify(cfg));
+  if(typeof schedulePrefsPush==='function')schedulePrefsPush();
+}
 function ruleMatches(rule,trip){
   // All filled conditions must match (AND). At least one must be filled.
   var has=false;
@@ -2457,12 +2461,14 @@ function addRule(){
   if(!from&&!to&&!kw){toast('\u26a0 Fill at least one match condition');return;}
   cfg.rules=cfg.rules||[];
   cfg.rules.push({id:Date.now(),name:name,from:from,to:to,kw:kw,cat:cat});
+  cfg.rulesUpdatedAt=Date.now();
   persistCfg();renderRules();
   ['rName','rFrom','rTo','rKw'].forEach(function(id){document.getElementById(id).value='';});
   updateSidebar();renderH();toast('Rule added \u2713');
 }
 function delRule(id){
   cfg.rules=(cfg.rules||[]).filter(function(r){return r.id!==id;});
+  cfg.rulesUpdatedAt=Date.now();
   persistCfg();renderRules();updateSidebar();renderH();toast('Rule deleted');
 }
 window.acceptSuggestion=acceptSuggestion;
@@ -2601,6 +2607,78 @@ async function saveBatchToSupabase(list){
   list.forEach(function(t){delete t._saving;});
   setSyncing(false);
 }
+
+// ── PREFERENCES SYNC (auto-classify rules + dismissed suggestions) ────
+// Rules used to live only in localStorage, so a phone and a laptop disagreed
+// and dismissed suggestions came back. One row per user in `user_prefs`
+// (see supabase/user_prefs.sql). If that table doesn't exist yet the app
+// keeps working locally and says so under the rules panel — a missing table
+// must never break trip logging.
+var prefsSync={state:'idle',timer:null,last:''};
+function rulesFingerprint(){
+  try{return JSON.stringify({r:cfg.rules||[],d:cfg.ruleDismissed||{}});}catch(e){return '';}
+}
+function missingPrefsTable(err){
+  var m=((err&&(err.message||err.details||err.code))||'')+'';
+  return /user_prefs/.test(m)&&/(does not exist|not find|schema cache|42P01|PGRST205)/i.test(m);
+}
+function setPrefsSync(state){
+  prefsSync.state=state;
+  var el=document.getElementById('rulesSyncNote');
+  if(!el)return;
+  if(state==='unavailable'){
+    el.style.display='block';
+    el.textContent='⚠ Rules are saved on this device only — run supabase/user_prefs.sql to sync them across devices.';
+  }else if(state==='synced'){
+    el.style.display='block';
+    el.textContent='✓ Rules sync across your devices.';
+  }else el.style.display='none';
+}
+async function loadPrefsFromSupabase(){
+  if(!currentUser||prefsSync.state==='unavailable')return;
+  try{
+    const{data,error}=await supa.from('user_prefs').select('*').eq('user_id',currentUser.id).maybeSingle();
+    if(error){if(missingPrefsTable(error)){setPrefsSync('unavailable');return;}throw error;}
+    if(data){
+      // Rules: last write wins, so deleting a rule on one device sticks.
+      var mine=cfg.rulesUpdatedAt||0, theirs=Date.parse(data.updated_at||0)||0;
+      if(theirs>=mine&&Array.isArray(data.rules)){cfg.rules=data.rules;cfg.rulesUpdatedAt=theirs;}
+      // Dismissals only ever accumulate, so union them — waving a suggestion
+      // away on one device must not un-dismiss it on another.
+      var merged=Object.assign({},data.dismissed||{},cfg.ruleDismissed||{});
+      cfg.ruleDismissed=merged;
+      persistCfg();renderRules();renderH();
+    }
+    setPrefsSync('synced');
+    prefsSync.last=rulesFingerprint();
+    if(!data)savePrefsToSupabase(true); // first run: seed the row from this device
+  }catch(e){console.error('Prefs load error:',e);}
+}
+async function savePrefsToSupabase(force){
+  if(!currentUser||prefsSync.state==='unavailable')return;
+  var fp=rulesFingerprint();
+  if(!force&&fp===prefsSync.last)return;
+  prefsSync.last=fp;
+  try{
+    const{error}=await supa.from('user_prefs').upsert({
+      user_id:currentUser.id,
+      rules:cfg.rules||[],
+      dismissed:cfg.ruleDismissed||{},
+      updated_at:new Date().toISOString()
+    },{onConflict:'user_id'});
+    if(error){if(missingPrefsTable(error)){setPrefsSync('unavailable');return;}throw error;}
+    setPrefsSync('synced');
+  }catch(e){console.error('Prefs save error:',e);}
+}
+// persistCfg() is the single write point for rules; push shortly after one changes.
+function schedulePrefsPush(){
+  if(!currentUser||prefsSync.state==='unavailable')return;
+  if(rulesFingerprint()===prefsSync.last)return;
+  if(prefsSync.timer)clearTimeout(prefsSync.timer);
+  prefsSync.timer=setTimeout(function(){savePrefsToSupabase();},700);
+}
+window.loadPrefsFromSupabase=loadPrefsFromSupabase;
+window.savePrefsToSupabase=savePrefsToSupabase;
 
 async function deleteFromSupabase(trip){
   if(!currentUser||!trip.supaId)return;
@@ -5790,6 +5868,7 @@ function onSignedIn(user){
     try{switchNav(lv||'home',document.getElementById('nav-'+(lv||'home')));}catch(e){}}
   setTimeout(()=>{initMainMap();initResize();initRightResize();},200);
   loadFromSupabase();
+  loadPrefsFromSupabase();
 }
 
 window.addEventListener('DOMContentLoaded',function(){
