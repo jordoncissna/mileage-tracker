@@ -124,6 +124,10 @@ things that have broken before, in the ways they broke:
       while the owner watched rows come back after a refresh.
 - [ ] Bulk-clean duplicates, then reload immediately — same rule.
 - [ ] Two overlapping `loadFromSupabase()` calls → **one** insert.
+- [ ] Add a rule, clear the local copy, reload → the rule comes back from the
+      server. Delete a rule, sync again → it stays deleted.
+- [ ] With `user_prefs` missing, the app still logs trips and says rules are
+      device-only.
 - [ ] No trip anywhere shows a Commute flag; no commute rows in the tax report.
 - [ ] Typing 3+ characters into a Street field offers suggestions; clicking one
       fills street/city/state; ↑/↓ + Enter picks without saving the trip; Esc

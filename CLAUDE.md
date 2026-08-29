@@ -41,6 +41,15 @@ Live: https://jordoncissna.github.io/mileage-tracker
 
 ## Data model
 
+**Supabase `user_prefs` table** (one row per user): `user_id`, `rules` (jsonb),
+`dismissed` (jsonb), `updated_at`. Created by `supabase/user_prefs.sql`, which
+the owner runs once in the SQL editor. Auto-classify rules sync through it:
+rules are **last-write-wins** by `updated_at` so a deletion sticks, dismissed
+suggestions are **unioned** so waving one away on a phone can't un-dismiss it on
+a laptop. If the table is missing, `loadPrefsFromSupabase()` detects it, turns
+sync off for the session and says so under the rules panel — trip logging must
+never depend on it.
+
 **Supabase `trips` table:** `id`, `user_id`, `date`, `miles`, `from_addr`,
 `to_addr`, `purpose`, `category`, `coords`, `from_latlng`, `to_latlng`.
 
@@ -92,6 +101,9 @@ trip; in multi-stop batches the return distance folds into the last leg.
 - `renderH()` — render the history table.
 - `renderAnalytics()` — render hero stats, the SVG period chart, category bars.
 - `suggestFor()` / `ruleMatches()` — auto-classify rules engine (suggest-and-confirm).
+- `loadPrefsFromSupabase()` / `savePrefsToSupabase()` / `schedulePrefsPush()` —
+  rules + dismissals sync. `persistCfg()` is the single write point and pushes
+  only when the rules fingerprint actually changed.
 - `addrSuggest()` / `acPick()` / `savedAddrMatches()` — the address suggestion
   dropdown under each Street field. Our own list, not Google's `.pac-container`
   (which fights the draggable overlay's stacking and scrolling). Previously
@@ -177,7 +189,7 @@ no longer a numbered-download step — edit `index.html` directly.
 - [x] Tax-ready PDF reports (audit-defensible IRS export)
 - [x] Invite a coworker (referral link; groundwork for a rewards system)
 - [ ] Receipt capture (photo attached to a trip)
-- [ ] Persist auto-classify rules to Supabase (currently local only)
+- [x] Persist auto-classify rules to Supabase (`user_prefs`)
 - [x] Duplicate review + idempotent sync
 
 Deferred: Capacitor native wrap (iOS/Android + auto-detect), native mobile app, paid tiers, marketing landing page.
