@@ -23,7 +23,9 @@ Walking the app as a brand-new user turned up three things worth fixing:
   ticks itself off as you go, with the walkthrough one click away.
 
 Along the way: the old empty-state button was a full-screen layer that dimmed
-the page and swallowed clicks meant for anything underneath it. Gone.
+the page and swallowed clicks meant for anything underneath it. Gone. And on a
+phone with nothing logged, the empty map no longer takes the top 400px before
+you reach anything you can act on.
 
 ## A nudge for days with nothing logged
 *PR #32*
