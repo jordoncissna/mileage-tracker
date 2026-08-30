@@ -187,6 +187,16 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
   #view-home #homeMap{position:absolute;inset:0;background:var(--bg2);background-image:linear-gradient(rgba(79,158,255,0.05) 1px,transparent 1px),linear-gradient(90deg,rgba(79,158,255,0.05) 1px,transparent 1px);background-size:34px 34px;}
   .home-float{position:absolute;inset:0;padding:20px 24px;display:flex;flex-direction:column;gap:12px;pointer-events:none;z-index:2;}
   .glassy{background:var(--glass);backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);border:1px solid var(--glass-br);border-radius:12px;box-shadow:0 12px 40px var(--glass-sh);}
+  .home-nudge{pointer-events:auto;padding:12px 14px;display:flex;flex-direction:column;gap:8px;}
+  .nudge-head{display:flex;align-items:center;gap:10px;}
+  .nudge-title{font-size:13px;font-weight:650;color:var(--text);flex:1;}
+  .nudge-x{background:none;border:none;color:var(--text3);font-size:11px;cursor:pointer;padding:2px 6px;border-radius:6px;font-family:inherit;}
+  .nudge-x:hover{color:var(--text);background:var(--surface2);}
+  .nudge-sub{font-size:11.5px;color:var(--text2);line-height:1.5;}
+  .nudge-row{display:flex;gap:8px;flex-wrap:wrap;}
+  .nudge-chip{display:inline-flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--border2);border-radius:8px;padding:6px 11px;font-size:12px;font-weight:600;color:var(--text);cursor:pointer;font-family:inherit;}
+  .nudge-chip:hover{border-color:var(--accent);color:var(--accent);}
+  .nudge-chip span{color:var(--accent);font-weight:700;}
   .home-headrow{display:flex;}
   .home-head{pointer-events:auto;padding:12px 18px;}
   .home-date{font-size:19px;font-weight:600;letter-spacing:-.01em;color:var(--text);}
@@ -1768,6 +1778,7 @@ body:not(.light) .offline-pill{color:#fbbf24;}
           </div>
         </div>
         <div class="home-stats" id="hStats"></div>
+        <div id="hNudge"></div>
         <div class="home-week glassy">
           <div class="hw-head"><span class="hw-title">This week</span><span class="hw-link" onclick="switchNav('hist',document.getElementById('nav-hist'))">History →</span></div>
           <div id="hWeek" class="hw-scroll"></div>
@@ -1968,6 +1979,10 @@ body:not(.light) .offline-pill{color:#fbbf24;}
           <h3>Business info</h3>
           <div class="field" style="margin-bottom:10px"><span class="field-label">Business name</span><input type="text" id="sBiz" placeholder="Your S-Corp name"/></div>
           <div class="field" style="margin-bottom:10px"><span class="field-label">Vehicle</span><input type="text" id="sVehicle" placeholder="e.g. Tesla Model 3"/></div>
+          <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text2);cursor:pointer;margin-top:4px">
+            <input type="checkbox" id="sNudgeOff" onchange="saveSet()" style="width:auto;accent-color:var(--accent)"/>
+            Don’t remind me about days with no trips logged
+          </label>
         </div>
         <div class="sc"><div class="sc-icon" style="background:linear-gradient(135deg,#63cadc,#0891b2)">📍</div>
           <h3>Home &amp; office</h3>
@@ -2719,6 +2734,7 @@ function applySettings(){
   document.getElementById('r2023').value=cfg.rates[2023];
   document.getElementById('sBiz').value=cfg.biz||'';
   document.getElementById('sVehicle').value=cfg.vehicle||'';
+  var nOff=document.getElementById('sNudgeOff');if(nOff)nOff.checked=!!cfg.nudgeOff;
   // Structured home address
   if(document.getElementById('sHomeStreet')){
     const parts=(cfg.home||'').split(',').map(p=>p.trim());
@@ -2776,6 +2792,7 @@ function saveSet(){
   cfg.rates[2023]=parseFloat(document.getElementById('r2023').value)||0.655;
   cfg.biz=document.getElementById('sBiz').value.trim();
   cfg.vehicle=document.getElementById('sVehicle').value.trim();
+  var nOff=document.getElementById('sNudgeOff');cfg.nudgeOff=!!(nOff&&nOff.checked);
   // Build home address from structured fields
   const hStreet=document.getElementById('sHomeStreet').value.trim();
   const hCity=document.getElementById('sHomeCity').value.trim();
@@ -3351,6 +3368,84 @@ function weekStartISO(){
   d.setDate(d.getDate()-dow);
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 }
+// ── UNLOGGED-DAY NUDGE ───────────────────────────────────────────────
+// The IRS wants contemporaneous records; a log reconstructed weeks later is the
+// weak point in an audit. Milo cannot know whether someone drove, so this only
+// ever reports that a day has nothing logged — it never claims a trip is
+// missing. It also stays quiet about weekdays the owner never logs, so it can't
+// nag a Sunday for someone who only drives Monday to Friday.
+function dayISO(d){
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+var NUDGE_LOOKBACK=14, NUDGE_PATTERN_DAYS=56, NUDGE_MIN_TRIPS=5, NUDGE_MAX=5;
+function gapDays(refISO){
+  if(cfg.nudgeOff)return [];
+  if(!trips||trips.length<NUDGE_MIN_TRIPS)return []; // no pattern yet — don't nag a new user
+  var ref=refISO?new Date(refISO+'T12:00'):new Date();
+  var logged={},weekdayCount={};
+  var patternCut=new Date(ref.getTime()-NUDGE_PATTERN_DAYS*864e5);
+  trips.forEach(function(t){
+    if(!t.date)return;
+    logged[t.date]=true;
+    var d=new Date(t.date+'T12:00');
+    if(d>=patternCut&&d<=ref)weekdayCount[d.getDay()]=(weekdayCount[d.getDay()]||0)+1;
+  });
+  var out=[];
+  for(var i=1;i<=NUDGE_LOOKBACK;i++){
+    var d=new Date(ref.getTime()-i*864e5);
+    if(!weekdayCount[d.getDay()])continue;      // a weekday this owner never logs
+    var iso=dayISO(d);
+    if(logged[iso])continue;
+    out.push(iso);
+    if(out.length>=NUDGE_MAX)break;
+  }
+  return out;
+}
+function nudgeWeekKey(refISO){
+  var d=refISO?new Date(refISO+'T12:00'):new Date();
+  var dow=(d.getDay()+6)%7;
+  return 'ml_nudge:'+dayISO(new Date(d.getTime()-dow*864e5));
+}
+function nudgeDismissed(refISO){
+  try{return localStorage.getItem(nudgeWeekKey(refISO))==='1';}catch(e){return false;}
+}
+function dismissNudge(){
+  try{localStorage.setItem(nudgeWeekKey(),'1');}catch(e){}
+  renderNudge();
+}
+function renderNudge(refISO){
+  var box=document.getElementById('hNudge');
+  if(!box)return;
+  var gaps=(nudgeDismissed(refISO)?[]:gapDays(refISO));
+  if(!gaps.length){box.innerHTML='';return;}
+  var chips=gaps.map(function(iso){
+    var d=new Date(iso+'T12:00');
+    var lbl=d.toLocaleDateString('en-US',{weekday:'short',month:'numeric',day:'numeric'});
+    return "<button type='button' class='nudge-chip' onclick='logForDate("+JSON.stringify(iso)+")'>"+esc(lbl)+" <span>+</span></button>";
+  }).join('');
+  box.innerHTML=
+    "<div class='home-nudge glassy'>"+
+      "<div class='nudge-head'>"+
+        "<span class='nudge-title'>"+gaps.length+" day"+(gaps.length!==1?'s':'')+" with nothing logged</span>"+
+        "<button type='button' class='nudge-x' onclick='dismissNudge()'>Not now</button>"+
+      "</div>"+
+      "<div class='nudge-sub'>If you drove on any of these, add it while you still remember — a log written the same week holds up better than one rebuilt at tax time.</div>"+
+      "<div class='nudge-row'>"+chips+"</div>"+
+    "</div>";
+}
+// Open the log form dated to the gap the owner tapped.
+function logForDate(iso){
+  openLogOverlay();
+  var d=document.getElementById('tDate');
+  if(d)d.value=iso;
+  if(typeof updateBatchSummary==='function')updateBatchSummary();
+  if(typeof updateLogDed==='function')updateLogDed();
+}
+window.gapDays=gapDays;
+window.renderNudge=renderNudge;
+window.dismissNudge=dismissNudge;
+window.logForDate=logForDate;
+
 function renderHome(){
   var now=new Date(),yr4=String(now.getFullYear());
   var dEl=document.getElementById('hDate');
@@ -3384,6 +3479,7 @@ function renderHome(){
   if(wt)wt.textContent=wk.length?fmtN(wkMi)+' mi · $'+wkDed.toFixed(2):'—';
   var cta=document.getElementById('homeCta');
   if(cta)cta.style.display=trips.length?'none':'flex';
+  renderNudge();
   renderHomePlaces();
 }
 function initHomeMap(){

@@ -99,6 +99,9 @@ trip; in multi-stop batches the return distance folds into the last leg.
 - `filteredTrips()` — the year/month/category slice the ledger is showing;
   `renderH()` and `doExport()` both use it so Export CSV matches the screen.
 - `renderH()` — render the history table.
+- `gapDays()` / `renderNudge()` — the unlogged-day reminder on Home. Reports only
+  that a day is empty, never that a trip was missed; learns which weekdays the
+  owner actually logs; silent under 5 trips; `cfg.nudgeOff` turns it off.
 - `renderAnalytics()` — render hero stats, the SVG period chart, category bars.
 - `suggestFor()` / `ruleMatches()` — auto-classify rules engine (suggest-and-confirm).
 - `loadPrefsFromSupabase()` / `savePrefsToSupabase()` / `schedulePrefsPush()` —

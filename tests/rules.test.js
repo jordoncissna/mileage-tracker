@@ -153,5 +153,75 @@ T('274(d) substantiation note', rpt.indexOf('§274(d)') >= 0 || rpt.indexOf('274
 T('empty year message', buildTaxReportHTML(2019).indexOf('No trips recorded') >= 0);
 T('miles totals correct', rpt.indexOf('27.0') >= 0 && rpt.indexOf('10.0') >= 0);
 
+// ===== UNLOGGED-DAY NUDGE =====
+// Dates are the easy thing to get silently wrong here, so this pins the
+// arithmetic against a fixed "today" of Wednesday 2026-06-17.
+// the tuning constants live beside the function in index.html
+const nudgeConsts = html.match(/var NUDGE_LOOKBACK=[^\n]+/)[0];
+eval(nudgeConsts);
+eval(grab('dayISO'));
+eval(grab('gapDays'));
+T('nudge constants extracted from index.html', NUDGE_LOOKBACK === 14 && NUDGE_MIN_TRIPS === 5 && NUDGE_MAX === 5);
+const TODAY = '2026-06-17';           // a Wednesday
+const dayOf = iso => new Date(iso + 'T12:00').getDay();
+T('the reference day is a Wednesday', dayOf(TODAY) === 3);
+
+// a Mon-Fri driver: trips on the two prior weeks' weekdays, nothing since Friday
+trips = [];
+['2026-06-01','2026-06-02','2026-06-03','2026-06-04','2026-06-05',
+ '2026-06-08','2026-06-09','2026-06-10','2026-06-11','2026-06-12']
+  .forEach((d, i) => trips.push({ id: i + 1, date: d, miles: 10, from: 'a', to: 'b', purpose: 'x', category: 'Client Meeting' }));
+cfg.nudgeOff = false;
+
+let gaps = gapDays(TODAY);
+T('gaps found for the weekdays since the last trip', gaps.length === 2, gaps.join(','));
+T('gaps are Mon 6/15 and Tue 6/16', gaps.join(',') === '2026-06-16,2026-06-15', gaps.join(','));
+T('today is never reported as a gap', gaps.indexOf(TODAY) < 0);
+T('no weekend days for a Mon-Fri driver', gaps.every(g => dayOf(g) !== 0 && dayOf(g) !== 6));
+
+// a weekend driver: every weekend logged except Sat 6/13, and no weekday nagging
+trips = [];
+['2026-05-30','2026-05-31','2026-06-06','2026-06-07','2026-06-14']
+  .forEach((d, i) => trips.push({ id: 100 + i, date: d, miles: 10, from: 'a', to: 'b', purpose: 'x', category: 'Client Meeting' }));
+gaps = gapDays(TODAY);
+T('a weekend driver is only asked about weekends', gaps.every(g => dayOf(g) === 0 || dayOf(g) === 6), gaps.join(','));
+T('the one missed weekend day is caught', gaps.join(',') === '2026-06-13', gaps.join(','));
+// and with every weekend logged there is nothing to say
+trips.push({ id: 150, date: '2026-06-13', miles: 10, from: 'a', to: 'b', purpose: 'x', category: 'Client Meeting' });
+T('a diligent weekend driver is never nagged', gapDays(TODAY).length === 0);
+
+// a fully logged stretch produces nothing
+trips = [];
+for (let i = 1; i <= 20; i++) {
+  const d = new Date(new Date(TODAY + 'T12:00').getTime() - i * 864e5);
+  trips.push({ id: 200 + i, date: dayISO(d), miles: 10, from: 'a', to: 'b', purpose: 'x', category: 'Client Meeting' });
+}
+T('nothing to nag about when every day is logged', gapDays(TODAY).length === 0);
+
+// quiet for a new user with no pattern yet
+trips = [{ id: 300, date: '2026-06-15', miles: 10, from: 'a', to: 'b', purpose: 'x', category: 'Client Meeting' }];
+T('a new user with a handful of trips is left alone', gapDays(TODAY).length === 0);
+
+// the setting switches it off entirely
+trips = [];
+['2026-06-01','2026-06-02','2026-06-03','2026-06-04','2026-06-05','2026-06-08','2026-06-09']
+  .forEach((d, i) => trips.push({ id: 400 + i, date: d, miles: 10, from: 'a', to: 'b', purpose: 'x', category: 'Client Meeting' }));
+T('gaps exist before the setting is applied', gapDays(TODAY).length > 0);
+cfg.nudgeOff = true;
+T('the setting silences it', gapDays(TODAY).length === 0);
+cfg.nudgeOff = false;
+
+// never looks further back than the window, and never returns a flood
+trips = [{ id: 500, date: '2026-01-05', miles: 10, from: 'a', to: 'b', purpose: 'x', category: 'Client Meeting' },
+         { id: 501, date: '2026-06-01', miles: 10, from: 'a', to: 'b', purpose: 'x', category: 'Client Meeting' },
+         { id: 502, date: '2026-06-02', miles: 10, from: 'a', to: 'b', purpose: 'x', category: 'Client Meeting' },
+         { id: 503, date: '2026-06-03', miles: 10, from: 'a', to: 'b', purpose: 'x', category: 'Client Meeting' },
+         { id: 504, date: '2026-06-04', miles: 10, from: 'a', to: 'b', purpose: 'x', category: 'Client Meeting' },
+         { id: 505, date: '2026-06-05', miles: 10, from: 'a', to: 'b', purpose: 'x', category: 'Client Meeting' }];
+const many = gapDays(TODAY);
+T('at most five days are ever listed', many.length <= 5, String(many.length));
+T('nothing older than the lookback window', many.every(g => g >= '2026-06-03'), many.join(','));
+T('gaps are newest first', many.join(',') === many.slice().sort().reverse().join(','));
+
 console.log(`\nrules.test.js: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

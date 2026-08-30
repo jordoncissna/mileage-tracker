@@ -5,6 +5,20 @@ if a change doesn't alter what you see or what you can trust, it isn't here.
 
 ---
 
+## A nudge for days with nothing logged
+*PR #32*
+
+Home now shows the recent days that have no trips against them, with a tap to
+log one dated to that day. It's built to be quiet and honest: it never claims
+you drove — only that a day is empty — it learns which weekdays you actually
+log so it can't nag a Sunday you never work, it stays silent until you have
+enough history to have a pattern, "Not now" hushes it for the week, and there's
+a switch in Settings to turn it off for good.
+
+Why it matters: the IRS wants contemporaneous records. A log written the same
+week holds up in an audit; one rebuilt at tax time is the part that gets
+challenged.
+
 ## Rules follow you between devices
 *PR #30 — one-time setup: run `supabase/user_prefs.sql` in the Supabase SQL editor*
 
