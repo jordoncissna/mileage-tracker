@@ -378,6 +378,87 @@ async function fillLog(page, o) {
     window.__qaTrips().filter(t => t.purpose === 'offline trip').length === 1),
     await page.evaluate(() => window.__qaTrips().filter(t => t.purpose === 'offline trip').length));
 
+  // ── UNLOGGED-DAY NUDGE: shows real gaps, and acting on one dates the form
+  await page.evaluate(() => {
+    // a Mon–Fri pattern with the last few weekdays missing
+    const iso = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    const rows = [];
+    for (let i = 21; i >= 7; i--) {
+      const d = new Date(Date.now() - i * 864e5);
+      if (d.getDay() === 0 || d.getDay() === 6) continue;
+      rows.push({ id: 'gap-' + i, user_id: 'u1', date: iso(d), miles: 12, from_addr: 'A St, Syracuse, UT',
+                  to_addr: 'B Ave, Lehi, UT', purpose: 'pattern', category: 'Client Meeting' });
+    }
+    const existing = JSON.parse(localStorage.getItem('qa_srv') || '[]');
+    localStorage.setItem('qa_srv', JSON.stringify(existing.concat(rows)));
+    Object.keys(localStorage).filter(k => k.indexOf('ml_nudge:') === 0).forEach(k => localStorage.removeItem(k));
+  });
+  await page.reload({ waitUntil: 'domcontentloaded' }); await page.waitForTimeout(1600);
+  await page.evaluate(() => { ['authOverlay','onboardOverlay'].forEach(i=>{const e=document.getElementById(i);if(e){e.style.display='none';e.classList.remove('active');}}); window.__qaTrips = () => JSON.parse(localStorage.getItem('ml3_trips') || '[]'); if(window.initGoogleMaps)window.initGoogleMaps(); });
+  await page.waitForTimeout(1500);
+  await page.evaluate(() => window.switchNav('home', document.getElementById('nav-home'))); await settle(page);
+  const chips = await ask(page, () => document.querySelectorAll('#hNudge .nudge-chip').length, 0);
+  R('the nudge lists days with nothing logged', chips > 0, 'chips=' + chips);
+  R('the nudge never asserts a trip was missed', await ask(page, () => {
+    const title = (document.querySelector('.nudge-title') || {}).textContent || '';
+    return /nothing logged/i.test(title) && !/missed|forgot|you drove/i.test(title);
+  }, false), await ask(page, () => (document.querySelector('.nudge-title') || {}).textContent, ''));
+  // the map sits under this card and will happily swallow the clicks
+  R('gap chips are actually clickable, not under the map', await ask(page, () => {
+    const c = document.querySelector('#hNudge .nudge-chip'); if (!c) return 'missing';
+    const r = c.getBoundingClientRect();
+    const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    return (c === hit || c.contains(hit)) ? 'ok' : 'covered by ' + (hit && (hit.id || hit.className));
+  }, 'threw') === 'ok', await ask(page, () => {
+    const c = document.querySelector('#hNudge .nudge-chip'); if (!c) return 'missing';
+    const r = c.getBoundingClientRect();
+    const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    return (c === hit || c.contains(hit)) ? 'ok' : 'covered by ' + (hit && (hit.id || hit.className));
+  }, 'threw'));
+  R('no gap listed is a day that has trips', await ask(page, () => {
+    const logged = new Set(JSON.parse(localStorage.getItem('ml3_trips') || '[]').map(t => t.date));
+    return window.gapDays().every(g => !logged.has(g));
+  }, false));
+  R('today is never listed as a gap', await ask(page, () => {
+    const d = new Date(); const iso = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    return window.gapDays().indexOf(iso) < 0;
+  }, false));
+
+  // tapping a day opens the log form dated to it
+  const gapDate = await ask(page, () => window.gapDays()[0], '');
+  await page.click('#hNudge .nudge-chip').catch(() => {});
+  await page.waitForTimeout(600);
+  R('tapping a gap opens the log form on that date', await ask(page, () =>
+    document.getElementById('logOverlay').style.display === 'flex' &&
+    document.getElementById('tDate').value === window.gapDays()[0], false),
+    'gap=' + gapDate + ' field=' + await ask(page, () => document.getElementById('tDate').value, ''));
+  await page.evaluate(() => window.closeLogOverlay()); await settle(page);
+  await page.evaluate(() => window.switchNav('home', document.getElementById('nav-home'))); await settle(page);
+
+  // "Not now" quiets it for the week, and it stays quiet across a reload
+  await page.click('#hNudge .nudge-x').catch(() => {});
+  await page.waitForTimeout(400);
+  R('"Not now" hides the nudge', await ask(page, () =>
+    document.querySelectorAll('#hNudge .nudge-chip').length === 0, false));
+  await page.reload({ waitUntil: 'domcontentloaded' }); await page.waitForTimeout(1600);
+  await page.evaluate(() => { ['authOverlay','onboardOverlay'].forEach(i=>{const e=document.getElementById(i);if(e){e.style.display='none';e.classList.remove('active');}}); if(window.initGoogleMaps)window.initGoogleMaps(); });
+  await page.waitForTimeout(1400);
+  await page.evaluate(() => window.switchNav('home', document.getElementById('nav-home'))); await settle(page);
+  R('it stays quiet for the rest of the week', await ask(page, () =>
+    document.querySelectorAll('#hNudge .nudge-chip').length === 0, false));
+
+  // the setting turns it off for good
+  await ask(page, () => { Object.keys(localStorage).filter(k => k.indexOf('ml_nudge:') === 0).forEach(k => localStorage.removeItem(k)); return true; });
+  await page.evaluate(() => window.switchNav('set', document.getElementById('nav-set'))); await settle(page);
+  await page.check('#sNudgeOff').catch(() => {});
+  await page.waitForTimeout(500);
+  await page.evaluate(() => window.switchNav('home', document.getElementById('nav-home'))); await settle(page);
+  R('the setting switches the reminder off', await ask(page, () =>
+    document.querySelectorAll('#hNudge .nudge-chip').length === 0, false));
+  await page.evaluate(() => window.switchNav('set', document.getElementById('nav-set'))); await settle(page);
+  await page.uncheck('#sNudgeOff').catch(() => {});
+  await page.waitForTimeout(400);
+
   // ── RULES SYNC: a rule made here must show up on another device
   await page.evaluate(() => window.switchNav('set', document.getElementById('nav-set'))); await settle(page);
   await page.fill('#rName', 'Lehi office runs').catch(() => {});
