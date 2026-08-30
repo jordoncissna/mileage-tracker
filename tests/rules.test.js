@@ -223,5 +223,12 @@ T('at most five days are ever listed', many.length <= 5, String(many.length));
 T('nothing older than the lookback window', many.every(g => g >= '2026-06-03'), many.join(','));
 T('gaps are newest first', many.join(',') === many.slice().sort().reverse().join(','));
 
+// ===== CLAIMS THE APP CAN ACTUALLY BACK =====
+// Onboarding used to promise background GPS tracking this app has never had,
+// and the sign-in screen claimed end-to-end encryption it does not provide.
+T('no promise of automatic/background trip capture', !/automatically captures|background tracking|auto-tracking/i.test(html));
+T('no end-to-end encryption claim', !/end-to-end encryption/i.test(html));
+T('security claim is one we can stand behind', /Encrypted in transit and at rest/.test(html));
+
 console.log(`\nrules.test.js: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

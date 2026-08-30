@@ -5,6 +5,26 @@ if a change doesn't alter what you see or what you can trust, it isn't here.
 
 ---
 
+## A first run that tells the truth
+*PR #33*
+
+Walking the app as a brand-new user turned up three things worth fixing:
+
+- **Onboarding sold a feature Milo doesn't have.** Two full screens promised
+  automatic background GPS tracking — "no manual entry needed". Milo has never
+  tracked automatically. A new user was taught the wrong model and every trip
+  they typed in afterwards would have felt like a bug. Those screens now show
+  how logging actually works, and what an auditor looks for.
+- **The sign-in screen claimed end-to-end encryption.** Your data is encrypted
+  in transit and at rest, but the server can read it — that is not end-to-end,
+  and it isn't a claim to leave sitting on a login screen. Corrected.
+- **An empty account showed four zeroes.** Now it shows a short setup path —
+  log a trip, add your home address, name your business and vehicle — that
+  ticks itself off as you go, with the walkthrough one click away.
+
+Along the way: the old empty-state button was a full-screen layer that dimmed
+the page and swallowed clicks meant for anything underneath it. Gone.
+
 ## A nudge for days with nothing logged
 *PR #32*
 

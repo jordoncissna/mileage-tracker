@@ -378,6 +378,45 @@ async function fillLog(page, o) {
     window.__qaTrips().filter(t => t.purpose === 'offline trip').length === 1),
     await page.evaluate(() => window.__qaTrips().filter(t => t.purpose === 'offline trip').length));
 
+  // ── FIRST RUN: an empty ledger must offer a path, and it must be clickable
+  // (snapshot the ledger — later checks rely on the saved routes in it)
+  const ledgerSnapshot = await ask(page, () => localStorage.getItem('qa_srv'), '[]');
+  await ask(page, () => { localStorage.setItem('qa_srv', '[]'); localStorage.setItem('ml3_trips', '[]'); return true; });
+  await page.reload({ waitUntil: 'domcontentloaded' }); await page.waitForTimeout(1600);
+  await page.evaluate(() => { ['authOverlay','onboardOverlay'].forEach(i=>{const e=document.getElementById(i);if(e){e.style.display='none';e.classList.remove('active');}}); window.__qaTrips = () => JSON.parse(localStorage.getItem('ml3_trips') || '[]'); if(window.initGoogleMaps)window.initGoogleMaps(); });
+  await page.waitForTimeout(1500);
+  await page.evaluate(() => window.switchNav('home', document.getElementById('nav-home'))); await settle(page);
+  R('a new owner gets a welcome card, not four zeroes', await ask(page, () =>
+    /Welcome to Milo/.test(document.getElementById('hStats').textContent) &&
+    !/Miles YTD/.test(document.getElementById('hStats').textContent), false));
+  R('the setup steps are on screen', await ask(page, () =>
+    document.querySelectorAll('#hStats .start-step').length === 3, false));
+  // same trap as the nudge: the map underneath will eat these clicks
+  R('setup steps are clickable, not under the map', await ask(page, () => {
+    const st = document.querySelector('#hStats .start-step'); if (!st) return 'missing';
+    const r = st.getBoundingClientRect();
+    const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    return (st === hit || st.contains(hit)) ? 'ok' : 'covered by ' + (hit && (hit.id || hit.className));
+  }, 'threw') === 'ok', await ask(page, () => {
+    const st = document.querySelector('#hStats .start-step'); if (!st) return 'missing';
+    const r = st.getBoundingClientRect();
+    const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    return (st === hit || st.contains(hit)) ? 'ok' : 'covered by ' + (hit && (hit.id || hit.className));
+  }, 'threw'));
+  await page.click('#hStats .start-step').catch(() => {});
+  await page.waitForTimeout(600);
+  R('the first step opens the log form', await ask(page, () =>
+    document.getElementById('logOverlay').style.display === 'flex', false));
+  await page.evaluate(() => window.closeLogOverlay()); await settle(page);
+  R('onboarding no longer promises automatic tracking', await ask(page, () =>
+    !/automatically captures|background tracking/i.test(document.body.innerHTML), false));
+  // put the ledger back for the checks that follow
+  await ask(page, snap => { localStorage.setItem('qa_srv', snap); return true; }, true);
+  await page.evaluate(snap => localStorage.setItem('qa_srv', snap), ledgerSnapshot);
+  await page.reload({ waitUntil: 'domcontentloaded' }); await page.waitForTimeout(1600);
+  await page.evaluate(() => { ['authOverlay','onboardOverlay'].forEach(i=>{const e=document.getElementById(i);if(e){e.style.display='none';e.classList.remove('active');}}); window.__qaTrips = () => JSON.parse(localStorage.getItem('ml3_trips') || '[]'); if(window.initGoogleMaps)window.initGoogleMaps(); });
+  await page.waitForTimeout(1500);
+
   // ── UNLOGGED-DAY NUDGE: shows real gaps, and acting on one dates the form
   await page.evaluate(() => {
     // a Mon–Fri pattern with the last few weekdays missing

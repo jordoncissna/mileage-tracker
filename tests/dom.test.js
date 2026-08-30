@@ -20,7 +20,7 @@ const store = {};
 window.localStorage = { getItem: k => k in store ? store[k] : null, setItem: (k, v) => { store[k] = String(v); }, removeItem: k => { delete store[k]; }, clear: () => { for (const k in store) delete store[k]; } };
 
 const inline = html.match(/<script>([\s\S]*?)<\/script>/g).pop().replace(/^<script>/, '').replace(/<\/script>$/, '');
-const runner = new window.Function(inline + '\n;window.__clearF=clearF;window.__addTrip=addTrip;window.__trips=()=>trips;window.__renderH=renderH;window.__renderAnalytics=renderAnalytics;window.__showTip=showChartTip;window.__logEndpoints=logRouteEndpoints;');
+const runner = new window.Function(inline + '\n;window.__clearF=clearF;window.__addTrip=addTrip;window.__trips=()=>trips;window.__renderH=renderH;window.__renderAnalytics=renderAnalytics;window.__showTip=showChartTip;window.__logEndpoints=logRouteEndpoints;window.renderHome=renderHome;');
 try { runner.call(window); } catch (e) { console.log('init threw (often benign):', e.message); }
 
 let pass = 0, fail = 0;
@@ -430,6 +430,21 @@ T('sign out moved to settings foot', document.querySelector('.set-foot .signout-
   T('saved-route suggestions match a fragment', sm.length === 1 && sm[0].city === 'Ogden' && sm[0].state === 'UT');
   T('saved-route suggestions are marked as saved', sm[0].saved === true);
   T('short input yields nothing to show', window.savedAddrMatches('zzzznope').length === 0);
+
+  // ===== FIRST-RUN HOME =====
+  const savedTrips = window.__trips().slice();
+  window.__trips().length = 0;
+  window.renderHome();
+  const startHtml = $('hStats').innerHTML;
+  T('an empty ledger shows the welcome card, not four zeroes', /Welcome to Milo/.test(startHtml) && !/Miles YTD/.test(startHtml));
+  T('three setup steps are offered', document.querySelectorAll('#hStats .start-step').length === 3);
+  T('the first step is logging a trip', /Log your first trip/.test(startHtml));
+  T('steps report progress', !!document.querySelector('#hStats .start-count'));
+  T('first-run steps are computed from real state', window.firstRunSteps()[0].done === false);
+  savedTrips.forEach(t => window.__trips().push(t));
+  window.renderHome();
+  T('with trips, the stat cards come back', /Miles YTD/.test($('hStats').innerHTML) && !/Welcome to Milo/.test($('hStats').innerHTML));
+  T('logging a trip ticks the first step', window.firstRunSteps()[0].done === true);
 
   console.log(`\ndom.test.js: ${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);
