@@ -132,6 +132,13 @@ should make on your behalf — and gating something you use daily could have
 locked you out of your own trips. The UX work I did ship this session is all
 additive.
 
+## A note on the PRO badge
+
+Settings used to show a **PRO** badge on auto-classify rules. There is no Pro
+plan and the feature is free, so an invited coworker saw a paywall hint on
+something they already had. It's removed. Put it back the day gating actually
+exists — not before.
+
 ## What only you can answer
 
 1. **Is Milo a product or a tool?** Everything above assumes you want paying

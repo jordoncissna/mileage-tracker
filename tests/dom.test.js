@@ -431,6 +431,25 @@ T('sign out moved to settings foot', document.querySelector('.set-foot .signout-
   T('saved-route suggestions are marked as saved', sm[0].saved === true);
   T('short input yields nothing to show', window.savedAddrMatches('zzzznope').length === 0);
 
+  // ===== FIRST TRIP GETS A REAL MOMENT =====
+  {
+    const before = window.__trips().splice(0, window.__trips().length);
+    ['tFromStreet','tFromCity','tFromState','tToStreet','tToCity','tToState'].forEach(id => { $(id).value = 'x'; });
+    $('tFromStreet').value = '1 A St'; $('tFromCity').value = 'Syracuse'; $('tFromState').value = 'UT';
+    $('tToStreet').value = '2 B Ave'; $('tToCity').value = 'Lehi'; $('tToState').value = 'UT';
+    $('tMiles').value = '100'; $('tDate').value = '2026-06-10'; $('tPurpose').value = 'first';
+    $('tCat').selectedIndex = 0;
+    await window.__addTrip();
+    T('the first trip is announced with what it is worth', /First trip logged/.test($('toast').textContent) && /\$/.test($('toast').textContent), $('toast').textContent);
+    $('tFromStreet').value = '1 A St'; $('tFromCity').value = 'Syracuse'; $('tFromState').value = 'UT';
+    $('tToStreet').value = '3 C Rd'; $('tToCity').value = 'Provo'; $('tToState').value = 'UT';
+    $('tMiles').value = '50'; $('tDate').value = '2026-06-11'; $('tPurpose').value = 'second';
+    await window.__addTrip();
+    T('later trips get the plain confirmation', !/First trip/.test($('toast').textContent), $('toast').textContent);
+    window.__trips().splice(0, window.__trips().length);
+    before.forEach(t => window.__trips().push(t));
+  }
+
   // ===== FIRST-RUN HOME =====
   const savedTrips = window.__trips().slice();
   window.__trips().length = 0;

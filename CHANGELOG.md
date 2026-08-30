@@ -27,6 +27,16 @@ the page and swallowed clicks meant for anything underneath it. Gone. And on a
 phone with nothing logged, the empty map no longer takes the top 400px before
 you reach anything you can act on.
 
+## Small things, first-run polish
+*PR #35*
+
+- **Your first trip now says what it's worth.** "First trip logged — $56.84
+  deductible" instead of a generic tick. That number is the whole point of the
+  app; it shouldn't take a trip to Analytics to see it.
+- **Removed the PRO badge from auto-classify rules.** There is no Pro plan, the
+  feature is free, and anyone you invite was seeing a paywall hint on something
+  they already had. It comes back if and when plans actually ship.
+
 ## A nudge for days with nothing logged
 *PR #32*
 
