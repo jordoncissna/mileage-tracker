@@ -188,6 +188,23 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
   .home-float{position:absolute;inset:0;padding:20px 24px;display:flex;flex-direction:column;gap:12px;pointer-events:none;z-index:2;}
   .glassy{background:var(--glass);backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);border:1px solid var(--glass-br);border-radius:12px;box-shadow:0 12px 40px var(--glass-sh);}
   .home-nudge{pointer-events:auto;padding:12px 14px;display:flex;flex-direction:column;gap:8px;}
+  .home-stats.is-start{display:block;}
+  .start-card{pointer-events:auto;padding:16px 18px;display:flex;flex-direction:column;gap:12px;max-width:520px;}
+  .start-head{display:flex;align-items:flex-start;gap:12px;}
+  .start-title{font-size:16px;font-weight:700;color:var(--text);letter-spacing:-0.01em;}
+  .start-sub{font-size:12px;color:var(--text2);line-height:1.5;margin-top:3px;}
+  .start-count{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text3);border:1px solid var(--border2);border-radius:20px;padding:3px 10px;white-space:nowrap;}
+  .start-steps{display:flex;flex-direction:column;gap:6px;}
+  .start-step{display:flex;align-items:center;gap:11px;text-align:left;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;cursor:pointer;font-family:inherit;transition:border-color .12s,transform .12s;}
+  .start-step:hover{border-color:var(--accent);transform:translateX(2px);}
+  .start-tick{width:20px;height:20px;flex:none;border-radius:50%;border:1.5px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:11px;color:#fff;}
+  .start-step.done .start-tick{background:var(--green);border-color:var(--green);}
+  .start-step.done .start-label{color:var(--text3);text-decoration:line-through;}
+  .start-main{display:flex;flex-direction:column;gap:1px;min-width:0;}
+  .start-label{font-size:13px;font-weight:600;color:var(--text);}
+  .start-hint{font-size:11px;color:var(--text3);}
+  .start-foot{font-size:11px;color:var(--text3);line-height:1.5;}
+  .start-tour{background:none;border:none;color:var(--accent);font-size:11px;cursor:pointer;padding:0;font-family:inherit;text-decoration:underline;}
   .nudge-head{display:flex;align-items:center;gap:10px;}
   .nudge-title{font-size:13px;font-weight:650;color:var(--text);flex:1;}
   .nudge-x{background:none;border:none;color:var(--text3);font-size:11px;cursor:pointer;padding:2px 6px;border-radius:6px;font-family:inherit;}
@@ -1439,7 +1456,7 @@ body:not(.light) .offline-pill{color:#fbbf24;}
   <!-- Trust line below cards -->
   <div class="auth-trust">
     <div class="auth-trust-row">
-      <span>🔒 Secured with end-to-end encryption · <a href="privacy.html" style="color:inherit;text-decoration:underline" target="_blank" rel="noopener">Privacy Policy</a></span>
+      <span>🔒 Encrypted in transit and at rest · <a href="privacy.html" style="color:inherit;text-decoration:underline" target="_blank" rel="noopener">Privacy Policy</a></span>
     </div>
   </div>
 
@@ -1507,7 +1524,7 @@ body:not(.light) .offline-pill{color:#fbbf24;}
       <div class="onboard-subhead">The premium mileage tracker built for business owners. Let's get you set up in under 60 seconds.</div>
     </div>
 
-    <!-- Screen 2: Auto-tracking explained with phone mockup -->
+    <!-- Screen 2: how logging a trip actually works -->
     <div class="onboard-screen" data-screen="2">
       <div class="onboard-phone">
         <div class="onboard-phone-frame">
@@ -1535,8 +1552,8 @@ body:not(.light) .offline-pill{color:#fbbf24;}
           </div>
         </div>
       </div>
-      <div class="onboard-headline">Drive. We track.<br/>You save.</div>
-      <div class="onboard-subhead">Milo automatically captures every business mile in the background — no manual entry needed.</div>
+      <div class="onboard-headline">A trip takes<br/>ten seconds.</div>
+      <div class="onboard-subhead">Type where you went — Milo finds the address, draws the route, works out the miles and what they're worth. One tap and it's on your books.</div>
     </div>
 
     <!-- Screen 3: Interactive Classify Demo -->
@@ -1573,24 +1590,24 @@ body:not(.light) .offline-pill{color:#fbbf24;}
           <div class="onboard-phone-screen">
             <div class="onboard-mock-tip-card">
               <div class="onboard-mock-tip-icon">💡</div>
-              <div class="onboard-mock-tip-title">How auto-tracking works</div>
-              <div class="onboard-mock-tip-line">⚡ Starts when you drive 10+ mph</div>
-              <div class="onboard-mock-tip-line">🛑 Ends after 3 min parked</div>
-              <div class="onboard-mock-tip-line">📊 Stores route + distance</div>
+              <div class="onboard-mock-tip-title">What an auditor looks for</div>
+              <div class="onboard-mock-tip-line">📅 Date of each trip</div>
+              <div class="onboard-mock-tip-line">📍 Where you went, and why</div>
+              <div class="onboard-mock-tip-line">📊 Miles, kept as you go</div>
             </div>
           </div>
         </div>
       </div>
-      <div class="onboard-headline">A few things to know</div>
-      <div class="onboard-subhead">GPS tracking depends on cellular and battery. Keep Milo open occasionally so we stay accurate.</div>
+      <div class="onboard-headline">Log it the same week</div>
+      <div class="onboard-subhead">The IRS wants records kept as you go. A log rebuilt at tax time is the part that gets challenged — so Milo keeps an eye on the gaps.</div>
       <div class="onboard-feature-list">
         <div class="onboard-feature-item">
           <div class="onboard-feature-icon">📱</div>
-          <div class="onboard-feature-text"><strong>Open Milo weekly</strong><span>Keeps background tracking running smoothly</span></div>
+          <div class="onboard-feature-text"><strong>Milo spots the gaps</strong><span>Days with nothing logged show up on Home</span></div>
         </div>
         <div class="onboard-feature-item">
           <div class="onboard-feature-icon">✏️</div>
-          <div class="onboard-feature-text"><strong>Review missed trips</strong><span>Add them manually anytime — takes 10 seconds</span></div>
+          <div class="onboard-feature-text"><strong>Fill one in a tap</strong><span>Pick the day and the form opens dated for you</span></div>
         </div>
       </div>
     </div>
@@ -3368,6 +3385,39 @@ function weekStartISO(){
   d.setDate(d.getDate()-dow);
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 }
+// ── FIRST RUN ────────────────────────────────────────────────────────
+// A brand-new owner used to land on four zeroes. Same space, but a path:
+// three steps that tick themselves off as they get done.
+function firstRunSteps(){
+  return [
+    {done:!!(trips&&trips.length),label:'Log your first trip',hint:'Type where you went — Milo does the rest',act:'openLogOverlay()'},
+    {done:!!cfg.home,label:'Add your home address',hint:'So every trip starts from the right place',act:"switchNav('set',document.getElementById('nav-set'))"},
+    {done:!!(cfg.biz&&cfg.vehicle),label:'Name your business and vehicle',hint:'Both appear on your tax report',act:"switchNav('set',document.getElementById('nav-set'))"}
+  ];
+}
+function firstRunCard(){
+  var steps=firstRunSteps(),done=steps.filter(function(x){return x.done;}).length;
+  return "<div class='start-card glassy'>"+
+    "<div class='start-head'>"+
+      "<div><div class='start-title'>Welcome to Milo</div>"+
+      "<div class='start-sub'>Every business mile you log is money back at tax time. Three things and you're set.</div></div>"+
+      "<div class='start-count'>"+done+"/"+steps.length+"</div>"+
+    "</div>"+
+    "<div class='start-steps'>"+steps.map(function(st){
+      return "<button type='button' class='start-step"+(st.done?' done':'')+"' onclick=\""+st.act+"\">"+
+        "<span class='start-tick'>"+(st.done?'✓':'')+"</span>"+
+        "<span class='start-main'><span class='start-label'>"+esc(st.label)+"</span>"+
+        "<span class='start-hint'>"+esc(st.hint)+"</span></span>"+
+      "</button>";
+    }).join('')+"</div>"+
+    "<div class='start-foot'>Everything syncs to your account, so it's on every device you sign in from."+
+      (typeof startOnboarding==='function'?" <button type='button' class='start-tour' onclick='startOnboarding()'>Replay the walkthrough</button>":'')+
+    "</div>"+
+  "</div>";
+}
+window.firstRunCard=firstRunCard;
+window.firstRunSteps=firstRunSteps;
+
 // ── UNLOGGED-DAY NUDGE ───────────────────────────────────────────────
 // The IRS wants contemporaneous records; a log reconstructed weeks later is the
 // weak point in an audit. Milo cannot know whether someone drove, so this only
@@ -3464,11 +3514,12 @@ function renderHome(){
   var paceTxt=priMi>0?((ytdMi>=priMi?'+':'−')+Math.round(Math.abs(ytdMi-priMi)/priMi*100)+'%'):'—';
   var fmtN=function(n){return n.toFixed(1).replace(/\B(?=(\d{3})+(?!\d))/g,',');};
   var stats=document.getElementById('hStats');
-  if(stats)stats.innerHTML=
+  if(stats&&!trips.length){stats.innerHTML=firstRunCard();stats.classList.add('is-start');}
+  else if(stats){stats.classList.remove('is-start');stats.innerHTML=
     '<div class="hs-card"><div class="hs-label">Miles YTD</div><div class="hs-val">'+fmtN(ytdMi)+'</div><div class="hs-sub">'+yr4+'</div></div>'+
     '<div class="hs-card"><div class="hs-label">Deductible</div><div class="hs-val green">$'+ytdDed.toFixed(2)+'</div><div class="hs-sub">@ $'+rate(yr4+'-01-01').toFixed(2)+'/mi</div></div>'+
     '<div class="hs-card"><div class="hs-label">This week</div><div class="hs-val">'+fmtN(wkMi)+' mi</div><div class="hs-sub">'+wk.length+' trip'+(wk.length!==1?'s':'')+'</div></div>'+
-    '<div class="hs-card"><div class="hs-label">Pace vs '+(now.getFullYear()-1)+'</div><div class="hs-val accent">'+paceTxt+'</div><div class="hs-sub">'+(priMi>0?(ytdMi>=priMi?'on track':'behind'):'no '+(now.getFullYear()-1)+' data')+'</div></div>';
+    '<div class="hs-card"><div class="hs-label">Pace vs '+(now.getFullYear()-1)+'</div><div class="hs-val accent">'+paceTxt+'</div><div class="hs-sub">'+(priMi>0?(ytdMi>=priMi?'on track':'behind'):'no '+(now.getFullYear()-1)+' data')+'</div></div>';}
   var wkEl=document.getElementById('hWeek');
   var recent=trips.slice().sort(function(a,b){return (b.date||'').localeCompare(a.date||'');}).slice(0,5);
   if(wkEl)wkEl.innerHTML=recent.length?recent.map(function(t){
@@ -3477,8 +3528,12 @@ function renderHome(){
   }).join(''):"<div class='hw-row' style='color:var(--text3);font-size:12px'>No trips yet — log your first one.</div>";
   var wt=document.getElementById('hWeekTotal');
   if(wt)wt.textContent=wk.length?fmtN(wkMi)+' mi · $'+wkDed.toFixed(2):'—';
+  // The old empty-state CTA was a full-bleed scrim (position:absolute; inset:0)
+  // laid over Home. It dimmed the welcome card and swallowed its clicks, so the
+  // setup steps looked greyed out and did nothing. The card carries the same
+  // call to action in its first step, so the scrim is gone.
   var cta=document.getElementById('homeCta');
-  if(cta)cta.style.display=trips.length?'none':'flex';
+  if(cta)cta.style.display='none';
   renderNudge();
   renderHomePlaces();
 }
