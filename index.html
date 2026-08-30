@@ -2030,7 +2030,7 @@ body:not(.light) .offline-pill{color:#fbbf24;}
               </select>
             </div>
             <button class="btn btn-primary" onclick="addRule()">+ Add rule</button>
-            <div style="font-size:11px;color:var(--text3);line-height:1.5">Fill at least one match condition. All filled conditions must match (addresses use the same fuzzy matching as commute detection).</div>
+            <div style="font-size:11px;color:var(--text3);line-height:1.5">Fill at least one match condition. All filled conditions must match. Addresses match loosely, so “Lehi” catches any address in Lehi.</div>
           </div>
         </div>
         <div class="sc"><div class="sc-icon" style="background:linear-gradient(135deg,#f59e0b,#f97316)">🗺️</div>
@@ -5301,7 +5301,7 @@ function showTripDetail(tripId){
   document.getElementById('tdMiles').textContent=parseFloat(trip.miles||0).toFixed(1)+' mi';
   const fullVal='$'+(parseFloat(trip.miles||0)*rate(trip.date)).toFixed(2);
   const tdZero=isPersonal(trip);
-  document.getElementById('tdValue').innerHTML=tdZero?'<span style="text-decoration:line-through;opacity:0.5">'+fullVal+'</span> $0.00 <span style="font-size:11px;color:#a78bfa">('+(isPersonal(trip)?'personal':'commute')+')</span>':fullVal;
+  document.getElementById('tdValue').innerHTML=tdZero?'<span style="text-decoration:line-through;opacity:0.5">'+fullVal+'</span> $0.00 <span style="font-size:11px;color:#a78bfa">('+'personal'+')</span>':fullVal;
   document.getElementById('tdFrom').textContent=trip.from||'—';
   document.getElementById('tdTo').textContent=trip.to||'—';
   document.getElementById('tdPurpose').textContent=trip.purpose||'—';

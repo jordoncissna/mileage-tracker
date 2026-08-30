@@ -145,6 +145,8 @@ things that have broken before, in the ways they broke:
 
 ## Before you claim it's done
 
+0. If the owner would notice this change, it needs a `CHANGELOG.md` entry in
+   the same PR — in their language, not the code's.
 1. `cd tests && npm test` — all four suites.
 2. `node .claude/skills/qa/harness.js` — behavioral pass in Chromium.
 3. Re-read the owner's original words and answer them literally. If they said

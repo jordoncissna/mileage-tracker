@@ -158,6 +158,14 @@ cd tests && npm test              # 4 suites, jsdom
 node .claude/skills/qa/harness.js # real Chromium, real clicks, real reloads
 ```
 
+## Changelog
+
+`CHANGELOG.md` is the owner-facing record: what changed and why it mattered, in
+plain language, newest first. **Add an entry in the same PR as any change the
+owner would notice** — a new feature, a fixed bug they reported, a behaviour
+change. Skip it for refactors, tests and tooling. Merged PR bodies are the
+engineering detail; the changelog is the readable history.
+
 ## Deploy
 
 GitHub Pages serves `index.html` from `main`. To ship a change:
