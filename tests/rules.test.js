@@ -229,6 +229,9 @@ T('gaps are newest first', many.join(',') === many.slice().sort().reverse().join
 T('no promise of automatic/background trip capture', !/automatically captures|background tracking|auto-tracking/i.test(html));
 T('no end-to-end encryption claim', !/end-to-end encryption/i.test(html));
 T('security claim is one we can stand behind', /Encrypted in transit and at rest/.test(html));
+// No plan badges while every feature is free — an invited coworker should not
+// see a paywall hint on something they already have.
+T('no PRO badge while there are no plans', !/>PRO</.test(html));
 
 console.log(`\nrules.test.js: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

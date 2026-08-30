@@ -2042,7 +2042,7 @@ body:not(.light) .offline-pill{color:#fbbf24;}
           </div>
         </div>
         <div class="sc"><div class="sc-icon" style="background:linear-gradient(135deg,#f59e0b,#d97706)">⚡</div>
-          <h3>Auto-classify rules <span style="font-size:10px;color:#f59e0b;border:1px solid rgba(245,158,11,0.4);border-radius:6px;padding:1px 6px;vertical-align:middle;font-weight:600">PRO</span></h3>
+          <h3>Auto-classify rules</h3>
           <div style="font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:14px">
             Set rules like “trips to 123 Main St = Office Visit.” Matching trips get a 💡 suggestion in History — nothing changes until you confirm.
           </div>
@@ -4124,7 +4124,11 @@ async function addTrip(){
     var dup1=dupTripCount([trip.date],trip.from,trip.to);
     if(dup1&&!confirm('You already logged '+dup1+' trip'+(dup1>1?'s':'')+' with this route on '+fmt(trip.date)+'. Save another?'))return;
     trips.push(trip);
-    save();clearF();updateSidebar();renderH();renderHomeIfActive();closeLogOverlay();toast('Trip saved ✓');
+    save();clearF();updateSidebar();renderH();renderHomeIfActive();closeLogOverlay();
+    // The first trip is the moment this stops being an empty app — name what it's worth.
+    toast(trips.length===1
+      ? ('First trip logged — $'+deductibleValue(trip).toFixed(2)+' deductible \u2713')
+      : 'Trip saved \u2713');
     drawTripOnMap(trip.from,trip.to,fmt(trip.date));
     saveToSupabase(trip);
     return;
