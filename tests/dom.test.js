@@ -445,6 +445,11 @@ T('sign out moved to settings foot', document.querySelector('.set-foot .signout-
   window.renderHome();
   T('with trips, the stat cards come back', /Miles YTD/.test($('hStats').innerHTML) && !/Welcome to Milo/.test($('hStats').innerHTML));
   T('logging a trip ticks the first step', window.firstRunSteps()[0].done === true);
+  T('body carries no-trips only while the ledger is empty', !document.body.classList.contains('no-trips'));
+  const keep = window.__trips().splice(0, window.__trips().length);
+  window.renderHome();
+  T('empty ledger flags the body for the compact map', document.body.classList.contains('no-trips'));
+  keep.forEach(t => window.__trips().push(t)); window.renderHome();
 
   console.log(`\ndom.test.js: ${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);

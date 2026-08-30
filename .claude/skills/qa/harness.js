@@ -763,10 +763,27 @@ async function fillLog(page, o) {
   R('390px: suggestions are visible and tappable', acFit === 'ok', acFit);
   await mob.evaluate(() => window.closeLogOverlay());
 
-  R('390px: bottom nav present', await mob.evaluate(() => {
+  // a phone with nothing logged should lead with the welcome card, not an empty map
+  await ask(mob, () => { localStorage.setItem('ml3_trips', '[]'); localStorage.setItem('qa_srv', '[]'); return true; });
+  await mob.reload({ waitUntil: 'domcontentloaded' }); await mob.waitForTimeout(1500);
+  await mob.evaluate(() => { ['authOverlay','onboardOverlay'].forEach(i=>{const e=document.getElementById(i);if(e){e.style.display='none';e.classList.remove('active');}}); });
+  await mob.evaluate(() => window.switchNav('home', document.getElementById('nav-home')));
+  await mob.waitForTimeout(700);
+  const firstRunMob = await ask(mob, () => {
+    const c = document.querySelector('.start-card'); if (!c) return { err: 'no card' };
+    const r = c.getBoundingClientRect();
+    const st = document.querySelector('.start-step'); const sr = st.getBoundingClientRect();
+    const hit = document.elementFromPoint(sr.left + sr.width / 2, sr.top + sr.height / 2);
+    return { top: Math.round(r.top), vh: innerHeight, tappable: (st === hit || st.contains(hit)) };
+  }, { err: 'threw' });
+  R('390px: the welcome card is above the fold', firstRunMob.top > 0 && firstRunMob.top < firstRunMob.vh * 0.45,
+    'top=' + firstRunMob.top + ' of ' + firstRunMob.vh);
+  R('390px: setup steps are tappable', firstRunMob.tappable === true);
+
+  R('390px: bottom nav present', await ask(mob, () => {
     const n = document.getElementById('mobileBottomNav');
     return !!n && getComputedStyle(n).display !== 'none';
-  }));
+  }, false));
 
   await browser.close();
   const bad = results.filter(r => !r.ok);

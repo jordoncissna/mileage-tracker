@@ -148,6 +148,9 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
     /* Home flows as a normal page on phones: map block up top, cards below */
     #view-home.on{height:auto;overflow:visible;position:relative;}
     #view-home #homeMap{position:relative;inset:auto;height:210px;margin:12px 14px 0;border-radius:12px;overflow:hidden;}
+    /* Nothing logged yet: an empty map is 210px of nothing above the fold on a
+       phone. Shrink it so the welcome card is the first thing in reach. */
+    body.no-trips #view-home #homeMap{height:96px;opacity:.5;}
     .home-float{position:static;padding:12px 14px 90px;pointer-events:auto;}
     .home-headrow{margin-bottom:10px;}
     .home-stats{grid-template-columns:1fr 1fr;}
@@ -334,6 +337,9 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);heigh
     /* Home flows as a normal page on phones: map block up top, cards below */
     #view-home.on{height:auto;overflow:visible;position:relative;}
     #view-home #homeMap{position:relative;inset:auto;height:210px;margin:12px 14px 0;border-radius:12px;overflow:hidden;}
+    /* Nothing logged yet: an empty map is 210px of nothing above the fold on a
+       phone. Shrink it so the welcome card is the first thing in reach. */
+    body.no-trips #view-home #homeMap{height:96px;opacity:.5;}
     .home-float{position:static;padding:12px 14px 90px;pointer-events:auto;}
     .home-headrow{margin-bottom:10px;}
     .home-stats{grid-template-columns:1fr 1fr;}
@@ -3513,6 +3519,7 @@ function renderHome(){
   var priMi=trips.reduce(function(s,t){return (t.date&&t.date.slice(0,4)===String(now.getFullYear()-1)&&t.date<=cut)?s+parseFloat(t.miles||0):s;},0);
   var paceTxt=priMi>0?((ytdMi>=priMi?'+':'−')+Math.round(Math.abs(ytdMi-priMi)/priMi*100)+'%'):'—';
   var fmtN=function(n){return n.toFixed(1).replace(/\B(?=(\d{3})+(?!\d))/g,',');};
+  document.body.classList.toggle('no-trips',!trips.length);
   var stats=document.getElementById('hStats');
   if(stats&&!trips.length){stats.innerHTML=firstRunCard();stats.classList.add('is-start');}
   else if(stats){stats.classList.remove('is-start');stats.innerHTML=
