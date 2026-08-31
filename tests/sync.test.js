@@ -12,9 +12,9 @@ const { window } = dom;
 const { document } = window;
 
 // ---- recording Supabase stub: server rows live in `server` ----
-const server = { rows: [], inserts: 0, deletes: 0, nextId: 1, delay: 0, prefs: null, prefsReads: 0, prefsWrites: 0, prefsMissing: false };
+const server = { rows: [], inserts: 0, deletes: 0, nextId: 1, delay: 0, prefs: null, prefsReads: 0, prefsWrites: 0, prefsMissing: false, plan: null, planInserts: 0, planMissing: false };
 const wait = ms => new Promise(r => setTimeout(r, ms));
-function reset() { server.rows = []; server.inserts = 0; server.deletes = 0; server.nextId = 1; server.delay = 0; server.prefs = null; server.prefsReads = 0; server.prefsWrites = 0; server.prefsMissing = false; }
+function reset() { server.rows = []; server.inserts = 0; server.deletes = 0; server.nextId = 1; server.delay = 0; server.prefs = null; server.prefsReads = 0; server.prefsWrites = 0; server.prefsMissing = false; server.plan = null; server.planInserts = 0; server.planMissing = false; }
 function rowFrom(r) { return Object.assign({}, r, { id: 'srv-' + (server.nextId++) }); }
 // user_prefs: one row per user, or a "table missing" error when prefsMissing
 const prefsTable = {
@@ -31,6 +31,18 @@ const prefsTable = {
     if (server.prefsMissing) return { error: { code: 'PGRST205', message: "Could not find the table 'public.user_prefs' in the schema cache" } };
     server.prefsWrites++;
     server.prefs = JSON.parse(JSON.stringify(row));
+    return { error: null };
+  }
+};
+// user_plan: one row per user, or "table missing" when planMissing
+const planTable = {
+  select: () => ({ eq: () => ({ maybeSingle: async () => {
+    if (server.planMissing) return { data: null, error: { code: 'PGRST205', message: "Could not find the table 'public.user_plan' in the schema cache" } };
+    return { data: server.plan, error: null };
+  } }) }),
+  insert: async (row) => {
+    if (server.planMissing) return { error: { code: 'PGRST205', message: "Could not find the table 'public.user_plan' in the schema cache" } };
+    server.planInserts++; server.plan = JSON.parse(JSON.stringify(row));
     return { error: null };
   }
 };
@@ -54,7 +66,7 @@ const table = {
   delete: () => ({ eq: async (col, id) => { server.deletes++; server.rows = server.rows.filter(r => r.id !== id); return { error: null }; } })
 };
 window.google = { maps: { places: { Autocomplete: function () { return { addListener() {}, getPlace() { return {}; } }; }, AutocompleteService: function () { this.getPlacePredictions = () => {}; } }, Geocoder: function () { this.geocode = () => {}; }, Map: function () { this.addListener = () => {}; this.getCenter = () => ({ lat: () => 41, lng: () => -112 }); this.getZoom = () => 10; this.setOptions = () => {}; this.setCenter = () => {}; this.fitBounds = () => {}; }, Marker: function () {}, DirectionsService: function () { this.route = () => {}; }, DirectionsRenderer: function () { this.setMap = () => {}; }, LatLngBounds: function () { this.extend = () => {}; }, geometry: { spherical: { computeDistanceBetween: () => 1609 } }, event: { addListenerOnce: () => {} }, importLibrary: () => Promise.resolve({}) } };
-window.supabase = { createClient: () => ({ auth: { getSession: async () => ({ data: { session: null } }), onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }), signInWithPassword: async () => ({}), signUp: async () => ({}), signOut: async () => ({}) }, from: (name) => (name === 'user_prefs' ? prefsTable : table) }) };
+window.supabase = { createClient: () => ({ auth: { getSession: async () => ({ data: { session: null } }), onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }), signInWithPassword: async () => ({}), signUp: async () => ({}), signOut: async () => ({}) }, from: (name) => (name === 'user_prefs' ? prefsTable : name === 'user_plan' ? planTable : table) }) };
 window.QRCode = function () {};
 window.initGoogleMaps = window.initGoogleMaps || function () {};
 window.alert = () => {};
@@ -83,6 +95,11 @@ const exports_ = `
 ;window.__savePrefs=savePrefsToSupabase;
 ;window.__persistCfg=persistCfg;
 ;window.__prefsSync=()=>prefsSync;
+;window.__loadPlan=loadPlanFromSupabase;
+;window.__plan=()=>userPlan;
+;window.__can=can;
+;window.__inviteLink=buildInviteLink;
+;window.__newCode=newReferralCode;
 `;
 const runner = new window.Function(inline + exports_);
 try { runner.call(window); } catch (e) { console.log('init threw (often benign):', e.message); }
@@ -315,6 +332,58 @@ const trip = o => Object.assign({ id: Date.now() + Math.random(), date: '2026-08
   window.__persistCfg(); await wait(900);
   T('no writes are attempted once the table is known missing', server.prefsWrites === 0);
   T('rules still work locally without the table', window.__cfg().rules.length > 0);
+
+  // ===== PLANS + REFERRALS (groundwork: nothing is locked) =====
+  reset();
+  window.__setUser({ id: 'u1' });
+  window.__plan().state = 'idle'; window.__plan().code = '';
+  window.localStorage.setItem('ml_referred_by', 'friendcode');
+
+  await window.__loadPlan(); await wait(20);
+  T('first sign-in creates the plan row', server.planInserts === 1);
+  T('everyone starts on founding, nothing locked', window.__plan().plan === 'founding');
+  T('the account gets its own share code', /^[a-z0-9]{8}$/.test(window.__plan().code));
+  T('the code someone arrived with is recorded once', server.plan.referred_by_code === 'friendcode');
+  T('the arrival code is cleared after it is used', !window.localStorage.getItem('ml_referred_by'));
+
+  // the share link must never carry the Supabase user id
+  const link = window.__inviteLink();
+  T('the invite link uses the short code', link.indexOf('ref=' + window.__plan().code) > 0, link);
+  T('the invite link does not leak the user id', link.indexOf('u1') < 0, link);
+
+  // signing in again adopts the existing row, it does not mint a second
+  server.planInserts = 0;
+  await window.__loadPlan(); await wait(20);
+  T('a later sign-in does not create another row', server.planInserts === 0);
+  T('the share code is stable across sign-ins', window.__plan().code === server.plan.referral_code);
+
+  // codes are unguessable and distinct
+  const codes = {}; let dup = 0;
+  for (let i = 0; i < 500; i++) { const c = window.__newCode(); if (codes[c]) dup++; codes[c] = 1; }
+  T('share codes do not collide across 500 draws', dup === 0);
+  T('share codes avoid look-alike characters', Object.keys(codes).every(c => !/[ilo01]/.test(c)));
+
+  // nothing is gated today, and the records can never be
+  T('every feature is available right now', ['export','taxReport','rules','autoTrack','anything'].every(f => window.__can(f)));
+  T('the export is always free by rule', window.__can('export'));
+  T('the tax report is always free by rule', window.__can('taxReport'));
+  window.__plan().plan = 'free'; window.__plan().expires = '2000-01-01T00:00:00Z';  // expired, lowest plan
+  T('an expired plan still reaches the export', window.__can('export'));
+  T('an expired plan still reaches the tax report', window.__can('taxReport'));
+  T('an expired plan can still read and log trips', window.__can('viewTrips') && window.__can('logTrip'));
+  window.__plan().plan = 'founding'; window.__plan().expires = null;
+
+  // the table not existing must not break sign-in
+  reset();
+  server.planMissing = true;
+  // a fresh page load with the table missing: no code has ever been minted
+  window.__plan().state = 'idle'; window.__plan().code = ''; window.__plan().plan = 'founding';
+  let planThrew = false;
+  try { await window.__loadPlan(); await wait(20); } catch (e) { planThrew = true; }
+  T('a missing user_plan table does not throw', !planThrew);
+  T('missing table switches plan tracking off', window.__plan().state === 'unavailable');
+  T('no plan row is attempted once the table is known missing', server.planInserts === 0);
+  T('with no table the invite link carries no code', window.__inviteLink().indexOf('ref=') < 0);
 
   console.log(`sync.test.js: ${pass} passed${fail ? ', ' + fail + ' failed' : ''}`);
   process.exit(fail ? 1 : 0);

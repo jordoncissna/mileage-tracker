@@ -188,8 +188,17 @@ T('confetti on completion not skip', /if\(skipReason!=='skip'\)fireConfetti\(\)/
 
 // ===== INVITE A COWORKER (referral) =====
 T('openInviteModal exposed', typeof window.openInviteModal === 'function');
-T('invite link carries a ref param', /[?&]ref=/.test(window.buildInviteLink()));
+// The link carries a ref only once the account has a share code. With no code
+// it stays a plain link rather than falling back to the Supabase user id, which
+// is what it used to leak into every shared URL.
 T('invite link points at the app', window.buildInviteLink().indexOf('mileage-tracker') >= 0);
+T('no share code yet → a plain link, no ref', !/[?&]ref=/.test(window.buildInviteLink()));
+window.userPlanState().code = 'abcd2345';
+T('with a share code the link carries it', /[?&]ref=abcd2345/.test(window.buildInviteLink()));
+T('the invite link never contains a user id', !/[0-9a-f]{8}-[0-9a-f]{4}/.test(window.buildInviteLink()));
+window.userPlanState().code = '';
+T('an inbound ?ref is captured for signup', typeof window.captureReferral === 'function');
+T('only one captureReferral exists', (html.match(/function captureReferral\(/g) || []).length === 1);
 window.openInviteModal();
 T('invite modal opens', $('inviteModal').style.display === 'flex');
 T('invite link populated in field', $('inviteLinkInput').value === window.buildInviteLink());

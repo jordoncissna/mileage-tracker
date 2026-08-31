@@ -2100,6 +2100,7 @@ body:not(.light) .offline-pill{color:#fbbf24;}
           <div style="margin-top:10px;text-align:center"><a href="privacy.html" target="_blank" rel="noopener" style="font-size:11.5px;color:var(--text3)">Privacy Policy</a></div>
           <div class="set-foot"><span>Milo v2 · data syncs via Supabase</span><span class="signout-red" onclick="var b=document.getElementById('signOutBtn');if(b)b.click()">Sign out</span></div>
           <button class="btn btn-primary" onclick="openInviteModal()" style="width:100%;margin-top:8px">📨 Invite a coworker</button>
+          <div id="planNote" style="font-size:11px;color:var(--text3);margin-top:8px;text-align:center"></div>
         </div>
         <div class="sc"><div class="sc-icon" style="background:linear-gradient(135deg,#06b6d4,#0891b2)">📦</div>
           <h3>Data</h3>
@@ -2645,6 +2646,89 @@ async function saveBatchToSupabase(list){
   list.forEach(function(t){delete t._saving;});
   setSyncing(false);
 }
+
+// ── PLANS + REFERRALS ─────────────────────────────────────────────────
+// Groundwork only: every plan unlocks everything today. can() is the single
+// place that would ever say no, so a paywall can't creep into the export or the
+// tax report by accident later — those two are listed as always-free and the
+// tests enforce it.
+var PLAN_FEATURES={
+  // feature: plans allowed to use it. ALWAYS_FREE wins over everything.
+  // Empty for now: nothing is limited, on any plan.
+};
+var ALWAYS_FREE=['export','taxReport','viewTrips','logTrip','editTrip','deleteTrip'];
+var userPlan={plan:'founding',expires:null,code:'',referredBy:'',state:'idle'};
+
+// The owner's own records are never gated. This is a rule, not a default.
+function can(feature){
+  if(ALWAYS_FREE.indexOf(feature)>=0)return true;
+  var allowed=PLAN_FEATURES[feature];
+  if(!allowed)return true;                       // not limited by anyone
+  if(planActive()&&allowed.indexOf(userPlan.plan)>=0)return true;
+  return false;
+}
+function planActive(){
+  if(!userPlan.expires)return true;              // no expiry = permanent
+  return new Date(userPlan.expires).getTime()>Date.now();
+}
+function planLabel(){
+  var names={founding:'Founding',free:'Free',pro:'Pro',premium:'Premium'};
+  return names[userPlan.plan]||userPlan.plan;
+}
+// Short, unguessable, and not derived from anything private. The old invite
+// link carried the raw Supabase user id, which does not belong in a URL people
+// paste into group chats.
+function newReferralCode(){
+  var abc='abcdefghjkmnpqrstuvwxyz23456789',out='';   // no look-alike chars
+  var buf=new Uint8Array(8);
+  if(window.crypto&&crypto.getRandomValues)crypto.getRandomValues(buf);
+  else for(var j=0;j<8;j++)buf[j]=Math.floor(Math.random()*256);
+  for(var i=0;i<8;i++)out+=abc[buf[i]%abc.length];
+  return out;
+}
+function missingPlanTable(err){
+  var m=((err&&(err.message||err.details||err.code))||'')+'';
+  return /user_plan/.test(m)&&/(does not exist|not find|schema cache|42P01|PGRST205)/i.test(m);
+}
+async function loadPlanFromSupabase(){
+  if(!currentUser)return;
+  try{
+    const{data,error}=await supa.from('user_plan').select('*').eq('user_id',currentUser.id).maybeSingle();
+    if(error){if(missingPlanTable(error)){userPlan.state='unavailable';renderPlan();return;}throw error;}
+    if(data){
+      userPlan.plan=data.plan||'founding';
+      userPlan.expires=data.plan_expires_at||null;
+      userPlan.code=data.referral_code||'';
+      userPlan.referredBy=data.referred_by_code||'';
+      userPlan.state='ready';
+    }else{
+      // First sign-in: mint this account's share code, and record the code they
+      // arrived with. referred_by is written once, at creation, and never again.
+      var ref='';try{ref=localStorage.getItem('ml_referred_by')||'';}catch(e){}
+      const row={user_id:currentUser.id,plan:'founding',referral_code:newReferralCode(),
+                 referred_by_code:ref||null,updated_at:new Date().toISOString()};
+      const{error:e2}=await supa.from('user_plan').insert(row);
+      if(e2){if(missingPlanTable(e2)){userPlan.state='unavailable';renderPlan();return;}throw e2;}
+      userPlan.plan=row.plan;userPlan.code=row.referral_code;userPlan.referredBy=ref;userPlan.state='ready';
+      try{localStorage.removeItem('ml_referred_by');}catch(e){}
+    }
+  }catch(e){console.error('Plan load error:',e);userPlan.state='error';}
+  renderPlan();
+}
+function renderPlan(){
+  var el=document.getElementById('planNote');
+  if(el){
+    if(userPlan.state==='unavailable')el.textContent='Plan and invite tracking are off — run supabase/user_plan.sql to switch them on.';
+    else if(userPlan.state==='ready')el.textContent='You’re on '+planLabel()+' — everything is unlocked.';
+    else el.textContent='';
+  }
+  var li=document.getElementById('inviteLinkInput');
+  if(li&&document.getElementById('inviteModal')&&document.getElementById('inviteModal').style.display==='flex')li.value=buildInviteLink();
+}
+window.can=can;
+window.loadPlanFromSupabase=loadPlanFromSupabase;
+window.newReferralCode=newReferralCode;
+window.userPlanState=function(){return userPlan;};
 
 // ── PREFERENCES SYNC (auto-classify rules + dismissed suggestions) ────
 // Rules used to live only in localStorage, so a phone and a laptop disagreed
@@ -4924,11 +5008,14 @@ function appBase(){
 }
 var INVITE_BASE=appBase();
 function inviteCode(){
-  // Stable per-user code: the Supabase user id when signed in, else 'guest'.
-  return (currentUser&&currentUser.id)?currentUser.id:'guest';
+  // The account's own short share code. Never the Supabase user id — that used
+  // to be in every invite link, and an internal identifier has no business in a
+  // URL people paste into group chats.
+  return (userPlan&&userPlan.code)?userPlan.code:'';
 }
 function buildInviteLink(){
-  return INVITE_BASE+'/?ref='+encodeURIComponent(inviteCode());
+  var c=inviteCode();
+  return c?(INVITE_BASE+'/?ref='+encodeURIComponent(c)):INVITE_BASE+'/';
 }
 var INVITE_MSG='I’m using Milo to track my mileage for tax deductions — it’s free and IRS-ready. Join me:';
 function openInviteModal(){
@@ -4966,14 +5053,23 @@ function inviteQr(){
     document.getElementById('inviteQrContainer').style.display='block';
   }catch(e){toast('QR library not loaded');}
 }
-// Capture an inbound referral so signup can attribute it (rewards later).
+// Capture an inbound referral so signup can attribute it. A visitor lands on
+// ?ref=CODE long before they have an account, so this has to survive signup and
+// the confirmation email round trip — hence localStorage, read later by
+// loadPlanFromSupabase() when the account row is first created.
 function captureReferral(){
   try{
     var p=new URLSearchParams(window.location.search);
     var ref=p.get('ref');
-    if(ref&&!localStorage.getItem('ml_referred_by'))localStorage.setItem('ml_referred_by',ref);
+    if(!ref)return;
+    if(!localStorage.getItem('ml_referred_by'))localStorage.setItem('ml_referred_by',ref);
+    // Out of the address bar, so it can't end up in the links they share.
+    p.delete('ref');
+    var q=p.toString();
+    history.replaceState(null,'',window.location.pathname+(q?'?'+q:''));
   }catch(e){}
 }
+window.captureReferral=captureReferral;
 captureReferral();
 window.openInviteModal=openInviteModal;window.closeInviteModal=closeInviteModal;
 window.copyInviteLink=copyInviteLink;window.nativeInvite=nativeInvite;
@@ -6031,6 +6127,7 @@ function onSignedIn(user){
   setTimeout(()=>{initMainMap();initResize();initRightResize();},200);
   loadFromSupabase();
   loadPrefsFromSupabase();
+  loadPlanFromSupabase();
 }
 
 window.addEventListener('DOMContentLoaded',function(){
