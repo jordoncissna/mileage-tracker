@@ -5,6 +5,27 @@ if a change doesn't alter what you see or what you can trust, it isn't here.
 
 ---
 
+## Groundwork for plans and invite rewards
+*PR #37 — one-time setup: run `supabase/user_plan.sql` in the Supabase SQL editor*
+
+**Nothing is locked and nobody is charged.** This is the plumbing that would
+make plans possible later, built so it can't go wrong quietly:
+
+- **Your invite link no longer contains your Supabase user ID.** It used to —
+  an internal identifier, in a link people paste into group chats. Every account
+  now gets a short random share code instead.
+- **Invites can finally be counted.** The link always ended in `?ref=…` but
+  nothing in the app read it, so a referral reward was impossible. Arriving on
+  someone's link now records who invited you, once, when your account is
+  created — and the code is stripped from your address bar so it can't end up
+  in the links you share.
+- **One place decides what's unlocked.** Everything is unlocked for everyone
+  today. The export and the tax report are marked as permanently free and the
+  tests fail if anything ever gates them — including for an expired plan.
+
+If you haven't run the SQL, nothing breaks: Settings says plan tracking is off
+and the app carries on exactly as before.
+
 ## A first run that tells the truth
 *PR #33*
 

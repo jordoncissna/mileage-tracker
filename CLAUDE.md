@@ -50,6 +50,22 @@ a laptop. If the table is missing, `loadPrefsFromSupabase()` detects it, turns
 sync off for the session and says so under the rules panel — trip logging must
 never depend on it.
 
+**Supabase `user_plan` table** (one row per user): `user_id`, `plan`,
+`plan_expires_at`, `referral_code`, `referred_by_code`. Created by
+`supabase/user_plan.sql`. Groundwork only — **every plan unlocks everything**.
+`can(feature)` is the single decision point; `ALWAYS_FREE` (export, tax report,
+viewing/logging/editing/deleting trips) can never be gated by anything, and the
+tests enforce that even for an expired plan. `PLAN_FEATURES` is empty on
+purpose: adding an entry is what would introduce a limit, deliberately.
+Referral codes are short random strings (`newReferralCode()`), never the
+Supabase user id — that used to be in every invite link. An inbound `?ref=` is
+captured by `captureReferral()` at load into `ml_referred_by`, stripped from the
+URL, and written **once** when the plan row is first created. Codes are stored
+as plain text rather than resolved to a user, because RLS means one account
+can't read another's row; resolving them is a server-side job for when rewards
+are actually granted. If the table is missing, plan tracking turns off and says
+so in Settings — trip logging must never depend on it.
+
 **Supabase `trips` table:** `id`, `user_id`, `date`, `miles`, `from_addr`,
 `to_addr`, `purpose`, `category`, `coords`, `from_latlng`, `to_latlng`.
 
@@ -160,6 +176,13 @@ reported passed them. Before calling anything done, follow `.claude/skills/qa/`
 cd tests && npm test              # 4 suites, jsdom
 node .claude/skills/qa/harness.js # real Chromium, real clicks, real reloads
 ```
+
+## Plans
+
+`PRICING.md` is the proposal. Two rules from it are enforced in code and tests:
+the export and tax report are in `ALWAYS_FREE` and can never be gated, and the
+free tier's limit (when one exists) belongs on billable Google lookups, not on
+trips. Nothing is gated today.
 
 ## Changelog
 

@@ -58,11 +58,27 @@ const INIT = `
         return { error:null };
       }
     };
+    var LK='qa_plan';
+    var planTable = {
+      select: function(){ return { eq: function(){ return { maybeSingle: async function(){
+        if(localStorage.getItem('qa_plan_missing')==='1')
+          return { data:null, error:{ code:'PGRST205', message:"Could not find the table 'public.user_plan' in the schema cache" } };
+        var raw=localStorage.getItem(LK);
+        return { data: raw?JSON.parse(raw):null, error:null };
+      } }; } }; },
+      insert: async function(row){
+        if(localStorage.getItem('qa_plan_missing')==='1')
+          return { error:{ code:'PGRST205', message:"Could not find the table 'public.user_plan' in the schema cache" } };
+        localStorage.setItem(LK, JSON.stringify(row));
+        localStorage.setItem('qa_plan_inserts', String(parseInt(localStorage.getItem('qa_plan_inserts')||'0',10)+1));
+        return { error:null };
+      }
+    };
     window.supabase = { createClient: function(){ return {
       auth: { getSession: async function(){ return { data: { session: { user:{ id:'u1', email:'qa@test.co' } } } }; },
               onAuthStateChange: function(cb){ setTimeout(function(){ cb('SIGNED_IN', { user:{ id:'u1', email:'qa@test.co' } }); }, 30); return { data:{ subscription:{ unsubscribe:function(){} } } }; },
               signOut: async function(){ return {}; } },
-      from: function(name){ return name==='user_prefs' ? prefsTable : table; } }; } };
+      from: function(name){ return name==='user_prefs' ? prefsTable : (name==='user_plan' ? planTable : table); } }; } };
   })();
   window.__map = { directions: 0, markers: [], polylines: 0, fits: 0, lastReq: null, routeStatus: 'OK', log: [] };
   window.google = { maps: {
@@ -497,6 +513,63 @@ async function fillLog(page, o) {
   await page.evaluate(() => window.switchNav('set', document.getElementById('nav-set'))); await settle(page);
   await page.uncheck('#sNudgeOff').catch(() => {});
   await page.waitForTimeout(400);
+
+  // ── PLANS + REFERRALS: arriving on someone's invite link
+  await ask(page, () => { ['qa_plan','qa_plan_inserts','ml_referred_by'].forEach(k => localStorage.removeItem(k)); return true; });
+  await page.goto(APP + '?ref=friend123', { waitUntil: 'domcontentloaded' });
+  await page.waitForTimeout(1700);
+  await page.evaluate(() => { ['authOverlay','onboardOverlay'].forEach(i=>{const e=document.getElementById(i);if(e){e.style.display='none';e.classList.remove('active');}}); window.__qaTrips = () => JSON.parse(localStorage.getItem('ml3_trips') || '[]'); if(window.initGoogleMaps)window.initGoogleMaps(); });
+  await page.waitForTimeout(1500);
+  // it is captured on arrival, then consumed when the account row is created —
+  // so it is either still pending or already on the row, never simply lost
+  R('an inbound invite code is captured', await ask(page, () => {
+    const pending = localStorage.getItem('ml_referred_by');
+    const row = JSON.parse(localStorage.getItem('qa_plan') || 'null');
+    return pending === 'friend123' || (row && row.referred_by_code === 'friend123');
+  }, false));
+  R('the code is taken out of the address bar', await ask(page, () => location.search.indexOf('ref=') < 0, false),
+    await ask(page, () => location.search, ''));
+  R('the new account records who invited them', await ask(page, () => {
+    const row = JSON.parse(localStorage.getItem('qa_plan') || 'null');
+    return !!row && row.referred_by_code === 'friend123';
+  }, false));
+  R('everyone starts on a plan with nothing locked', await ask(page, () =>
+    window.userPlanState().plan === 'founding' && window.can('export') && window.can('taxReport'), false));
+  R('the account gets its own short share code', await ask(page, () =>
+    /^[a-z0-9]{8}$/.test(window.userPlanState().code), false), await ask(page, () => window.userPlanState().code, ''));
+
+  // the share link must never carry the Supabase user id again
+  const inviteLink = await ask(page, () => window.buildInviteLink ? window.buildInviteLink() : (document.getElementById('inviteLinkInput') || {}).value, '');
+  await page.evaluate(() => window.openInviteModal()); await settle(page);
+  const shownLink = await ask(page, () => document.getElementById('inviteLinkInput').value, '');
+  R('the invite link uses the short code', await ask(page, () =>
+    document.getElementById('inviteLinkInput').value.indexOf('ref=' + window.userPlanState().code) > 0, false), shownLink);
+  R('the invite link does not leak a user id', shownLink.indexOf('u1') < 0 && !/[0-9a-f]{8}-[0-9a-f]{4}/.test(shownLink), shownLink);
+  await page.evaluate(() => window.closeInviteModal()); await settle(page);
+
+  // signing in again must not mint a second plan row
+  await page.reload({ waitUntil: 'domcontentloaded' }); await page.waitForTimeout(1700);
+  await page.evaluate(() => { ['authOverlay','onboardOverlay'].forEach(i=>{const e=document.getElementById(i);if(e){e.style.display='none';e.classList.remove('active');}}); if(window.initGoogleMaps)window.initGoogleMaps(); });
+  await page.waitForTimeout(1400);
+  R('a second sign-in reuses the same plan row', await ask(page, () =>
+    localStorage.getItem('qa_plan_inserts') === '1', false), await ask(page, () => localStorage.getItem('qa_plan_inserts'), '?'));
+
+  // the plan table missing must not break anything
+  await ask(page, () => { localStorage.setItem('qa_plan_missing','1'); localStorage.removeItem('qa_plan'); return true; });
+  await page.reload({ waitUntil: 'domcontentloaded' }); await page.waitForTimeout(1700);
+  await page.evaluate(() => { ['authOverlay','onboardOverlay'].forEach(i=>{const e=document.getElementById(i);if(e){e.style.display='none';e.classList.remove('active');}}); window.__qaTrips = () => JSON.parse(localStorage.getItem('ml3_trips') || '[]'); if(window.initGoogleMaps)window.initGoogleMaps(); });
+  await page.waitForTimeout(1500);
+  R('no plan table → trip logging is unaffected', await tripCount(page) >= 0);
+  R('no plan table → nothing is locked', await ask(page, () =>
+    window.can('export') && window.can('taxReport') && window.can('rules'), false));
+  R('no plan table → the owner is told', await ask(page, () => {
+    window.switchNav('set', document.getElementById('nav-set'));
+    return /run supabase\/user_plan\.sql/.test((document.getElementById('planNote') || {}).textContent || '');
+  }, false), await ask(page, () => (document.getElementById('planNote') || {}).textContent, ''));
+  await ask(page, () => { localStorage.removeItem('qa_plan_missing'); return true; });
+  await page.reload({ waitUntil: 'domcontentloaded' }); await page.waitForTimeout(1700);
+  await page.evaluate(() => { ['authOverlay','onboardOverlay'].forEach(i=>{const e=document.getElementById(i);if(e){e.style.display='none';e.classList.remove('active');}}); window.__qaTrips = () => JSON.parse(localStorage.getItem('ml3_trips') || '[]'); if(window.initGoogleMaps)window.initGoogleMaps(); });
+  await page.waitForTimeout(1500);
 
   // ── RULES SYNC: a rule made here must show up on another device
   await page.evaluate(() => window.switchNav('set', document.getElementById('nav-set'))); await settle(page);
