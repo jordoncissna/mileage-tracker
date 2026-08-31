@@ -1,154 +1,163 @@
 # Milo plans — a proposal
 
-Status: **proposal only.** Nothing in here is built, and no feature is gated
-today. Written while you were away so you have something concrete to react to
-rather than a blank page. The numbers are arguable; the principles are the part
-worth arguing about first.
+**Nothing here is built.** No feature is locked, no one is charged, there's no
+payment system. This is a document to argue with, not a plan already in motion.
+
+Prices are guesses. The two rules at the top are the part that matters — get
+those right and the numbers can move later.
 
 ---
 
-## The one principle I'd hold to
+## Rule 1: never lock someone out of their own tax records
 
-**Never gate the things that decide whether an audit goes well.**
+Someone uses Milo all year and logs 300 trips. In January they cancel. In March
+the IRS asks them to prove their vehicle deduction. They open Milo and see
+*"Upgrade to Pro to export your trips."*
 
-Your trips, your export, your tax report, and getting your data out are not
-features — they're the user's own records. Putting a paywall between someone
-and their IRS substantiation is the kind of thing that gets written about, and
-it would make Milo untrustworthy in exactly the moment it matters most. If
-someone stops paying, they should still be able to open the app, read every
-trip, and download a complete report.
+Now they can't defend themselves without paying you. Facts about their own
+driving, that they typed in themselves, are being held back at the exact moment
+they need them most. That's the version of this that ends up in angry reviews,
+and it would deserve to.
 
-Charge for **convenience, scale and insight**. Not for safety.
+So: **the CSV export and the tax report stay free forever, for everyone,
+including people who cancelled.** Lose your subscription and you lose the
+conveniences — address suggestions, distance calculation, auto-classify rules —
+but you can always open the app, read every trip, and download a full report.
 
-## What actually costs you money
+Charge people for saving them time. Never charge them for letting them out.
 
-This matters more than it looks, because it decides where the free tier ends.
+This costs you almost nothing in practice. Building a report is just arithmetic
+on data you already store. The things that actually cost money are the
+conveniences — which is exactly what's worth charging for.
 
-| Cost | Who bears it | Notes |
+## Rule 2: the free plan should be limited by what costs you money
+
+Most apps cap the free plan at something like "10 trips a month". That's the
+wrong lever here, because storing a trip costs you essentially nothing — it's a
+few hundred characters in a database.
+
+Here's where your money actually goes:
+
+| What | Costs you? | Why |
 |---|---|---|
-| Supabase (Postgres + auth) | You | Free tier is generous; trips are tiny rows. Not the constraint. |
-| **Google Places autocomplete** | **You, per keystroke session** | Every address suggestion is a billable request. Heavy users are a real line item. |
-| **Google Directions** | **You, per calculation** | Every "Calculate distance" and every map route draw. |
-| Google Maps tiles | You, per load | Map-heavy views cost more than list views. |
-| GitHub Pages hosting | Free | Static file. |
+| Storing trips (Supabase) | Nearly nothing | Free tier is generous, trips are tiny |
+| **Address suggestions** | **Yes, every search** | Google charges per lookup |
+| **Calculate distance** | **Yes, every click** | Google charges per route |
+| Showing the map | Yes, per page load | Google charges per map |
+| Hosting the app | Free | It's one file on GitHub Pages |
 
-So the honest shape of a free tier isn't "fewer trips" — storing trips is nearly
-free. It's **fewer paid API calls**. A free user who types 40 trips a month by
-hand costs you almost nothing. One who uses address autocomplete and Calculate
-distance for every trip costs real money.
+Someone who types 40 trips a month by hand costs you close to zero. Someone who
+uses address search and Calculate distance on every trip costs you real money.
 
-That points at a cleaner free tier than the usual "10 trips a month" trap.
+So cap the free plan on **lookups**, not trips. It's fairer, it matches your
+actual bill, and it means nobody ever loses their records because they drove too
+much.
 
-## Proposed tiers
+## The three plans
 
-### Free — "Enough to actually use it"
-- Unlimited trips, unlimited history, unlimited devices
-- CSV export and the full tax report (**never gated** — see the principle)
+### Free — genuinely usable
+- Unlimited trips, unlimited history, all your devices
+- CSV export and the full tax report — **always, no exceptions**
 - Manual entry, round trips, multi-stop, repeat dates
-- **25 address lookups and 25 distance calculations a month**, then the fields
-  still work, you just type the address and the miles yourself
+- **25 address searches and 25 distance calculations a month.** After that the
+  fields still work — you type the address and the miles yourself
 - One vehicle
 
-*Why:* someone can run their whole tax year on Free and be genuinely safe. What
-they give up is typing convenience, which is exactly what costs you per call.
+Someone can run an entire tax year on Free and be completely safe in an audit.
+What they give up is typing convenience.
 
-### Pro — **$5/month or $48/year**
-- Unlimited address lookups and distance calculations
-- Auto-classify rules (already built, currently free)
-- Duplicate review, the unlogged-day nudge, saved routes
-- Multiple vehicles with separate rates
-- Receipt photos attached to trips *(not built yet)*
+### Pro — **$5/month, or $48/year**
+- Unlimited address searches and distance calculations
+- Auto-classify rules
+- Duplicate review, the unlogged-day reminder, saved routes
+- More than one vehicle, each with its own rate
+- Photos attached to trips *(not built yet)*
 
-*Why $5:* it has to be obviously less than the deduction it protects. One
-81-mile round trip is worth ~$57 at the 2026 rate. Pro paying for itself in the
-first recovered trip of the year is an easy sentence to say, and true.
+**Why $5:** it has to be obviously cheaper than what it protects. One 81-mile
+round trip is worth about $57 in deduction. If Pro pays for itself the first
+time it saves one forgotten trip, that's an easy and true thing to say.
 
-### Premium — **$12/month or $115/year**
+### Premium — **$12/month, or $115/year**
 - Everything in Pro
-- **Automatic trip detection** *(the native app — not built, and the honest
-  reason this tier can't launch yet)*
-- Multi-user: invite your team, see everyone's log, one export for the business
-- Quarterly estimated-tax summaries and a year-end packet for your accountant
+- **Automatic trip detection** *(the phone app — not built)*
+- Your team: invite people, see everyone's log, one export for the business
+- Quarterly tax estimates and a year-end package for your accountant
 - Priority support
 
-*Why:* Premium should be for people whose time is worth more than the price —
-and auto-tracking is the only feature here that genuinely buys back time.
-**Don't launch Premium until that exists.** Selling it on multi-user alone
-invites the comparison to MileIQ at $5.99/mo, and you'd lose it.
+**Don't launch this until automatic tracking exists.** It's the only thing here
+that genuinely buys someone time back. Without it you're asking $12 for team
+features against MileIQ at $5.99, and you'd lose that comparison.
 
-## The referral reward — my recommendation
+## The share reward
 
-You asked: bill credit, or unlock Pro/Premium for a month?
+You asked whether to give people credit on their bill, or a free month of Pro.
 
-**Unlock a month. Not credit.** Three reasons:
+**Give the free month.** Three reasons:
 
-1. **Credit only works if they're already paying.** Most people you invite will
-   be on Free, so a bill credit is worth nothing to them and rewards nobody. A
-   free month of Pro is valuable to *everyone*, which makes the ask shareable.
-2. **It's a product demo, not a discount.** A free month puts someone inside the
-   paid tier, where they either form the habit or don't. Credit just makes a
-   number smaller on a card statement they don't look at.
-3. **It costs you almost nothing.** A month of Pro is a few dollars of Google
-   API calls, not $5 of real margin.
+1. **Credit is worthless to most people you invite.** They're on Free — they
+   have no bill. A discount on nothing rewards nobody. A free month of Pro is
+   worth something to everyone, which is what makes people actually share.
+2. **A free month is a demo, not a discount.** It puts someone inside the paid
+   plan for 30 days, where they either get hooked or don't. Credit just makes a
+   number smaller on a statement nobody reads.
+3. **It barely costs you anything** — a month of Pro is a few dollars of Google
+   lookups, not $5 of lost profit.
 
-**Proposed mechanic — both sides win:**
+**How it would work:**
 
 > Share your link. When someone signs up and logs their first trip, you both get
-> **one month of Pro, free**. Up to 6 months a year.
+> a free month of Pro. Up to 6 months a year.
 
-Requiring a first logged trip — not just a signup — is what stops the obvious
-gaming, and it's a low enough bar to feel fair. The annual cap keeps a
-determined sharer from getting Pro free forever without you deciding to let them.
+Requiring that first logged trip — not just a signup — is what stops people
+creating fake accounts for free months. Six months a year is the ceiling, so
+nobody rides it forever without you choosing to let them.
 
-## What it would take to build
+## What building this actually takes
 
-In order, because each depends on the one before it.
+Each step needs the one before it.
 
-1. **Referral attribution** — the invite link already carries `?ref=<code>`, but
-   **nothing reads it today**. Attribution has to be captured at page load
-   (before signup) and written at signup, or the reward can never be counted.
-   *Note:* the code is currently the raw Supabase user id. That leaks an
-   internal identifier into a link people paste into group chats; it should be a
-   short random code stored against the account instead.
-2. **An entitlements table** — `plan`, `plan_expires_at`, `granted_by`. One row
-   per user, RLS the same shape as `user_prefs`. Read on sign-in.
-3. **A gating layer** — one function, `can('feature')`, consulted by the few
-   features that are gated. Everything else stays open, so the paywall can never
-   creep into the export or the report by accident.
-4. **Billing** — Stripe Checkout plus a webhook to set `plan`. This needs a
-   Stripe account, keys, and a server endpoint; GitHub Pages can't receive a
-   webhook, so it wants a Supabase Edge Function.
-5. **Only then**, the referral grant: count referrals, extend `plan_expires_at`.
+1. **Know who referred whom.** Your invite link already ends in `?ref=...`, but
+   **nothing in the app reads it today**. Right now referrals can't be counted
+   at all, so no reward is possible. This is the first thing to fix.
+   *One problem to fix while doing it:* that code is currently your Supabase
+   user ID — an internal identifier that shouldn't be in a link people paste
+   into group chats. It should be a short random code instead.
+2. **Remember who's on what plan.** A small table listing each person's plan and
+   when it expires. Same privacy setup as the rules table you already ran.
+3. **One place that decides what's unlocked.** A single function every paid
+   feature asks before running. Keeping it in one place is what stops a paywall
+   from accidentally creeping onto the export or the report later.
+4. **Take payments.** Stripe, plus something that listens for "they paid" and
+   updates the plan. GitHub Pages can't receive that message — it only serves
+   files — so this needs a small piece of code running on Supabase.
+5. **Then the referral reward** — count referrals, add a month.
 
-Steps 1–3 are safe to build any time and change nothing for you. Step 4 is where
-this stops being a side project and starts being a business with support
-obligations, refunds and tax on revenue.
+Steps 1–3 are safe to build whenever and change nothing for you or anyone using
+the app. **Step 4 is the real line.** Once you take money you have customers:
+refunds, "your app lost my trip", sales tax on revenue, a privacy policy that
+has to hold up. That's the actual cost of charging — not the code.
 
-## What I deliberately did not do
+## What I didn't do
 
-I didn't build any of this while you were away. Shipping a paywall on a live app
-without you there to say "not that one, not at that price" is not a decision I
-should make on your behalf — and gating something you use daily could have
-locked you out of your own trips. The UX work I did ship this session is all
-additive.
+I didn't build any of this. Putting a paywall on a live app while you were away
+isn't my call, and locking a feature you use every day could have locked you out
+of your own trips.
 
-## A note on the PRO badge
+One related thing I did fix: Settings showed a **PRO** badge on auto-classify
+rules. There's no Pro plan and the feature is free, so anyone you invited saw a
+"pay for this" hint on something they already had. Removed — put it back the day
+paid plans actually exist.
 
-Settings used to show a **PRO** badge on auto-classify rules. There is no Pro
-plan and the feature is free, so an invited coworker saw a paywall hint on
-something they already had. It's removed. Put it back the day gating actually
-exists — not before.
+## What only you can decide
 
-## What only you can answer
-
-1. **Is Milo a product or a tool?** Everything above assumes you want paying
-   strangers. If it's for you and a handful of coworkers, skip all of it — the
-   invite link and a free app are enough, and you save yourself the support load.
-2. **Are you prepared to support paying customers?** Refunds, "it lost my trip",
-   tax on revenue, a real privacy posture. That's the actual cost of Pro, not the
-   engineering.
-3. **Does auto-tracking happen?** Premium is thin without it, and it needs the
-   Apple Developer enrollment that's been outstanding.
-4. **Free tier limit — 25 lookups a month?** I picked a number that felt
-   generous for a light user. It's worth checking against your own usage: you'd
-   know within a month whether it pinches.
+1. **Is Milo a product, or your tool?** All of this assumes you want paying
+   strangers. If it's for you and a few coworkers, skip the whole thing — the
+   invite link and a free app are enough, and you save yourself the support
+   burden entirely.
+2. **Do you want customers?** Not "do you want revenue" — customers. People who
+   email you when something breaks and expect an answer that day.
+3. **Is the phone app happening?** Premium is thin without automatic tracking,
+   and that still needs the Apple Developer signup you haven't done.
+4. **Is 25 lookups a month right?** I picked a number that felt generous for
+   someone logging a few trips a week. Watch your own usage for a month — you'll
+   know quickly whether it pinches.
