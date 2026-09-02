@@ -4354,11 +4354,12 @@ function openDupReview(){
   document.getElementById('dupSub').textContent=gs.length?
     (extras+' extra row'+(extras!==1?'s':'')+' across '+gs.length+' route'+(gs.length!==1?'s':'')+' logged more than once on the same day. The top row of each group is kept — press Delete to remove the rest, or uncheck anything that was a genuinely separate drive.'):
     'No repeated routes found.';
-  body.innerHTML=gs.map(function(g){
+  _dupShown=gs;
+  body.innerHTML=gs.map(function(g,gi){
     var head='<div style="display:flex;align-items:baseline;gap:8px;margin:0 0 6px"><b style="font-size:13px;color:var(--text)">'+fmt(g.date)+'</b>'+
       '<span style="font-size:12px;color:var(--text2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(g.from||'')+' → '+esc(g.to||'')+'</span>'+
       '<span style="font-size:11px;color:'+(g.exact?'var(--red)':'var(--text3)')+'">'+(g.exact?'identical rows':'same route, different miles')+'</span>'+
-      '<button class="map-btn" onclick="dupSelectGroup('+JSON.stringify(g.key)+')">keep first</button></div>';
+      '<button class="map-btn" onclick="dupSelectGroupAt('+gi+')">keep first</button></div>';
     var rows=g.rows.map(function(t,i){
       return '<label style="display:flex;align-items:center;gap:10px;padding:7px 10px;border-top:1px solid var(--border2);cursor:pointer">'+
         '<input type="checkbox" class="dup-ck" data-id="'+esc(String(t.id))+'" data-key="'+esc(g.key)+'" '+(i>0?'checked':'')+' onchange="updateDupSelCount()"/>'+
@@ -4373,6 +4374,13 @@ function openDupReview(){
   }).join('')||'<div style="padding:24px;text-align:center;color:var(--text3);font-size:13px">Nothing to clean up — no route is logged twice on the same day.</div>';
   m.style.display='flex';
   updateDupSelCount();
+}
+// The groups currently on screen, so a button can name one by position rather
+// than by embedding user-controlled text in markup.
+var _dupShown=[];
+function dupSelectGroupAt(i){
+  var g=_dupShown[i];
+  if(g)dupSelectGroup(g.key);
 }
 function closeDupReview(){var m=document.getElementById('dupModal');if(m)m.style.display='none';}
 function dupChecks(){return Array.prototype.slice.call(document.querySelectorAll('#dupBody .dup-ck'));}
@@ -4422,6 +4430,7 @@ window.openDupReview=openDupReview;
 window.closeDupReview=closeDupReview;
 window.dupSelectExtras=dupSelectExtras;
 window.dupSelectGroup=dupSelectGroup;
+window.dupSelectGroupAt=dupSelectGroupAt;
 window.dupSelectNone=dupSelectNone;
 window.updateDupSelCount=updateDupSelCount;
 window.deleteDupSelection=deleteDupSelection;

@@ -440,6 +440,36 @@ T('sign out moved to settings foot', document.querySelector('.set-foot .signout-
   T('saved-route suggestions are marked as saved', sm[0].saved === true);
   T('short input yields nothing to show', window.savedAddrMatches('zzzznope').length === 0);
 
+  // ===== DUPLICATE MODAL: NO HTML ATTRIBUTE INJECTION =====
+  // The group key is built from user-controlled address text and was written
+  // into a double-quoted onclick with JSON.stringify — a JavaScript escaper, not
+  // an HTML one. The quote it emits closes the attribute, so an address could
+  // inject its own event handler. Addresses can arrive from an imported CSV.
+  {
+    const keep = window.__trips().splice(0, window.__trips().length);
+    const evil = 'X" onmouseover=alert(1) z=';
+    [901, 902].forEach(id => window.__trips().push({
+      id, date: '2026-08-12', miles: 10, from: evil, to: 'B Ave, Lehi, UT',
+      purpose: 'p', category: 'Client Meeting'
+    }));
+    window.openDupReview();
+    const btn = $('dupBody').querySelector('.map-btn');
+    T('the duplicate modal renders its group button', !!btn);
+    const attrs = btn ? Array.from(btn.attributes).map(a => a.name) : [];
+    T('no event handler is injected by an address', !attrs.some(n => /^on/.test(n) && n !== 'onclick'), attrs.join(','));
+    T('the group button keeps exactly its own attributes', attrs.filter(n => n !== 'class' && n !== 'onclick' && n !== 'data-i').length === 0, attrs.join(','));
+    T('the group button handler is not truncated', /\)\s*$/.test((btn && btn.getAttribute('onclick')) || ''), (btn && btn.getAttribute('onclick')) || '');
+    T('the address still renders as visible text', $('dupBody').textContent.indexOf('X" onmouseover') >= 0);
+    // the key is fine as attribute *data* — what matters is that it never
+    // becomes new attributes on the element
+    const ck = $('dupBody').querySelector('.dup-ck');
+    const ckAttrs = ck ? Array.from(ck.attributes).map(a => a.name) : [];
+    T('checkbox gains no injected attributes', !ckAttrs.some(n => /^on/.test(n) && n !== 'onchange'), ckAttrs.join(','));
+    window.closeDupReview();
+    window.__trips().splice(0, window.__trips().length);
+    keep.forEach(t => window.__trips().push(t));
+  }
+
   // ===== FIRST TRIP GETS A REAL MOMENT =====
   {
     const before = window.__trips().splice(0, window.__trips().length);
