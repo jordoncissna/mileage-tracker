@@ -289,6 +289,22 @@ async function fillLog(page, o) {
   }));
   await page.click('#dupBtn'); await settle(page);
   R('review modal lists the group', await page.evaluate(() => document.querySelectorAll('#dupBody .dup-ck').length === 3));
+  // "keep first" was silently dead before the injection fix: its onclick was
+  // truncated at "dupSelectGroup(" by the quote the address broke in with.
+  R('the group button carries no injected handler', await ask(page, () => {
+    const b = document.querySelector('#dupBody .map-btn');
+    return !!b && Array.from(b.attributes).every(a => !/^on/.test(a.name) || a.name === 'onclick');
+  }, false));
+  await ask(page, () => { document.querySelectorAll('#dupBody .dup-ck').forEach(c => { c.checked = true; }); window.updateDupSelCount(); return true; });
+  await page.click('#dupBody .map-btn').catch(() => {});
+  await page.waitForTimeout(300);
+  R('"keep first" unchecks exactly the first row of its group', await ask(page, () => {
+    const cks = Array.from(document.querySelectorAll('#dupBody .dup-ck'));
+    return cks.filter(c => !c.checked).length === 1 && !cks[0].checked;
+  }, false));
+  await ask(page, () => { window.closeDupReview(); window.openDupReview(); return true; });
+  await settle(page);
+
   R('every extra preselected, one keeper per group', await page.evaluate(() => {
     const cks = Array.from(document.querySelectorAll('#dupBody .dup-ck'));
     return cks.filter(c => c.checked).length === 2 && cks.filter(c => !c.checked).length === 1;
@@ -841,7 +857,10 @@ async function fillLog(page, o) {
   await mob.reload({ waitUntil: 'domcontentloaded' }); await mob.waitForTimeout(1500);
   await mob.evaluate(() => { ['authOverlay','onboardOverlay'].forEach(i=>{const e=document.getElementById(i);if(e){e.style.display='none';e.classList.remove('active');}}); });
   await mob.evaluate(() => window.switchNav('home', document.getElementById('nav-home')));
-  await mob.waitForTimeout(700);
+  // Poll for the card instead of guessing at a delay: sign-in, the trips load
+  // and renderHome() all settle on their own schedule, and a fixed sleep here
+  // failed roughly one run in four while the app was perfectly fine.
+  await mob.waitForFunction(() => !!document.querySelector('.start-card'), null, { timeout: 8000, polling: 100 }).catch(() => {});
   const firstRunMob = await ask(mob, () => {
     const c = document.querySelector('.start-card'); if (!c) return { err: 'no card' };
     const r = c.getBoundingClientRect();

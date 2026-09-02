@@ -5,6 +5,27 @@ if a change doesn't alter what you see or what you can trust, it isn't here.
 
 ---
 
+## Security fix: an address could inject code into the duplicate review
+*PR #38*
+
+A security review found that the **Review duplicates** screen built one of its
+buttons by pasting the trip's address straight into HTML, using an escaper meant
+for JavaScript rather than one meant for HTML. An address containing a quote
+mark could break out and attach its own code to the page.
+
+Why it mattered: History lets you import a CSV, so trip addresses can come from
+a file someone else sends you. A crafted address in that file could have run
+code in your browser with access to your signed-in session — meaning your whole
+trip history.
+
+Nothing suggests this was ever used against you; it was found by review, not by
+an incident. Fixed by referring to each group by position instead of by name, so
+there is no text to break out of.
+
+The same bug had also been quietly breaking the **keep first** button — its
+click handler was cut in half by the stray quote, so pressing it did nothing.
+That works now.
+
 ## Groundwork for plans and invite rewards
 *PR #37 — one-time setup: run `supabase/user_plan.sql` in the Supabase SQL editor*
 
