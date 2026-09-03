@@ -5,6 +5,14 @@ if a change doesn't alter what you see or what you can trust, it isn't here.
 
 ---
 
+## The unlogged-days reminder is a card, not a banner
+
+It stretched the full width of the window — a white band across the middle of
+Home, while every other panel there is a compact card. It now sits under the
+stat tiles at the same size as them, with the five day chips on one row.
+
+Nothing about what it says or when it appears has changed.
+
 ## Receipts on trips
 *PR #39 — one-time setup: run `supabase/receipts.sql` in the Supabase SQL editor*
 
