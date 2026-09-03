@@ -128,6 +128,11 @@ things that have broken before, in the ways they broke:
       server. Delete a rule, sync again → it stays deleted.
 - [ ] With `user_prefs` missing, the app still logs trips and says rules are
       device-only.
+- [ ] Attach a photo → it uploads under `<user id>/…`, shows a 📎 in History,
+      opens through a signed link, and removing it clears both the marker and
+      the stored file.
+- [ ] With the receipts bucket missing, the trip still saves and claims no
+      receipt.
 - [ ] No trip anywhere shows a Commute flag; no commute rows in the tax report.
 - [ ] Typing 3+ characters into a Street field offers suggestions; clicking one
       fills street/city/state; ↑/↓ + Enter picks without saving the trip; Esc

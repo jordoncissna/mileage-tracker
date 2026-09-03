@@ -2171,6 +2171,16 @@ body:not(.light) .offline-pill{color:#fbbf24;}
             <div class="iw"><input type="number" id="tMiles" placeholder="0.0" step="0.1" min="0" oninput="updateLogDed()"/><span class="isuf">mi</span></div>
           </div>
         </div>
+        <div class="field" style="margin-bottom:8px">
+          <span class="field-label">Receipt (optional)</span>
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <label class="btn" style="cursor:pointer;white-space:nowrap">📷 Attach photo
+              <input type="file" id="tReceipt" accept="image/*" capture="environment" style="display:none" onchange="pickReceipt(this)"/>
+            </label>
+            <span id="receiptName" style="font-size:11.5px;color:var(--text2);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+            <button type="button" class="linklike" id="receiptClear" style="display:none" onclick="clearReceiptPick()">remove</button>
+          </div>
+        </div>
         <div style="margin-bottom:10px;display:flex;align-items:center;gap:10px">
           <button class="btn btn-calc" id="calcBtn" onclick="calcDist()">⊙ Calculate distance</button>
           <span style="font-size:11px;color:var(--text3)">⌘D</span>
@@ -2243,6 +2253,21 @@ body:not(.light) .offline-pill{color:#fbbf24;}
 <div id="undoToast"><span id="undoToastMsg"></span><button id="undoToastBtn" type="button">Undo</button></div>
 
 <!-- Invite a coworker modal (top-level so it opens from any view) -->
+<div id="receiptModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.72);z-index:1300;align-items:center;justify-content:center;padding:20px;" onclick="if(event.target===this)closeReceipt()">
+  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:14px;max-width:720px;width:100%;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,.4)">
+    <div style="padding:14px 18px;border-bottom:1px solid var(--border2);display:flex;align-items:center;gap:10px">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:14px;font-weight:650;color:var(--text)">Receipt</div>
+        <div id="receiptCap" style="font-size:12px;color:var(--text3);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
+      </div>
+      <button class="btn btn-danger" id="receiptDelBtn">Remove</button>
+      <button class="btn" onclick="closeReceipt()">✕</button>
+    </div>
+    <div style="flex:1;overflow:auto;background:var(--bg2);display:flex;align-items:center;justify-content:center;padding:12px">
+      <img id="receiptImg" alt="Receipt" style="max-width:100%;max-height:78vh;border-radius:8px;display:block"/>
+    </div>
+  </div>
+</div>
 <div id="dupModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:1200;align-items:center;justify-content:center;padding:20px;">
   <div style="background:var(--surface);border:1px solid var(--border2);border-radius:14px;max-width:760px;width:100%;max-height:86vh;display:flex;flex-direction:column;box-shadow:0 24px 60px rgba(0,0,0,.35)">
     <div style="padding:18px 20px 12px;border-bottom:1px solid var(--border2)">
@@ -2447,9 +2472,22 @@ async function updateTripInSupabase(trip){
     const{error}=await supa.from('trips').update({
       date:trip.date,miles:trip.miles,from_addr:trip.from||'',to_addr:trip.to||'',
       purpose:trip.purpose||'',category:trip.category||'',
-      coords:trip.coords||null,from_latlng:trip.fromLatLng||null,to_latlng:trip.toLatLng||null
+      coords:trip.coords||null,from_latlng:trip.fromLatLng||null,to_latlng:trip.toLatLng||null,
+      receipt_path:trip.receiptPath||null
     }).eq('id',trip.supaId);
-    if(error)throw error;
+    if(error){
+      // The column arrives with supabase/receipts.sql. Until then, save the
+      // rest of the trip rather than losing the edit entirely.
+      if(missingReceiptColumn(error)){
+        receiptsState='unavailable';
+        const{error:e2}=await supa.from('trips').update({
+          date:trip.date,miles:trip.miles,from_addr:trip.from||'',to_addr:trip.to||'',
+          purpose:trip.purpose||'',category:trip.category||'',
+          coords:trip.coords||null,from_latlng:trip.fromLatLng||null,to_latlng:trip.toLatLng||null
+        }).eq('id',trip.supaId);
+        if(e2)throw e2;
+      }else throw error;
+    }
   }catch(e){console.error('Update error:',e);}
   setSyncing(false);
 }
@@ -2557,6 +2595,7 @@ async function loadFromSupabase(){
       from:r.from_addr||'', to:r.to_addr||'',
       purpose:r.purpose||'', category:r.category||'',
       coords:r.coords||null, fromLatLng:r.from_latlng||null, toLatLng:r.to_latlng||null,
+      receiptPath:r.receipt_path||null,
       supaId:r.id
     }));
     if(unsynced.length){
@@ -2646,6 +2685,153 @@ async function saveBatchToSupabase(list){
   list.forEach(function(t){delete t._saving;});
   setSyncing(false);
 }
+
+// ── RECEIPTS ──────────────────────────────────────────────────────────
+// A photo attached to a trip. Mileage proves you drove; a receipt proves the
+// toll, the parking, the client lunch — the substantiation §274(d) asks for
+// that miles alone cannot give. Files live in a private Supabase bucket under
+// <user id>/<trip id>/…, so the storage policy can check the folder against the
+// signed-in account. Every view goes through a short-lived signed link; nothing
+// is readable by URL alone.
+var RECEIPT_BUCKET='receipts', RECEIPT_MAX_PX=1600, RECEIPT_QUALITY=0.8;
+var receiptsState='idle';   // idle | ready | unavailable
+function missingBucket(err){
+  var m=((err&&(err.message||err.error||err.code))||'')+'';
+  return /bucket/i.test(m)&&/(not found|does not exist)/i.test(m);
+}
+function missingReceiptColumn(err){
+  var m=((err&&(err.message||err.details||err.code))||'')+'';
+  return /receipt_path/.test(m);
+}
+// Phone photos are several megabytes; a legible receipt is not. Shrink before
+// upload so the owner isn't paying storage (or waiting) for camera resolution.
+function shrinkImage(file){
+  return new Promise(function(resolve){
+    if(!/^image\//.test(file.type||''))return resolve(file);
+    try{
+      var url=URL.createObjectURL(file);
+      var img=new Image();
+      img.onload=function(){
+        try{
+          var w=img.naturalWidth,h=img.naturalHeight;
+          var scale=Math.min(1,RECEIPT_MAX_PX/Math.max(w,h));
+          if(scale>=1&&file.size<600000){URL.revokeObjectURL(url);return resolve(file);}
+          var c=document.createElement('canvas');
+          c.width=Math.round(w*scale);c.height=Math.round(h*scale);
+          c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+          c.toBlob(function(blob){
+            URL.revokeObjectURL(url);
+            resolve(blob&&blob.size<file.size?blob:file);
+          },'image/jpeg',RECEIPT_QUALITY);
+        }catch(e){URL.revokeObjectURL(url);resolve(file);}
+      };
+      img.onerror=function(){URL.revokeObjectURL(url);resolve(file);};
+      img.src=url;
+    }catch(e){resolve(file);}
+  });
+}
+function receiptPath(trip,file){
+  var ext=(/\.([a-z0-9]{1,5})$/i.exec(file.name||'')||[,'jpg'])[1].toLowerCase();
+  if(!/^image\//.test(file.type||''))ext='bin';
+  else if(file.type==='image/jpeg')ext='jpg';
+  // Date.now() alone collides: two uploads inside the same millisecond produced
+  // the same path, so the replacement silently reused the old name and the old
+  // file was never removed. A random suffix makes each upload its own object.
+  var rnd=Math.random().toString(36).slice(2,8);
+  return currentUser.id+'/'+String(trip.supaId||trip.id)+'/'+Date.now()+'-'+rnd+'.'+ext;
+}
+async function uploadReceipt(trip,file){
+  if(!currentUser){toast('⚠ Sign in to attach a receipt');return null;}
+  if(!supa.storage){receiptsState='unavailable';return null;}
+  setSyncing(true);
+  try{
+    var blob=await shrinkImage(file);
+    var path=receiptPath(trip,file);
+    const{error}=await supa.storage.from(RECEIPT_BUCKET).upload(path,blob,{upsert:false,contentType:blob.type||file.type||'image/jpeg'});
+    if(error){
+      if(missingBucket(error)){receiptsState='unavailable';toast('⚠ Receipts need one-time setup — run supabase/receipts.sql');return null;}
+      throw error;
+    }
+    receiptsState='ready';
+    // Replacing an existing receipt: drop the old file rather than orphan it.
+    if(trip.receiptPath&&trip.receiptPath!==path)await removeReceiptFile(trip.receiptPath);
+    trip.receiptPath=path;
+    save();
+    await updateTripInSupabase(trip);
+    return path;
+  }catch(e){console.error('Receipt upload error:',e);toast('⚠ Receipt didn’t upload');return null;}
+  finally{setSyncing(false);}
+}
+// Returns the promise: callers that care whether the old file actually went
+// should await it, or a replaced receipt is orphaned in storage forever.
+function removeReceiptFile(path){
+  if(!path||!supa.storage)return Promise.resolve();
+  try{return supa.storage.from(RECEIPT_BUCKET).remove([path]);}catch(e){return Promise.resolve();}
+}
+async function deleteReceipt(tripId){
+  var t=trips.find(function(x){return x.id===tripId;});
+  if(!t||!t.receiptPath)return;
+  if(!confirm('Remove the receipt from this trip?'))return;
+  var path=t.receiptPath;
+  t.receiptPath=null;
+  save();renderH();
+  await removeReceiptFile(path);
+  await updateTripInSupabase(t);
+  toast('Receipt removed');
+  var m=document.getElementById('receiptModal');
+  if(m&&m.style.display==='flex')closeReceipt();
+}
+// Signed links are short-lived on purpose — a receipt URL that leaks is a
+// receipt that expires.
+async function receiptUrl(path){
+  if(!path||!supa.storage)return null;
+  try{
+    const{data,error}=await supa.storage.from(RECEIPT_BUCKET).createSignedUrl(path,300);
+    if(error)throw error;
+    return data&&data.signedUrl?data.signedUrl:null;
+  }catch(e){console.error('Receipt link error:',e);return null;}
+}
+async function openReceipt(tripId){
+  var t=trips.find(function(x){return x.id===tripId;});
+  if(!t||!t.receiptPath)return;
+  var m=document.getElementById('receiptModal'),img=document.getElementById('receiptImg');
+  var cap=document.getElementById('receiptCap'),del=document.getElementById('receiptDelBtn');
+  if(!m)return;
+  if(cap)cap.textContent=fmt(t.date)+(t.purpose?' · '+t.purpose:'');
+  if(del)del.onclick=function(){deleteReceipt(tripId);};
+  if(img)img.removeAttribute('src');
+  m.style.display='flex';
+  var url=await receiptUrl(t.receiptPath);
+  if(!url){toast('⚠ Couldn’t open that receipt');closeReceipt();return;}
+  if(img)img.src=url;
+}
+function closeReceipt(){
+  var m=document.getElementById('receiptModal'),img=document.getElementById('receiptImg');
+  if(img)img.removeAttribute('src');
+  if(m)m.style.display='none';
+}
+// The log form holds the chosen file until the trip exists and has an id.
+var pendingReceipt=null;
+function pickReceipt(input){
+  var f=input&&input.files&&input.files[0];
+  pendingReceipt=f||null;
+  var n=document.getElementById('receiptName');
+  if(n)n.textContent=f?('📎 '+f.name):'';
+  var c=document.getElementById('receiptClear');
+  if(c)c.style.display=f?'':'none';
+}
+function clearReceiptPick(){
+  pendingReceipt=null;
+  var i=document.getElementById('tReceipt');if(i)i.value='';
+  var n=document.getElementById('receiptName');if(n)n.textContent='';
+  var c=document.getElementById('receiptClear');if(c)c.style.display='none';
+}
+window.pickReceipt=pickReceipt;
+window.clearReceiptPick=clearReceiptPick;
+window.openReceipt=openReceipt;
+window.closeReceipt=closeReceipt;
+window.deleteReceipt=deleteReceipt;
+window.uploadReceipt=uploadReceipt;
 
 // ── PLANS + REFERRALS ─────────────────────────────────────────────────
 // Groundwork only: every plan unlocks everything today. can() is the single
@@ -4161,6 +4347,8 @@ async function addTrip(){
   const d=document.getElementById('tDate').value;
   const m=document.getElementById('tMiles').value;
   buildAddr(); // ensure hidden fields are up to date
+  // Grab the chosen photo before anything clears the form.
+  const pendingPhoto=pendingReceipt;pendingReceipt=null;
   if(editingTripId!==null){
     // Edit mode: update the trip in place (no batch semantics here)
     if(!d||!m||parseFloat(m)<=0){toast('⚠ Enter date and miles');return;}
@@ -4175,7 +4363,9 @@ async function addTrip(){
       save();clearF();updateSidebar();renderH();renderHomeIfActive();closeLogOverlay();
       toast('Trip updated ✓');
       drawTripOnMap(et.from,et.to,fmt(et.date));
-      updateTripInSupabase(et);
+      updateTripInSupabase(et).then(function(){
+        if(pendingPhoto)return uploadReceipt(et,pendingPhoto).then(function(){renderH();});
+      });
     }
     return;
   }
@@ -4214,7 +4404,10 @@ async function addTrip(){
       ? ('First trip logged — $'+deductibleValue(trip).toFixed(2)+' deductible \u2713')
       : 'Trip saved \u2713');
     drawTripOnMap(trip.from,trip.to,fmt(trip.date));
-    saveToSupabase(trip);
+    // Upload after the row exists, so the file is filed under a real trip id.
+    saveToSupabase(trip).then(function(){
+      if(pendingPhoto)return uploadReceipt(trip,pendingPhoto).then(function(){renderH();});
+    });
     return;
   }
 
@@ -4289,6 +4482,7 @@ function clearF(){
   var sw=document.getElementById('stopsWrap');if(sw)sw.innerHTML='';
   var xd=document.getElementById('xtraDates');if(xd)xd.innerHTML='';
   var rt=document.getElementById('tRound');if(rt)rt.checked=false;
+  if(typeof clearReceiptPick==='function')clearReceiptPick();
   if(typeof updateBatchSummary==='function')updateBatchSummary();
   clearDist();
 }
@@ -4507,6 +4701,7 @@ function renderH(){
       <td class="mono" style="text-align:right;font-weight:500">${parseFloat(t.miles||0).toFixed(1)}</td>
       <td class="mono" style="text-align:right;color:${(isCommute(t)&&cfg.commuteExclude)||isPersonal(t)?'var(--text3)':'var(--green)'}">${(isCommute(t)&&cfg.commuteExclude)||isPersonal(t)?'<span style="text-decoration:line-through;opacity:0.5">$'+(parseFloat(t.miles||0)*rate(t.date)).toFixed(2)+'</span> $0.00':'$'+(parseFloat(t.miles||0)*rate(t.date)).toFixed(2)}</td>
       <td style="display:flex;gap:6px;align-items:center">${t.from&&t.to?`<button class="map-btn" onclick="event.stopPropagation();showHistMap(${t.id})">🗺 View Route</button>`:''}
+      ${t.receiptPath?`<button class="map-btn" title="View receipt" onclick="event.stopPropagation();openReceipt(${t.id})">📎</button>`:''}
       <button class="map-btn" title="Edit trip" onclick="event.stopPropagation();editTrip(${t.id})">✎</button>\n      <button class="map-btn" title="Relog this trip" onclick="event.stopPropagation();relogTrip(${t.id})">↺</button>
       <button class="btn btn-danger" onclick="event.stopPropagation();del(${t.id})">✕</button></td>
     </tr>`).join('')}</tbody>
@@ -5105,6 +5300,7 @@ function buildTaxReportHTML(year){
       '<td class="num">'+mi.toFixed(1)+'</td>'+
       '<td class="num">'+(excl?'—':r.toFixed(3))+'</td>'+
       '<td class="num">'+(excl?'0.00 <span class="excl">('+excl+')</span>':v.toFixed(2))+'</td>'+
+      '<td>'+(t.receiptPath?'attached':'—')+'</td>'+
     '</tr>';
   });
   var yRate=cfg.rates[parseInt(y,10)]||rate(y+'-06-01');
@@ -5136,14 +5332,18 @@ function buildTaxReportHTML(year){
     '<h2>Summary</h2>'+
     '<table class="sumtable">'+
     '<tr><td class="lbl">Business miles (deductible)</td><td class="num">'+bizMi.toFixed(1)+' mi</td><td class="lbl">at $'+Number(yRate).toFixed(3)+'/mi</td><td class="num">$'+ded.toFixed(2)+'</td></tr>'+
+    (function(){
+      var withR=fl.filter(function(t){return !!t.receiptPath;}).length;
+      return withR?('<tr><td class="lbl">Trips with a receipt attached</td><td class="num">'+withR+' of '+fl.length+'</td><td class="lbl"></td><td class="num"></td></tr>'):'';
+    })()+
     '<tr><td class="lbl">Personal miles — non-deductible</td><td class="num">'+perMi.toFixed(1)+' mi</td><td class="lbl"></td><td class="num">$0.00</td></tr>'+
     '<tr class="tot"><td>Total deduction claimed ('+fl.length+' trips)</td><td class="num">'+(bizMi+perMi).toFixed(1)+' mi</td><td></td><td class="num">$'+ded.toFixed(2)+'</td></tr>'+
     '</table>'+
     '<div class="legal">Substantiation: each entry below records the date, origin, destination, business purpose, and mileage required by IRC §274(d) for vehicle expense deductions under §162. Commuting between the taxpayer’s residence and regular workplace is treated as a personal expense per §262 and Treas. Reg. §1.262-1(b)(5), and is excluded from the deduction above.</div>'+
     '<h2>Trip Log</h2>'+
-    '<table><thead><tr><th>Date</th><th>From</th><th>To</th><th>Business Purpose</th><th>Category</th><th class="num">Miles</th><th class="num">Rate $/mi</th><th class="num">Deduction $</th></tr></thead>'+
-    '<tbody>'+(rows||'<tr><td colspan="8" style="text-align:center;color:#777">No trips recorded for '+esc(y)+'</td></tr>')+'</tbody>'+
-    '<tfoot><tr><td colspan="5">Totals</td><td class="num">'+(bizMi+perMi).toFixed(1)+'</td><td></td><td class="num">'+ded.toFixed(2)+'</td></tr></tfoot></table>'+
+    '<table><thead><tr><th>Date</th><th>From</th><th>To</th><th>Business Purpose</th><th>Category</th><th class="num">Miles</th><th class="num">Rate $/mi</th><th class="num">Deduction $</th><th>Receipt</th></tr></thead>'+
+    '<tbody>'+(rows||'<tr><td colspan="9" style="text-align:center;color:#777">No trips recorded for '+esc(y)+'</td></tr>')+'</tbody>'+
+    '<tfoot><tr><td colspan="5">Totals</td><td class="num">'+(bizMi+perMi).toFixed(1)+'</td><td></td><td class="num">'+ded.toFixed(2)+'</td><td></td></tr></tfoot></table>'+
     '<div class="sig"><div>Taxpayer signature</div><div>Date</div></div>'+
     '<div class="foot">This report was generated from contemporaneous records kept in Milo (Ridgeline Management Group LLC). It is a recordkeeping document, not tax advice.</div>'+
     '</body></html>';

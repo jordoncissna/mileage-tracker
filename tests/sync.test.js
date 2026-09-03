@@ -12,9 +12,9 @@ const { window } = dom;
 const { document } = window;
 
 // ---- recording Supabase stub: server rows live in `server` ----
-const server = { rows: [], inserts: 0, deletes: 0, nextId: 1, delay: 0, prefs: null, prefsReads: 0, prefsWrites: 0, prefsMissing: false, plan: null, planInserts: 0, planMissing: false };
+const server = { rows: [], inserts: 0, deletes: 0, nextId: 1, delay: 0, prefs: null, prefsReads: 0, prefsWrites: 0, prefsMissing: false, plan: null, planInserts: 0, planMissing: false, uploads: [], removed: [], signed: [], bucketMissing: false, updates: [], receiptColumnMissing: false };
 const wait = ms => new Promise(r => setTimeout(r, ms));
-function reset() { server.rows = []; server.inserts = 0; server.deletes = 0; server.nextId = 1; server.delay = 0; server.prefs = null; server.prefsReads = 0; server.prefsWrites = 0; server.prefsMissing = false; server.plan = null; server.planInserts = 0; server.planMissing = false; }
+function reset() { server.rows = []; server.inserts = 0; server.deletes = 0; server.nextId = 1; server.delay = 0; server.prefs = null; server.prefsReads = 0; server.prefsWrites = 0; server.prefsMissing = false; server.plan = null; server.planInserts = 0; server.planMissing = false; server.uploads = []; server.removed = []; server.signed = []; server.bucketMissing = false; server.updates = []; server.receiptColumnMissing = false; }
 function rowFrom(r) { return Object.assign({}, r, { id: 'srv-' + (server.nextId++) }); }
 // user_prefs: one row per user, or a "table missing" error when prefsMissing
 const prefsTable = {
@@ -46,6 +46,22 @@ const planTable = {
     return { error: null };
   }
 };
+// storage: records what was uploaded, or reports the bucket missing
+const storage = {
+  from: () => ({
+    upload: async (path, blob, opts) => {
+      if (server.bucketMissing) return { error: { message: 'Bucket not found' } };
+      server.uploads.push({ path, type: (opts && opts.contentType) || '', size: (blob && blob.size) || 0 });
+      return { data: { path }, error: null };
+    },
+    remove: async (paths) => { server.removed = server.removed.concat(paths); return { error: null }; },
+    createSignedUrl: async (path, secs) => {
+      if (server.bucketMissing) return { data: null, error: { message: 'Bucket not found' } };
+      server.signed.push({ path, secs });
+      return { data: { signedUrl: 'https://signed.test/' + path + '?exp=' + secs }, error: null };
+    }
+  })
+};
 const table = {
   select: () => ({
     order: async () => { await wait(server.delay); return { data: server.rows.slice(), error: null }; },
@@ -62,11 +78,11 @@ const table = {
     p.select = () => { const q = p.then(r => r); q.single = () => p.then(r => ({ data: Array.isArray(r.data) ? r.data[0] : r.data, error: null })); return q; };
     return p;
   },
-  update: () => ({ eq: async () => ({ error: null }) }),
+  update: (patch) => ({ eq: async () => { server.updates.push(patch); return server.receiptColumnMissing && ('receipt_path' in patch) ? { error: { message: "Could not find the 'receipt_path' column of 'trips' in the schema cache" } } : { error: null }; } }),
   delete: () => ({ eq: async (col, id) => { server.deletes++; server.rows = server.rows.filter(r => r.id !== id); return { error: null }; } })
 };
 window.google = { maps: { places: { Autocomplete: function () { return { addListener() {}, getPlace() { return {}; } }; }, AutocompleteService: function () { this.getPlacePredictions = () => {}; } }, Geocoder: function () { this.geocode = () => {}; }, Map: function () { this.addListener = () => {}; this.getCenter = () => ({ lat: () => 41, lng: () => -112 }); this.getZoom = () => 10; this.setOptions = () => {}; this.setCenter = () => {}; this.fitBounds = () => {}; }, Marker: function () {}, DirectionsService: function () { this.route = () => {}; }, DirectionsRenderer: function () { this.setMap = () => {}; }, LatLngBounds: function () { this.extend = () => {}; }, geometry: { spherical: { computeDistanceBetween: () => 1609 } }, event: { addListenerOnce: () => {} }, importLibrary: () => Promise.resolve({}) } };
-window.supabase = { createClient: () => ({ auth: { getSession: async () => ({ data: { session: null } }), onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }), signInWithPassword: async () => ({}), signUp: async () => ({}), signOut: async () => ({}) }, from: (name) => (name === 'user_prefs' ? prefsTable : name === 'user_plan' ? planTable : table) }) };
+window.supabase = { createClient: () => ({ auth: { getSession: async () => ({ data: { session: null } }), onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }), signInWithPassword: async () => ({}), signUp: async () => ({}), signOut: async () => ({}) }, from: (name) => (name === 'user_prefs' ? prefsTable : name === 'user_plan' ? planTable : table), storage }) };
 window.QRCode = function () {};
 window.initGoogleMaps = window.initGoogleMaps || function () {};
 window.alert = () => {};
@@ -100,6 +116,11 @@ const exports_ = `
 ;window.__can=can;
 ;window.__inviteLink=buildInviteLink;
 ;window.__newCode=newReferralCode;
+;window.__upload=uploadReceipt;
+;window.__delReceipt=deleteReceipt;
+;window.__receiptUrl=receiptUrl;
+;window.__receiptPath=receiptPath;
+;window.__updateTrip=updateTripInSupabase;
 `;
 const runner = new window.Function(inline + exports_);
 try { runner.call(window); } catch (e) { console.log('init threw (often benign):', e.message); }
@@ -384,6 +405,73 @@ const trip = o => Object.assign({ id: Date.now() + Math.random(), date: '2026-08
   T('missing table switches plan tracking off', window.__plan().state === 'unavailable');
   T('no plan row is attempted once the table is known missing', server.planInserts === 0);
   T('with no table the invite link carries no code', window.__inviteLink().indexOf('ref=') < 0);
+
+  // ===== RECEIPTS =====
+  reset();
+  window.__setUser({ id: 'u1' });
+  const rtrip = trip({ id: 70, supaId: 'srv-70' });
+  window.__setTrips([rtrip]);
+  const fakeFile = { name: 'toll.jpg', type: 'image/jpeg', size: 120000 };
+
+  const path = await window.__upload(rtrip, fakeFile);
+  T('a receipt uploads', server.uploads.length === 1, JSON.stringify(server.uploads));
+  T('the file is filed under the account id', /^u1\//.test(path || ''), path);
+  T('and under the trip it belongs to', (path || '').indexOf('/srv-70/') > 0, path);
+  T('the trip remembers its receipt', rtrip.receiptPath === path);
+  T('the path is written back to the row', server.updates.some(u => u.receipt_path === path));
+
+  // replacing one must not orphan the old file
+  server.uploads = [];
+  const path2 = await window.__upload(rtrip, { name: 'parking.jpg', type: 'image/jpeg', size: 90000 });
+  T('replacing a receipt uploads the new file', server.uploads.length === 1);
+  T('replacing a receipt deletes the old file', server.removed.indexOf(path) >= 0, server.removed.join(','));
+  T('the trip points at the new file', rtrip.receiptPath === path2);
+  T('two uploads never share a filename', path !== path2, path + ' vs ' + path2);
+  // the same millisecond must still produce distinct paths
+  const a = window.__receiptPath({ id: 9, supaId: 's9' }, { name: 'a.jpg', type: 'image/jpeg' });
+  const b = window.__receiptPath({ id: 9, supaId: 's9' }, { name: 'a.jpg', type: 'image/jpeg' });
+  T('paths minted back-to-back differ', a !== b, a + ' vs ' + b);
+
+  // viewing goes through a short-lived signed link, never a public URL
+  const rurl = await window.__receiptUrl(path2);
+  T('viewing uses a signed link', /^https:\/\/signed\.test\//.test(rurl || ''), rurl);
+  T('the link is short-lived', server.signed[server.signed.length - 1].secs <= 900, String(server.signed[server.signed.length - 1].secs));
+
+  // removing
+  confirmAnswer = true;
+  await window.__delReceipt(70); await wait(20);
+  T('removing clears the trip', !rtrip.receiptPath);
+  T('removing deletes the file', server.removed.indexOf(path2) >= 0);
+  T('removal is written back', server.updates.some(u => 'receipt_path' in u && u.receipt_path === null));
+
+  // paths never escape the account's own folder
+  const weird = window.__receiptPath({ id: 1, supaId: '../../etc/passwd' }, { name: 'x.jpg', type: 'image/jpeg' });
+  T('the path always starts at the account folder', weird.split('/')[0] === 'u1', weird);
+
+  // no bucket yet: the app must not lose the trip
+  reset();
+  window.__setUser({ id: 'u1' });
+  server.bucketMissing = true;
+  const t2 = trip({ id: 71, supaId: 'srv-71' });
+  window.__setTrips([t2]);
+  let upThrew = false, r2;
+  try { r2 = await window.__upload(t2, fakeFile); } catch (e) { upThrew = true; }
+  T('a missing bucket does not throw', !upThrew);
+  T('a missing bucket attaches nothing', r2 === null && !t2.receiptPath);
+  T('the trip itself is untouched', window.__trips().length === 1 && window.__trips()[0].id === 71);
+
+  // no receipt_path column yet: the rest of the edit must still save
+  reset();
+  window.__setUser({ id: 'u1' });
+  server.receiptColumnMissing = true;
+  const t3 = trip({ id: 72, supaId: 'srv-72', purpose: 'edited purpose' });
+  window.__setTrips([t3]);
+  let updThrew = false;
+  try { await window.__updateTrip(t3); } catch (e) { updThrew = true; }
+  T('a missing receipt column does not throw', !updThrew);
+  T('the edit is retried without the receipt field', server.updates.length === 2 &&
+    !('receipt_path' in server.updates[1]) && server.updates[1].purpose === 'edited purpose',
+    JSON.stringify(server.updates));
 
   console.log(`sync.test.js: ${pass} passed${fail ? ', ' + fail + ' failed' : ''}`);
   process.exit(fail ? 1 : 0);

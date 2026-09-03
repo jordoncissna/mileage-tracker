@@ -5,6 +5,28 @@ if a change doesn't alter what you see or what you can trust, it isn't here.
 
 ---
 
+## Receipts on trips
+*PR #39 — one-time setup: run `supabase/receipts.sql` in the Supabase SQL editor*
+
+Attach a photo to a trip — a toll, parking, a client lunch. On a phone the
+button opens the camera directly.
+
+Mileage proves you drove. A receipt proves the expense, which is the
+substantiation an auditor asks for that miles alone can't give.
+
+- **📎 in History** on any trip that has one; tap to view it full size.
+- **Remove** it from the viewer, which deletes the stored file too.
+- **The tax report** gains a Receipt column and a line in the summary saying how
+  many trips have one attached.
+- **Photos are shrunk before upload** — a phone photo is several megabytes and a
+  legible receipt is a few hundred kilobytes.
+- **Private by default.** The storage bucket is not public: every view goes
+  through a link that expires in five minutes, and the permission rules mean
+  nobody can reach your files but you.
+
+If you haven't run the SQL, nothing breaks — trips save as normal and simply
+don't take a photo.
+
 ## Security fix: an address could inject code into the duplicate review
 *PR #38*
 
