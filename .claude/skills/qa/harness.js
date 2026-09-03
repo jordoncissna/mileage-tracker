@@ -489,6 +489,24 @@ async function fillLog(page, o) {
   await page.evaluate(() => window.switchNav('home', document.getElementById('nav-home'))); await settle(page);
   const chips = await ask(page, () => document.querySelectorAll('#hNudge .nudge-chip').length, 0);
   R('the nudge lists days with nothing logged', chips > 0, 'chips=' + chips);
+  // it used to stretch the whole window like a banner, unlike every other card on Home
+  const nudgeW = await ask(page, () => {
+    const n = document.querySelector('.home-nudge'), f = document.querySelector('.home-float');
+    if (!n || !f) return 'missing';
+    return Math.round(n.getBoundingClientRect().width) + '/' + Math.round(f.getBoundingClientRect().width);
+  }, 'threw');
+  R('the nudge is a card, not a full-width banner', await ask(page, () => {
+    const n = document.querySelector('.home-nudge'), f = document.querySelector('.home-float');
+    if (!n || !f) return false;
+    const w = n.getBoundingClientRect().width;
+    return w <= 600 && w < f.getBoundingClientRect().width - 120;
+  }, false), 'nudge/float=' + nudgeW);
+  R('all five gap chips still fit on one row', await ask(page, () => {
+    const cs = [].slice.call(document.querySelectorAll('#hNudge .nudge-chip'));
+    if (!cs.length) return false;
+    const top = Math.round(cs[0].getBoundingClientRect().top);
+    return cs.every(c => Math.abs(Math.round(c.getBoundingClientRect().top) - top) <= 2);
+  }, false), 'chips=' + chips);
   R('the nudge never asserts a trip was missed', await ask(page, () => {
     const title = (document.querySelector('.nudge-title') || {}).textContent || '';
     return /nothing logged/i.test(title) && !/missed|forgot|you drove/i.test(title);
