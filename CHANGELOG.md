@@ -5,6 +5,26 @@ if a change doesn't alter what you see or what you can trust, it isn't here.
 
 ---
 
+## The tax report carries the receipts themselves
+
+The report used to say *Receipt: attached* and stop there. An auditor can't see
+your storage bucket, and the links Milo uses expire after five minutes — so a
+"yes" you couldn't produce the document for was worth close to nothing.
+
+The receipts are now **inside the report**. Each one is numbered (R-1, R-2), the
+trip's row points at its number, and the images print after the mileage log with
+a caption naming the date, route, purpose and miles they belong to. One file,
+mileage log plus evidence, nothing to log into.
+
+- **Receipts start on a fresh page**, so the mileage log stays clean.
+- **Images are re-encoded smaller** for the report. Forty full-size photos is a
+  packet nobody can email.
+- **A receipt that can't be fetched still gets a numbered slot** saying so,
+  rather than vanishing — a gap with no explanation reads as "there was no
+  receipt".
+- Generating a report with receipts takes a few seconds now; it tells you it's
+  collecting them, and waits for the images before opening the print dialog.
+
 ## The unlogged-days reminder is a card, not a banner
 
 It stretched the full width of the window — a white band across the middle of

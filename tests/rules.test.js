@@ -153,6 +153,49 @@ T('274(d) substantiation note', rpt.indexOf('§274(d)') >= 0 || rpt.indexOf('274
 T('empty year message', buildTaxReportHTML(2019).indexOf('No trips recorded') >= 0);
 T('miles totals correct', rpt.indexOf('27.0') >= 0 && rpt.indexOf('10.0') >= 0);
 
+// ===== RECEIPTS INSIDE THE TAX REPORT =====
+// The report used to say "attached" and stop there. An auditor cannot see a
+// storage bucket, so the images have to be in the document itself.
+trips.push({ id: 4, date: '2026-04-02', miles: 20, from: '1113 S 4090 W, Syracuse, UT',
+             to: '1616 W Traverse Pkwy, Lehi, UT', purpose: 'Toll & parking',
+             category: 'Client Meeting', receiptPath: 'u1/4/1-abc.jpg' });
+const PIX = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+
+const withShot = buildTaxReportHTML(2026, { 4: PIX });
+T('receipt column numbers the exhibit', withShot.indexOf('<td>R-1</td>') >= 0);
+T('the image is embedded, not linked', withShot.indexOf('<img src="' + PIX + '"') >= 0);
+T('a receipts section appears', withShot.indexOf('>Receipts</h2>') >= 0);
+T('receipts start on a fresh printed page', withShot.indexOf('page-break-before:always') >= 0);
+T('the exhibit names the trip it belongs to', /Receipt R-1[^<]*04\/02\/26[^<]*Traverse/.test(withShot));
+T('the exhibit caption escapes the purpose', withShot.indexOf('Toll &amp; parking') >= 0);
+T('the exhibit caption carries the mileage', /Receipt R-1[^<]*20\.0 mi/.test(withShot));
+
+const failed = buildTaxReportHTML(2026, { 4: null });
+T('a receipt that would not fetch says so', failed.indexOf('could not be retrieved') >= 0);
+T('a failed receipt embeds no image', failed.indexOf('<img') < 0);
+T('a failed receipt keeps its exhibit number', failed.indexOf('R-1') >= 0);
+
+T('with no collection pass the copy says the image is absent',
+  buildTaxReportHTML(2026).indexOf('not included in this copy') >= 0);
+
+// the src lands in an HTML attribute: only our own re-encode may go there
+T('a javascript: src is refused',
+  buildTaxReportHTML(2026, { 4: 'javascript:alert(1)' }).indexOf('javascript:') < 0);
+T('a remote image URL is refused',
+  buildTaxReportHTML(2026, { 4: 'http://evil.test/x.png' }).indexOf('evil.test') < 0);
+
+// two receipts must number in trip order, table cell and exhibit agreeing
+trips.push({ id: 5, date: '2026-06-11', miles: 8, from: 'A', to: 'B', purpose: 'second',
+             category: 'Client Meeting', receiptPath: 'u1/5/2-def.jpg' });
+const two = buildTaxReportHTML(2026, { 4: PIX, 5: PIX });
+T('exhibits number in date order', two.indexOf('<td>R-1</td>') >= 0 && two.indexOf('<td>R-2</td>') >= 0);
+T('the second exhibit is numbered R-2', two.indexOf('Receipt R-2') >= 0);
+T('an exhibit is drawn per receipt', (two.match(/<img src="data:image\//g) || []).length === 2);
+trips.pop();
+
+trips.pop();
+T('no receipts section when nothing is attached', buildTaxReportHTML(2026).indexOf('>Receipts</h2>') < 0);
+
 // ===== UNLOGGED-DAY NUDGE =====
 // Dates are the easy thing to get silently wrong here, so this pins the
 // arithmetic against a fixed "today" of Wednesday 2026-06-17.
