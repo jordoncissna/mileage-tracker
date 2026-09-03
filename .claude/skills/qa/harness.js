@@ -74,11 +74,30 @@ const INIT = `
         return { error:null };
       }
     };
+    var SK2='qa_files';
+    function files(){ try { return JSON.parse(localStorage.getItem(SK2)||'[]'); } catch(e){ return []; } }
+    var storage = { from: function(){ return {
+      upload: async function(path, blob, opts){
+        if(localStorage.getItem('qa_bucket_missing')==='1') return { error:{ message:'Bucket not found' } };
+        var f=files(); f.push({ path:path, size:(blob&&blob.size)||0, type:(opts&&opts.contentType)||'' });
+        localStorage.setItem(SK2, JSON.stringify(f));
+        return { data:{ path:path }, error:null };
+      },
+      remove: async function(paths){
+        localStorage.setItem(SK2, JSON.stringify(files().filter(function(f){ return paths.indexOf(f.path)<0; })));
+        return { error:null };
+      },
+      createSignedUrl: async function(path, secs){
+        if(localStorage.getItem('qa_bucket_missing')==='1') return { data:null, error:{ message:'Bucket not found' } };
+        // a 1x1 gif so the <img> actually loads in the harness
+        return { data:{ signedUrl:'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7' }, error:null };
+      }
+    }; } };
     window.supabase = { createClient: function(){ return {
       auth: { getSession: async function(){ return { data: { session: { user:{ id:'u1', email:'qa@test.co' } } } }; },
               onAuthStateChange: function(cb){ setTimeout(function(){ cb('SIGNED_IN', { user:{ id:'u1', email:'qa@test.co' } }); }, 30); return { data:{ subscription:{ unsubscribe:function(){} } } }; },
               signOut: async function(){ return {}; } },
-      from: function(name){ return name==='user_prefs' ? prefsTable : (name==='user_plan' ? planTable : table); } }; } };
+      from: function(name){ return name==='user_prefs' ? prefsTable : (name==='user_plan' ? planTable : table); }, storage: storage }; } };
   })();
   window.__map = { directions: 0, markers: [], polylines: 0, fits: 0, lastReq: null, routeStatus: 'OK', log: [] };
   window.google = { maps: {
@@ -648,6 +667,62 @@ async function fillLog(page, o) {
     /Ogden/.test(document.getElementById('rulesList').textContent), false));
   R('trip logging is unaffected by the missing table', await tripCount(page) > 0);
   await ask(page, () => { localStorage.removeItem('qa_prefs_missing'); return true; });
+
+  // ── RECEIPTS: attach a photo, see it, remove it
+  await ask(page, () => { localStorage.removeItem('qa_files'); localStorage.removeItem('qa_bucket_missing'); return true; });
+  await page.evaluate(() => window.openLogOverlay()); await settle(page);
+  R('the log form offers a receipt', await ask(page, () => !!document.getElementById('tReceipt'), false));
+  R('it asks the phone for the camera', await ask(page, () =>
+    document.getElementById('tReceipt').getAttribute('capture') === 'environment' &&
+    /image/.test(document.getElementById('tReceipt').getAttribute('accept') || ''), false));
+
+  await fillLog(page, { date: '2026-07-21', miles: 18.4, purpose: 'receipt trip', to: '5 Toll Rd' });
+  // a real file, chosen the way a person chooses one
+  await page.setInputFiles('#tReceipt', {
+    name: 'toll.png', mimeType: 'image/png',
+    buffer: Buffer.from('89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000a49444154789c6300010000050001' +
+                        '0d0a2db40000000049454e44ae426082', 'hex')
+  }).catch(() => {});
+  await page.waitForTimeout(300);
+  R('the chosen file is shown before saving', await ask(page, () =>
+    /toll\.png/.test((document.getElementById('receiptName') || {}).textContent || ''), false));
+  await page.evaluate(() => window.addTrip());
+  await page.waitForFunction(() => JSON.parse(localStorage.getItem('qa_files') || '[]').length > 0, null, { timeout: 8000, polling: 100 }).catch(() => {});
+  const up = await ask(page, () => JSON.parse(localStorage.getItem('qa_files') || '[]'), []);
+  R('saving the trip uploads the receipt', up.length === 1, JSON.stringify(up));
+  R('the file is stored under the account folder', (up[0] && up[0].path || '').indexOf('u1/') === 0, up[0] && up[0].path);
+
+  // History shows it, and it opens
+  await page.evaluate(() => window.switchNav('hist', document.getElementById('nav-hist'))); await settle(page);
+  R('History marks the trip as having a receipt', await ask(page, () =>
+    !!document.querySelector('#htable button[title="View receipt"]'), false));
+  await page.click('#htable button[title="View receipt"]').catch(() => {});
+  await page.waitForTimeout(600);
+  R('the receipt opens in a viewer', await ask(page, () =>
+    document.getElementById('receiptModal').style.display === 'flex' &&
+    !!document.getElementById('receiptImg').getAttribute('src'), false));
+
+  // removing it
+  await page.click('#receiptDelBtn').catch(() => {});
+  await page.waitForTimeout(700);
+  R('removing the receipt empties storage', await ask(page, () =>
+    JSON.parse(localStorage.getItem('qa_files') || '[]').length === 0, false));
+  R('and clears the marker in History', await ask(page, () =>
+    !document.querySelector('#htable button[title="View receipt"]'), false));
+
+  // no bucket yet: the trip must still save
+  await ask(page, () => { localStorage.setItem('qa_bucket_missing', '1'); return true; });
+  const beforeNoBucket = await tripCount(page);
+  await page.evaluate(() => window.openLogOverlay()); await settle(page);
+  await fillLog(page, { date: '2026-07-22', miles: 9.9, purpose: 'no bucket trip', to: '6 Nobucket Way' });
+  await page.setInputFiles('#tReceipt', { name: 'x.png', mimeType: 'image/png', buffer: Buffer.from('89504e470d0a1a0a', 'hex') }).catch(() => {});
+  await page.evaluate(() => window.addTrip());
+  await page.waitForTimeout(1200);
+  R('with no bucket the trip is still saved', await tripCount(page) === beforeNoBucket + 1,
+    'before=' + beforeNoBucket + ' after=' + await tripCount(page));
+  R('with no bucket no receipt is claimed', await ask(page, () =>
+    !window.__qaTrips().some(t => t.purpose === 'no bucket trip' && t.receiptPath), false));
+  await ask(page, () => { localStorage.removeItem('qa_bucket_missing'); return true; });
 
   // ── Calculate distance: the result must be readable, and Miles must fill in
   await page.evaluate(() => window.openLogOverlay()); await settle(page);

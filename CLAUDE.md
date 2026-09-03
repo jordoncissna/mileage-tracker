@@ -66,6 +66,18 @@ can't read another's row; resolving them is a server-side job for when rewards
 are actually granted. If the table is missing, plan tracking turns off and says
 so in Settings — trip logging must never depend on it.
 
+**Receipts:** a photo per trip, in a **private** Supabase Storage bucket
+(`supabase/receipts.sql` creates the bucket, the `trips.receipt_path` column and
+the policies). Objects live at `<user id>/<trip id>/<ts>-<rand>.<ext>` and the
+storage policy compares that first folder against `auth.uid()`, so one account
+can never reach another's files. Viewing always goes through a 5-minute signed
+URL — the bucket is never public. `shrinkImage()` caps the long edge at 1600px
+and re-encodes at JPEG 0.8 before upload, because phone photos are megabytes and
+a legible receipt is not. The filename carries a random suffix: `Date.now()`
+alone collided for two uploads in the same millisecond, which silently orphaned
+the replaced file. If the bucket or the column is missing, the trip still saves
+and `updateTripInSupabase()` retries without the receipt field.
+
 **Supabase `trips` table:** `id`, `user_id`, `date`, `miles`, `from_addr`,
 `to_addr`, `purpose`, `category`, `coords`, `from_latlng`, `to_latlng`.
 
@@ -129,6 +141,9 @@ trip; in multi-stop batches the return distance folds into the last leg.
   driven addresses rank first and are offered even when Places can't answer.
 - `previewLogRoute()` / `drawTripOnMap()` / `drawStraightRoute()` — the live map
   preview behind the log overlay.
+- `uploadReceipt()` / `receiptUrl()` / `deleteReceipt()` / `shrinkImage()` —
+  receipt photos. `addTrip()` captures `pendingReceipt` **before** `clearF()`
+  runs, or the chosen photo is discarded between save and upload.
 - `saveToSupabase()` / `updateTripInSupabase()` — sync.
 - `dupGroups()` / `openDupReview()` — the duplicate-review tool in History:
   groups trips sharing a date and route, preselects only byte-identical
@@ -222,7 +237,7 @@ no longer a numbered-download step — edit `index.html` directly.
 - [x] Offline-capable PWA (service worker, manifest, offline trip sync-on-reconnect)
 - [x] Tax-ready PDF reports (audit-defensible IRS export)
 - [x] Invite a coworker (referral link; groundwork for a rewards system)
-- [ ] Receipt capture (photo attached to a trip)
+- [x] Receipt capture (photo attached to a trip)
 - [x] Persist auto-classify rules to Supabase (`user_prefs`)
 - [x] Duplicate review + idempotent sync
 
