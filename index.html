@@ -2791,6 +2791,60 @@ async function receiptUrl(path){
     return data&&data.signedUrl?data.signedUrl:null;
   }catch(e){console.error('Receipt link error:',e);return null;}
 }
+// ── Receipts inside the tax report ──────────────────────────────────────
+// A report that says "receipt: attached" is worth nothing to an auditor who
+// cannot see the receipt, and a signed link dies in five minutes — so the
+// images are embedded in the document itself. Re-encoded smaller than the
+// stored file first: a printed page does not need 1600px, and forty of them at
+// full size is a packet nobody can email.
+var REPORT_MAX_PX=1100, REPORT_QUALITY=0.72;
+function exhibitDataUrl(blob){
+  return new Promise(function(resolve){
+    var reader=new FileReader();
+    reader.onerror=function(){resolve(null);};
+    reader.onload=function(){
+      var raw=reader.result||'';
+      if(!/^data:image\//.test(raw))return resolve(null);
+      var img=new Image();
+      img.onload=function(){
+        try{
+          var w=img.naturalWidth,h=img.naturalHeight;
+          var scale=Math.min(1,REPORT_MAX_PX/Math.max(w,h));
+          var c=document.createElement('canvas');
+          c.width=Math.max(1,Math.round(w*scale));c.height=Math.max(1,Math.round(h*scale));
+          c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+          var out=c.toDataURL('image/jpeg',REPORT_QUALITY);
+          resolve(out&&out.length<raw.length?out:raw);
+        }catch(e){resolve(raw);}
+      };
+      img.onerror=function(){resolve(raw);};   // undecodable here; ship the stored bytes
+      img.src=raw;
+    };
+    reader.readAsDataURL(blob);
+  });
+}
+async function receiptDataUrl(path){
+  var url=await receiptUrl(path);
+  if(!url)return null;
+  try{
+    var res=await fetch(url);
+    if(!res.ok)throw new Error('HTTP '+res.status);
+    return await exhibitDataUrl(await res.blob());
+  }catch(e){console.error('Receipt fetch error:',e);return null;}
+}
+// One at a time. A year of receipts opening as parallel downloads is a good way
+// to have several of them fail, and the report is generated once a year — the
+// seconds are cheaper than the gaps. A trip whose image cannot be fetched still
+// gets an exhibit number and a line saying so; silence would read as "no receipt".
+async function collectReceipts(list){
+  var out={};
+  for(var i=0;i<list.length;i++){
+    var t=list[i];
+    if(!t.receiptPath)continue;
+    out[t.id]=await receiptDataUrl(t.receiptPath);
+  }
+  return out;
+}
 async function openReceipt(tripId){
   var t=trips.find(function(x){return x.id===tripId;});
   if(!t||!t.receiptPath)return;
@@ -5279,11 +5333,11 @@ window.openInviteModal=openInviteModal;window.closeInviteModal=closeInviteModal;
 window.copyInviteLink=copyInviteLink;window.nativeInvite=nativeInvite;
 window.emailInvite=emailInvite;window.smsInvite=smsInvite;window.inviteQr=inviteQr;
 window.buildInviteLink=buildInviteLink;
-function buildTaxReportHTML(year){
+function buildTaxReportHTML(year,shots){
   var y=String(year);
   var fl=trips.filter(function(t){return t.date&&t.date.slice(0,4)===y;})
     .sort(function(a,b){return (a.date||'').localeCompare(b.date||'');});
-  var bizMi=0,perMi=0,ded=0,rows='';
+  var bizMi=0,perMi=0,ded=0,rows='',exhibits='',exNo=0;
   fl.forEach(function(t){
     var mi=parseFloat(t.miles||0);
     var r=rate(t.date);
@@ -5300,8 +5354,22 @@ function buildTaxReportHTML(year){
       '<td class="num">'+mi.toFixed(1)+'</td>'+
       '<td class="num">'+(excl?'—':r.toFixed(3))+'</td>'+
       '<td class="num">'+(excl?'0.00 <span class="excl">('+excl+')</span>':v.toFixed(2))+'</td>'+
-      '<td>'+(t.receiptPath?'attached':'—')+'</td>'+
+      '<td>'+(t.receiptPath?('R-'+(exNo+1)):'—')+'</td>'+
     '</tr>';
+    if(!t.receiptPath)return;
+    exNo++;
+    // The exhibit is only substantiation if it says which trip it belongs to.
+    var cap='Receipt R-'+exNo+' &middot; '+fmt(t.date)+' &middot; '+esc(t.from||'—')+' &rarr; '+esc(t.to||'—')+
+      (t.purpose?(' &middot; '+esc(t.purpose)):'')+' &middot; '+mi.toFixed(1)+' mi';
+    var seen=shots&&Object.prototype.hasOwnProperty.call(shots,t.id);
+    var src=seen?shots[t.id]:null;
+    if(src&&!/^data:image\//.test(src))src=null;   // only ever our own re-encode
+    exhibits+='<div class="ex"><div class="exh">'+cap+'</div>'+
+      (src?('<img src="'+src+'" alt="Receipt R-'+exNo+'">')
+          :('<div class="exmiss">'+(seen
+              ?'Stored, but it could not be retrieved when this report was generated. The receipt is still attached to the trip in Milo.'
+              :'Image not included in this copy. The receipt is attached to the trip in Milo.')+'</div>'))+
+    '</div>';
   });
   var yRate=cfg.rates[parseInt(y,10)]||rate(y+'-06-01');
   var gen=new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
@@ -5326,6 +5394,11 @@ function buildTaxReportHTML(year){
     '.sig div{flex:1;border-top:1px solid #111;padding-top:4px;font-size:10px;color:#444;}'+
     'tfoot td{border-top:1.5px solid #111;font-weight:bold;}'+
     '.foot{margin-top:26px;font-size:9px;color:#777;}'+
+    'h2.exhead{page-break-before:always;}'+
+    '.ex{page-break-inside:avoid;margin:12px 0 18px;}'+
+    '.exh{font-size:9.5px;color:#444;margin-bottom:4px;}'+
+    '.ex img{display:block;max-width:100%;max-height:7in;border:0.5px solid #bbb;}'+
+    '.exmiss{font-size:10px;color:#666;border:0.5px dashed #bbb;padding:11px 13px;}'+
     '</style></head><body>'+
     '<h1>Mileage Log &amp; Deduction Report — Tax Year '+esc(y)+'</h1>'+
     '<div class="meta">'+(cfg.biz?'Prepared for: <b>'+esc(cfg.biz)+'</b> · ':'')+(cfg.vehicle?'Vehicle: '+esc(cfg.vehicle)+' · ':'')+'Generated '+gen+' · Method: IRS Standard Mileage Rate</div>'+
@@ -5344,21 +5417,52 @@ function buildTaxReportHTML(year){
     '<table><thead><tr><th>Date</th><th>From</th><th>To</th><th>Business Purpose</th><th>Category</th><th class="num">Miles</th><th class="num">Rate $/mi</th><th class="num">Deduction $</th><th>Receipt</th></tr></thead>'+
     '<tbody>'+(rows||'<tr><td colspan="9" style="text-align:center;color:#777">No trips recorded for '+esc(y)+'</td></tr>')+'</tbody>'+
     '<tfoot><tr><td colspan="5">Totals</td><td class="num">'+(bizMi+perMi).toFixed(1)+'</td><td></td><td class="num">'+ded.toFixed(2)+'</td><td></td></tr></tfoot></table>'+
+    (exhibits?('<h2 class="exhead">Receipts</h2>'+
+      '<div class="legal">Copies of the receipts attached to the trips above, in the same order, reproduced from the originals retained in Milo. A receipt substantiates the expense itself; the mileage above substantiates the drive.</div>'+
+      exhibits):'')+
     '<div class="sig"><div>Taxpayer signature</div><div>Date</div></div>'+
     '<div class="foot">This report was generated from contemporaneous records kept in Milo (Ridgeline Management Group LLC). It is a recordkeeping document, not tax advice.</div>'+
     '</body></html>';
 }
-function openTaxReport(year){
+async function openTaxReport(year){
   var aY=document.getElementById('aYear');
   var fY=document.getElementById('fYear');
   var y=year||(aY&&aY.value)||(fY&&fY.value)||String(new Date().getFullYear());
+  // The window has to be opened inside the click, before the first await, or
+  // the pop-up blocker takes it.
   var w=window.open('','_blank');
   if(!w){toast('⚠ Allow pop-ups to open the report');return;}
-  w.document.write(buildTaxReportHTML(y));
+  var list=trips.filter(function(t){return t.date&&t.date.slice(0,4)===String(y);});
+  var withR=list.filter(function(t){return !!t.receiptPath;}).length;
+  var shots={};
+  if(withR){
+    var note='Collecting '+withR+' receipt'+(withR===1?'':'s')+'…';
+    try{
+      w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Preparing report…</title></head>'+
+        '<body style="font-family:Georgia,serif;color:#111;padding:48px 40px;font-size:14px">'+esc(note)+'</body></html>');
+      w.document.close();
+    }catch(e){}
+    toast(note);
+    shots=await collectReceipts(list);
+  }
+  try{w.document.open();}catch(e){}
+  w.document.write(buildTaxReportHTML(y,shots));
   w.document.close();
-  setTimeout(function(){try{w.focus();w.print();}catch(e){}},350);
+  printWhenReady(w,0);
+}
+// Embedded images still need a tick to decode, and printing before they do
+// prints a packet of blank frames.
+function printWhenReady(w,tries){
+  var ready=false;
+  try{
+    var imgs=[].slice.call(w.document.images||[]);
+    ready=imgs.every(function(i){return i.complete;});
+  }catch(e){return;}
+  if((ready&&tries>=3)||tries>60){try{w.focus();w.print();}catch(e){}return;}
+  setTimeout(function(){printWhenReady(w,tries+1);},100);
 }
 window.openTaxReport=openTaxReport;window.buildTaxReportHTML=buildTaxReportHTML;
+window.collectReceipts=collectReceipts;window.receiptDataUrl=receiptDataUrl;
 function sharePdf(){
   openTaxReport();
   closeShareModal();

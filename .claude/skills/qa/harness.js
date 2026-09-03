@@ -720,6 +720,30 @@ async function fillLog(page, o) {
     document.getElementById('receiptModal').style.display === 'flex' &&
     !!document.getElementById('receiptImg').getAttribute('src'), false));
 
+  // ── the packet: the report must carry the image, not just the word "attached"
+  const packet = await ask(page, async () => {
+    const list = window.__qaTrips().filter(t => (t.date || '').slice(0, 4) === '2026');
+    const shots = await window.collectReceipts(list);
+    const html = window.buildTaxReportHTML('2026', shots);
+    return {
+      embedded: (html.match(/<img src="data:image\//g) || []).length,
+      cell: html.indexOf('<td>R-1</td>') >= 0,
+      section: html.indexOf('>Receipts</h2>') >= 0,
+      unretrieved: html.indexOf('could not be retrieved') >= 0
+    };
+  }, null);
+  R('the tax report embeds the receipt image', !!packet && packet.embedded >= 1, JSON.stringify(packet));
+  R('the trip row points at its exhibit', !!packet && packet.cell && packet.section, JSON.stringify(packet));
+  R('a reachable receipt is not reported as missing', !!packet && !packet.unretrieved, JSON.stringify(packet));
+  // a receipt that cannot be fetched has to be recorded, not quietly dropped —
+  // an exhibit missing without explanation reads as "there was no receipt"
+  R('an unreachable receipt is marked, not skipped', await ask(page, async () => {
+    localStorage.setItem('qa_bucket_missing', '1');
+    const shots = await window.collectReceipts([{ id: 'ghost', receiptPath: 'u1/ghost/1.jpg' }]);
+    localStorage.removeItem('qa_bucket_missing');
+    return Object.prototype.hasOwnProperty.call(shots, 'ghost') && shots.ghost === null;
+  }, false));
+
   // removing it
   await page.click('#receiptDelBtn').catch(() => {});
   await page.waitForTimeout(700);
