@@ -53,6 +53,31 @@ const c2 = window.__trips().length;
 $('tMiles').value = ''; window.__addTrip();
 T('blocks empty miles', window.__trips().length === c2);
 
+// ── mileage has to have an upper bound ──────────────────────────────────
+// 1e308 was accepted, which put "1e+308 mi  $6.999999999999999e+307" in the tax
+// report and $NaN in Analytics. The longest drive in the lower 48 is ~3,500 mi.
+const fillTrip = (miles) => {
+  $('tDate').value = '2026-06-15'; $('tMiles').value = String(miles);
+  $('tFromStreet').value = '1113 S 4090 W'; $('tFromCity').value = 'Syracuse'; $('tFromState').value = 'UT';
+  $('tToStreet').value = '456 Business Ave'; $('tToCity').value = 'Lehi'; $('tToState').value = 'UT';
+  $('tPurpose').value = 'cap check ' + miles;
+  window.__addTrip();
+};
+const capBase = window.__trips().length;
+fillTrip('1e308');
+T('rejects 1e308 miles', window.__trips().length === capBase, 'rows=' + window.__trips().length);
+fillTrip('25000');
+T('rejects 25000 miles', window.__trips().length === capBase, 'rows=' + window.__trips().length);
+fillTrip('10001');
+T('rejects one mile over the cap', window.__trips().length === capBase, 'rows=' + window.__trips().length);
+fillTrip('10000');
+T('accepts exactly the cap', window.__trips().length === capBase + 1, 'rows=' + window.__trips().length);
+fillTrip('113.4');
+T('accepts an ordinary trip', window.__trips().length === capBase + 2);
+T('no NaN or Infinity reached the ledger',
+  window.__trips().every(t => isFinite(parseFloat(t.miles))),
+  JSON.stringify(window.__trips().map(t => t.miles)));
+
 // ===== HISTORY =====
 let threw = false; try { window.__renderH(); } catch (e) { threw = true; }
 T('renderH no throw', !threw);

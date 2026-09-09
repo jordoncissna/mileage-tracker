@@ -121,6 +121,8 @@ const exports_ = `
 ;window.__receiptUrl=receiptUrl;
 ;window.__receiptPath=receiptPath;
 ;window.__updateTrip=updateTripInSupabase;
+;window.__importCSV=importCSV;
+;window.__saveLocal=save;
 `;
 const runner = new window.Function(inline + exports_);
 try { runner.call(window); } catch (e) { console.log('init threw (often benign):', e.message); }
@@ -472,6 +474,84 @@ const trip = o => Object.assign({ id: Date.now() + Math.random(), date: '2026-08
   T('the edit is retried without the receipt field', server.updates.length === 2 &&
     !('receipt_path' in server.updates[1]) && server.updates[1].purpose === 'edited purpose',
     JSON.stringify(server.updates));
+
+  // ── CSV IMPORT MUST NOT RE-INSERT WHAT IS ALREADY ON THE SERVER ──────
+  // Importing the same file twice used to duplicate the WHOLE ledger:
+  // trips.slice(-added) with added === 0 is slice(0), i.e. every trip, and
+  // saveToSupabase() had no supaId guard so each one got a second row.
+  const importCsv = (text) => new Promise(resolve => {
+    const file = new window.File([text], 'trips.csv', { type: 'text/csv' });
+    window.__importCSV({ target: { files: [file], value: 'trips.csv' } });
+    const tick = () => { setTimeout(resolve, 60); };
+    setTimeout(tick, 40);
+  });
+
+  reset();
+  window.__setUser({ id: 'u1' });
+  const already1 = trip({ id: 91, supaId: 'srv-91' });
+  const already2 = trip({ id: 92, supaId: 'srv-92', date: '2026-08-13', miles: 22 });
+  window.__setTrips([already1, already2]);
+  server.rows = [{ id: 'srv-91' }, { id: 'srv-92' }];
+  // every row in this file is already in the ledger, so added === 0
+  await importCsv('Date,From,To,Purpose,Category,Miles\n' +
+    '2026-08-12,"1113 S 4090 W, Syracuse, UT","456 Business Ave, Lehi, UT","LFG Week","Client Meeting",81.2');
+  await wait(160);
+  T('re-importing an unchanged CSV inserts nothing', server.inserts === 0, 'inserts=' + server.inserts);
+  T('re-importing an unchanged CSV does not grow the ledger', window.__trips().length === 2, 'rows=' + window.__trips().length);
+
+  // and a genuinely new row still syncs, exactly once
+  reset();
+  window.__setUser({ id: 'u1' });
+  window.__setTrips([trip({ id: 93, supaId: 'srv-93' })]);
+  await importCsv('Date,From,To,Purpose,Category,Miles\n' +
+    '2026-09-01,"1 New St, Syracuse, UT","2 New Ave, Lehi, UT","genuinely new","Office Visit",40');
+  await wait(160);
+  T('a new CSV row is imported', window.__trips().length === 2, 'rows=' + window.__trips().length);
+  T('a new CSV row is inserted exactly once', server.inserts === 1, 'inserts=' + server.inserts);
+
+  // ── saveToSupabase refuses a trip that already has a row ─────────────
+  reset();
+  window.__setUser({ id: 'u1' });
+  const synced = trip({ id: 94, supaId: 'srv-94' });
+  window.__setTrips([synced]);
+  await window.__save(synced);
+  T('a trip with a server id is never inserted again', server.inserts === 0, 'inserts=' + server.inserts);
+  T('and it keeps the id it had', synced.supaId === 'srv-94', String(synced.supaId));
+
+  // the undo paths clear supaId first, so restoring must still insert
+  reset();
+  window.__setUser({ id: 'u1' });
+  const restored = trip({ id: 95, supaId: null });
+  window.__setTrips([restored]);
+  await window.__save(restored);
+  T('an undone delete still re-inserts', server.inserts === 1, 'inserts=' + server.inserts);
+
+  // ── CSV import validates what it is given ────────────────────────────
+  reset();
+  window.__setUser({ id: 'u1' });
+  window.__setTrips([]);
+  await importCsv('Date,From,To,Purpose,Category,Miles\n' +
+    '2026-02-01,"a","b","sane row","Office Visit",50\n' +
+    '2026-02-02,"a","b","overflow","Office Visit",1e308\n' +
+    '2026-02-03,"a","b","too far","Office Visit",25000\n' +
+    'not-a-date,"a","b","bad date","Office Visit",10\n' +
+    '2026-13-45,"a","b","impossible date","Office Visit",10\n' +
+    '2026-02-06,"a","b","made-up category","Totally Made Up",10');
+  await wait(200);
+  const imported = window.__trips();
+  T('an overflow mileage row is refused on import', !imported.some(t => t.purpose === 'overflow'),
+    JSON.stringify(imported.map(t => t.purpose + '=' + t.miles)));
+  T('a mileage beyond the cap is refused on import', !imported.some(t => t.purpose === 'too far'));
+  T('an unparseable date is refused on import', !imported.some(t => t.purpose === 'bad date'));
+  T('an impossible date is refused on import', !imported.some(t => t.purpose === 'impossible date'));
+  T('a sane row still imports', imported.some(t => t.purpose === 'sane row'));
+  T('an unknown category falls back rather than inventing one',
+    imported.every(t => t.category !== 'Totally Made Up'),
+    JSON.stringify(imported.map(t => t.category)));
+
+  // The quota failure cannot be simulated here: jsdom's localStorage.setItem
+  // is not overridable, so a test written against it is a false green. That
+  // case is covered in .claude/skills/qa/harness.js against a real browser.
 
   console.log(`sync.test.js: ${pass} passed${fail ? ', ' + fail + ' failed' : ''}`);
   process.exit(fail ? 1 : 0);
