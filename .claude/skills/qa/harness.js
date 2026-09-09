@@ -994,6 +994,96 @@ async function fillLog(page, o) {
     return !!n && getComputedStyle(n).display !== 'none';
   }, false));
 
+  // ── a device that is out of storage must not swallow the trip ─────────
+  // save() wrote ml3_trips with no try/catch, and addTrip is async, so a
+  // QuotaExceededError became an unhandled rejection: the trip reached neither
+  // the cache nor the server, the form stayed full, and nothing was said.
+  // Counts come from window.__srv.inserts, which lives in memory — at a full
+  // quota the stub cannot write its own rows to localStorage either.
+  const quota = await ctx.newPage();
+  await quota.route(/googleapis|gstatic|jsdelivr/, r => r.abort());
+  await quota.goto(APP, { waitUntil: 'domcontentloaded' });
+  await quota.waitForTimeout(1500);
+  await ask(quota, () => { ['authOverlay','onboardOverlay'].forEach(i => { const e = document.getElementById(i); if (e) { e.style.display = 'none'; e.classList.remove('active'); } }); return true; }, false);
+  const wall = await ask(quota, () => {
+    try { const c = 'x'.repeat(64 * 1024); for (let i = 0; i < 300; i++) localStorage.setItem('big' + i, c); } catch (e) {}
+    try { const c = 'y'.repeat(1024); for (let i = 0; i < 8000; i++) localStorage.setItem('sm' + i, c); } catch (e) {}
+    try { const c = 'z'.repeat(32); for (let i = 0; i < 8000; i++) localStorage.setItem('t' + i, c); } catch (e) {}
+    try { localStorage.setItem('probe', 'q'.repeat(512)); localStorage.removeItem('probe'); return 'still room'; }
+    catch (e) { return 'at the wall'; }
+  }, 'threw');
+  R('the check can actually fill the device', wall === 'at the wall', wall);
+  await ask(quota, () => {
+    window.__insertsBefore = window.__srv ? window.__srv.inserts : -1;
+    window.__toastSeen = '';
+    window.__toastWatch = setInterval(() => {
+      const t = document.getElementById('toast');
+      if (t && t.textContent && t.classList.contains('show')) window.__toastSeen += ' | ' + t.textContent;
+    }, 60);
+    window.openLogOverlay();
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+    set('tDate', '2026-08-08'); set('tMiles', '42');
+    set('tFromStreet', '1113 S 4090 W'); set('tFromCity', 'Syracuse'); set('tFromState', 'UT');
+    set('tToStreet', '999 Quota Way'); set('tToCity', 'Lehi'); set('tToState', 'UT');
+    set('tPurpose', 'trip at the quota wall');
+    if (window.buildAddr) window.buildAddr();
+    window.addTrip();
+    return true;
+  }, false);
+  await quota.waitForTimeout(6000);   // the storage warning waits out the success toast
+  const qState = await ask(quota, () => {
+    clearInterval(window.__toastWatch);
+    return {
+      inserted: (window.__srv ? window.__srv.inserts : -1) - window.__insertsBefore,
+      formCleared: !(document.getElementById('tPurpose') || {}).value,
+      overlayClosed: (document.getElementById('logOverlay') || {}).style.display !== 'flex',
+      toasts: window.__toastSeen
+    };
+  }, null);
+  R('a trip logged on a full device still reaches the server', qState && qState.inserted === 1, JSON.stringify(qState));
+  R('the log form still clears on a full device', qState && qState.formCleared && qState.overlayClosed, JSON.stringify(qState));
+  R('the owner is told the device is out of space', qState && /storage/i.test(qState.toasts || ''), JSON.stringify(qState));
+  await quota.close();
+
+  // ── importing the same CSV twice must not duplicate the ledger ────────
+  // trips.slice(-added) with added === 0 is slice(0) — the whole ledger — and
+  // saveToSupabase had no supaId guard, so every trip got a second row.
+  const imp = await ctx.newPage();
+  await imp.route(/googleapis|gstatic|jsdelivr/, r => r.abort());
+  await imp.goto(APP, { waitUntil: 'domcontentloaded' });
+  await imp.waitForTimeout(1500);
+  await ask(imp, () => {
+    ['authOverlay','onboardOverlay'].forEach(i => { const e = document.getElementById(i); if (e) { e.style.display = 'none'; e.classList.remove('active'); } });
+    // the quota check above filled this origin's storage; give it back, or the
+    // row counts here are measuring that instead of the import
+    Object.keys(localStorage).filter(k => /^(big|sm|t)\d+$/.test(k)).forEach(k => localStorage.removeItem(k));
+    return true;
+  }, false);
+  const CSV_TEXT = 'Date,From,To,Purpose,Category,Miles\n2026-05-05,"1 Import St, Syracuse, UT","2 Import Ave, Lehi, UT","imported once","Office Visit",55';
+  const dropCsv = (text) => {
+    const input = document.querySelector('input[type=file][accept=".csv"]');
+    if (!input) return 'no csv input';
+    const dt = new DataTransfer();
+    dt.items.add(new File([text], 'trips.csv', { type: 'text/csv' }));
+    input.files = dt.files;
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    return 'dropped';
+  };
+  const insBefore = await ask(imp, () => (window.__srv ? window.__srv.inserts : -1), -1);
+  const drop1 = await imp.evaluate(dropCsv, CSV_TEXT).catch(() => 'threw');
+  await imp.waitForTimeout(2600);
+  const insAfter1 = await ask(imp, () => (window.__srv ? window.__srv.inserts : -1), -1);
+  const rowsAfter1 = await ask(imp, () => JSON.parse(localStorage.getItem('ml3_trips') || '[]').length, -1);
+  R('a CSV row imports and syncs exactly once', insAfter1 - insBefore === 1,
+    'drop=' + drop1 + ' inserts ' + insBefore + ' to ' + insAfter1 + ' rows=' + rowsAfter1);
+  await imp.evaluate(dropCsv, CSV_TEXT).catch(() => {});
+  await imp.waitForTimeout(2600);
+  const insAfter2 = await ask(imp, () => (window.__srv ? window.__srv.inserts : -1), -1);
+  const rowsAfter2 = await ask(imp, () => JSON.parse(localStorage.getItem('ml3_trips') || '[]').length, -1);
+  R('re-importing the same CSV inserts nothing', insAfter2 === insAfter1, 'inserts ' + insAfter1 + ' to ' + insAfter2);
+  R('re-importing the same CSV does not grow the ledger', rowsAfter2 === rowsAfter1, 'rows ' + rowsAfter1 + ' to ' + rowsAfter2);
+  await imp.close();
+
   await browser.close();
   const bad = results.filter(r => !r.ok);
   results.forEach(r => console.log((r.ok ? '  ok  ' : 'FAIL  ') + r.name + (r.note ? '   [' + r.note + ']' : '')));

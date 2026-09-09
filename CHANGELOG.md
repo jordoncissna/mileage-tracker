@@ -5,6 +5,40 @@ if a change doesn't alter what you see or what you can trust, it isn't here.
 
 ---
 
+## Three bugs found by stress-testing the app
+
+Pushed Milo well past your own data — 3,000 trips, hostile text in every field,
+a device with no free space, and files imported twice. It held up on almost
+everything; three things did not.
+
+**Importing the same CSV twice duplicated your entire ledger.** Not the file's
+rows — *every trip in the account*, given a second copy on the server, silently,
+while the message said "0 trips synced". Reproduced going from 10 rows to 20.
+Two separate mistakes had to line up for it, and both are fixed: the import now
+syncs only the rows it actually created, and Milo now refuses to upload a trip
+that already has a row on the server.
+
+**A trip logged on a full device was lost with no message.** When the phone or
+browser runs out of space, saving the local copy fails — and that failure was
+taking the whole save with it. The trip reached neither the device nor your
+account, the form stayed filled in, and nothing was said. Now the trip still
+goes to your account, the form clears, and Milo tells you the device is full.
+
+**Mileage had no upper limit.** A typo of `1e308` was accepted and turned the
+tax report into "1e+308 mi — $6.999999999999999e+307" and Analytics into $NaN.
+A single trip is now capped at 10,000 miles — the longest drive in the lower 48
+is about 3,500 each way.
+
+Imported files are also checked properly now: an unreadable date like
+`not-a-date`, an impossible one like `2026-13-45`, and a made-up category all
+used to go straight into the ledger. They're rejected or corrected instead.
+
+**What held up:** at 3,000 trips — about sixty times your current ledger —
+History renders in 0.6s, Analytics in 0.14s, the tax report builds in 10ms.
+Eight hostile payloads across the ledger, the duplicate reviewer and the tax
+report executed nothing. Overlapping refreshes still insert nothing, 25 rapid
+saves still make exactly 25 rows, and deletes still survive an immediate reload.
+
 ## The tax report carries the receipts themselves
 
 The report used to say *Receipt: attached* and stop there. An auditor can't see
