@@ -5,6 +5,33 @@ if a change doesn't alter what you see or what you can trust, it isn't here.
 
 ---
 
+## A front door: link previews, a real pitch, and Terms
+
+Audited Milo against a 20-item launch checklist. Seven items were already in
+place, five partial, eight missing. These are the three that actually mattered.
+
+**Sharing a link showed nothing.** No preview image, no title, no description —
+a bare URL. That was costing you invites: the whole referral feature works by
+someone pasting a link into a text or a group chat, and the moment they decide
+whether to tap is the moment that preview appears. Milo now has a proper share
+card, so a pasted link shows the name, the pitch, and an image.
+
+**The sign-in screen said "Mileage Tracking App".** That's a label, not a
+reason. It now leads with what Milo is for — mileage records built for an audit
+— and three things you actually get: every trip carrying what §274(d) asks for,
+receipts attached to trips, and a free CSV and PDF export. The browser tab says
+"Milo — IRS-ready mileage log" instead of "Mileage Tracker".
+
+**There's a Terms of Service now.** Plain language, and it locks in two things
+worth reading: Milo keeps records but **is not tax advice** — what you may
+deduct is between you and a tax professional — and **export and the tax report
+are permanently free on every plan**, because they're your own substantiation.
+Linked from the sign-in screen and the privacy policy.
+
+Not done, and deliberately: robots.txt, sitemap.xml and search-engine tags.
+Those describe a landing page, and today the site is an app behind a login —
+there is nothing for Google to usefully index yet.
+
 ## Three bugs found by stress-testing the app
 
 Pushed Milo well past your own data — 3,000 trips, hostile text in every field,

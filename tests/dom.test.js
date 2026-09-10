@@ -534,6 +534,51 @@ T('sign out moved to settings foot', document.querySelector('.set-foot .signout-
   T('empty ledger flags the body for the compact map', document.body.classList.contains('no-trips'));
   keep.forEach(t => window.__trips().push(t)); window.renderHome();
 
+  // ── LAUNCH READINESS: what a stranger and a link preview see ──────────
+  // The referral link is the growth mechanism, and a link pasted into a text
+  // or a group chat used to show a bare URL with no name, icon or description.
+  const meta = (sel) => { const m = document.querySelector(sel); return m ? (m.getAttribute('content') || '') : ''; };
+  const root = path.join(__dirname, '..');
+  const fileAt = (url) => path.join(root, String(url).replace('https://jordoncissna.github.io/mileage-tracker/', ''));
+
+  T('the title names the product, not a category', /milo/i.test(document.title) && document.title.length > 12, document.title);
+  T('there is a meta description', meta('meta[name="description"]').length > 60, String(meta('meta[name="description"]').length));
+  T('the description says what it does, not what it is built with',
+    /(audit|tax|mileage)/i.test(meta('meta[name="description"]')));
+  T('a canonical URL is declared', !!document.querySelector('link[rel="canonical"]'),
+    (document.querySelector('link[rel="canonical"]') || {}).href);
+
+  ['og:title', 'og:description', 'og:url', 'og:image', 'og:type', 'og:site_name'].forEach(prop => {
+    T('social preview declares ' + prop, meta('meta[property="' + prop + '"]').length > 0);
+  });
+  T('the social image is a real file in the repo', fs.existsSync(fileAt(meta('meta[property="og:image"]'))),
+    meta('meta[property="og:image"]'));
+  T('the social image is declared 1200x630', meta('meta[property="og:image:width"]') === '1200' &&
+    meta('meta[property="og:image:height"]') === '630');
+  T('the social image has alt text', meta('meta[property="og:image:alt"]').length > 10);
+  T('a large Twitter card is declared', meta('meta[name="twitter:card"]') === 'summary_large_image');
+
+  // the signed-out screen is the landing page: it has to say what Milo does
+  const tagline = (document.querySelector('.auth-tagline') || {}).textContent || '';
+  const points = [].slice.call(document.querySelectorAll('.auth-points li')).map(li => li.textContent);
+  T('the signed-out screen makes a claim, not a category label',
+    tagline.length > 12 && !/^mileage tracking app$/i.test(tagline.trim()), tagline);
+  T('the signed-out screen lists what you get', points.length >= 3, 'points=' + points.length);
+  T('it names the substantiation rule it is built around', points.join(' ').indexOf('274(d)') >= 0);
+  T('it repeats that export and the report are free', /free/i.test(points.join(' ')));
+
+  // Terms: required before taking a payment, and the two clauses that matter
+  const termsPath = path.join(root, 'terms.html');
+  T('a terms page exists', fs.existsSync(termsPath));
+  const terms = fs.existsSync(termsPath) ? fs.readFileSync(termsPath, 'utf8') : '';
+  T('terms disclaim tax advice', /not tax, legal or accounting advice/i.test(terms));
+  T('terms keep export and the tax report free', /permanently free/i.test(terms) && /tax report/i.test(terms));
+  T('terms name the operating company', /Ridgeline Management Group LLC/.test(terms));
+  T('terms limit liability', /limitation of liability/i.test(terms));
+  T('the app links to the terms', html.indexOf('href="terms.html"') >= 0);
+  T('the privacy policy links to the terms',
+    fs.readFileSync(path.join(root, 'privacy.html'), 'utf8').indexOf('terms.html') >= 0);
+
   console.log(`\ndom.test.js: ${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);
 })();
