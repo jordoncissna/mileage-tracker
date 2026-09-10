@@ -5,6 +5,28 @@ if a change doesn't alter what you see or what you can trust, it isn't here.
 
 ---
 
+## Honest about borders: US rules, and rights where you live
+
+Milo is a Utah company, but the people you invite won't be — some won't be in
+the US at all. Two things needed saying out loud.
+
+**Milo is built for US federal tax rules, and now says so.** Your tax report
+cites IRC §274(d), uses the IRS standard mileage rate and prints US dollars.
+Someone filing in the UK or Canada was getting a document confidently quoting
+American tax code at them. The report now states plainly that it follows United
+States federal rules, and that if you file elsewhere the mileage is still yours
+but the rate and citations won't match your tax authority. The same note sits
+beside the rates in Settings, where it's read before a report is ever made, and
+the Terms have a section of their own on it.
+
+**Utah law still governs — but it can't take away rights your country gives
+you.** The Terms now say so. If you use Milo somewhere with consumer protections
+that can't be waived by agreement — the EU and UK, and several US states — those
+still apply, and a clause that conflicts with them simply drops out instead of
+taking the whole agreement down with it. That's protection for Milo as much as
+for the user: a clause that overreaches can be struck out entirely by a foreign
+court.
+
 ## A front door: link previews, a real pitch, and Terms
 
 Audited Milo against a 20-item launch checklist. Seven items were already in

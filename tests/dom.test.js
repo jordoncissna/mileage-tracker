@@ -575,6 +575,24 @@ T('sign out moved to settings foot', document.querySelector('.set-foot .signout-
   T('terms keep export and the tax report free', /permanently free/i.test(terms) && /tax report/i.test(terms));
   T('terms name the operating company', /Ridgeline Management Group LLC/.test(terms));
   T('terms limit liability', /limitation of liability/i.test(terms));
+  // Users are outside Utah, and outside the US. Two things the documents must say.
+  T('terms say Milo follows US federal tax rules',
+    /built for United States federal tax rules/i.test(terms));
+  T('terms warn that filing outside the US will not match',
+    /outside the United States/i.test(terms) && /will not\s+match your tax authority/i.test(terms.replace(/\s+/g,' ')));
+  T('Utah law is still the governing law', /laws of the State of Utah/i.test(terms));
+  T('but mandatory local consumer rights are preserved',
+    /cannot be waived/i.test(terms) && /European Union/i.test(terms) && /United Kingdom/i.test(terms));
+  T('a conflicting clause drops out rather than voiding the terms',
+    /that provision does not apply to you, and the rest of these terms/i.test(terms.replace(/\s+/g,' ')));
+
+  // the report is the artifact that leaves the app, so it has to say whose rules it follows
+  const rptHtml = window.buildTaxReportHTML ? window.buildTaxReportHTML(2026) : '';
+  T('the tax report names United States federal rules', /United States federal/.test(rptHtml));
+  T('the tax report warns non-US filers', /outside the United States/.test(rptHtml));
+  T('the tax report still says it is not tax advice', /not tax advice/.test(rptHtml));
+  T('Settings says which country the rates are for',
+    /built for <strong>United States federal<\/strong> mileage rules/.test(html));
   T('the app links to the terms', html.indexOf('href="terms.html"') >= 0);
   T('the privacy policy links to the terms',
     fs.readFileSync(path.join(root, 'privacy.html'), 'utf8').indexOf('terms.html') >= 0);
