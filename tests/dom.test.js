@@ -597,6 +597,70 @@ T('sign out moved to settings foot', document.querySelector('.set-foot .signout-
   T('the privacy policy links to the terms',
     fs.readFileSync(path.join(root, 'privacy.html'), 'utf8').indexOf('terms.html') >= 0);
 
+  // ── ACCESSIBILITY (#8, #17) ───────────────────────────────────────────
+  // Four logo images carried no alt at all. They sit beside the word MILO, so
+  // the right fix is alt="" — skipped — not a repeated announcement.
+  const imgs = [].slice.call(document.querySelectorAll('img'));
+  T('every image has an alt attribute', imgs.every(i => i.getAttribute('alt') !== null),
+    imgs.filter(i => i.getAttribute('alt') === null).length + ' without');
+  // counted in the source, not the DOM: one of the four is inside a template
+  // string that only exists once History renders empty
+  T('the decorative logos are skipped rather than announced',
+    (html.match(/alt=""/g) || []).length >= 4, String((html.match(/alt=""/g) || []).length));
+  T('no image in the rendered app is missing alt', imgs.every(i => i.getAttribute('alt') !== null));
+
+  // keyboard focus had no author style at all, so it fell back to the UA's 1px ring
+  T('there is a designed focus-visible style', /:focus-visible\{outline:2px solid var\(--accent\)/.test(html));
+  T('the nav rail gets a focus ring of its own', /\.np:focus-visible/.test(html));
+  T('the focus ring is drawn twice over, so a transition or outline quirk cannot hide it',
+    /\.np:focus-visible[\s\S]{0,400}box-shadow:0 0 0 2px/.test(html));
+
+  // controls a screen reader reaches must have names
+  ['fYear', 'fMonth', 'fSort', 'fCat', 'aPeriod', 'aYear', 'r2026', 'r2023', 'smartRoute', 'tMiles'].forEach(id => {
+    const el = document.getElementById(id);
+    T('control ' + id + ' has an accessible name',
+      !!el && !!(el.getAttribute('aria-label') || (el.id && document.querySelector('label[for="' + el.id + '"]'))));
+  });
+
+  // each view needs a heading so the app can be navigated by structure
+  ['view-home', 'view-hist', 'view-analytics', 'view-set'].forEach(v => {
+    const el = document.getElementById(v);
+    T(v + ' has a heading', !!el && !!el.querySelector('h1'));
+  });
+  T('those headings are for screen readers, not the eye', /\.sr-only\{position:absolute/.test(html));
+
+  // muted text failed WCAG AA at 3.01:1 in light mode
+  T('light-mode muted text is no longer the old failing grey', html.indexOf('--text3:#8896a8') < 0);
+
+  // ── the rest of the launch checklist ──────────────────────────────────
+  T('there is an FAQ', fs.existsSync(path.join(root, 'faq.html')));
+  const faq = fs.existsSync(path.join(root, 'faq.html')) ? fs.readFileSync(path.join(root, 'faq.html'), 'utf8') : '';
+  T('the FAQ answers the automatic-tracking question honestly',
+    /Does Milo track my drives automatically/i.test(faq) && /<strong>No\.<\/strong>/.test(faq));
+  T('the FAQ says export and the report stay free', /free forever/i.test(faq));
+  T('the FAQ is reachable from the policy pages',
+    fs.readFileSync(path.join(root, 'terms.html'), 'utf8').indexOf('faq.html') >= 0);
+
+  T('robots.txt exists', fs.existsSync(path.join(root, 'robots.txt')));
+  const robots = fs.existsSync(path.join(root, 'robots.txt')) ? fs.readFileSync(path.join(root, 'robots.txt'), 'utf8') : '';
+  T('robots.txt points at the sitemap', /Sitemap:\s*https:\/\//.test(robots));
+  T('sitemap.xml exists', fs.existsSync(path.join(root, 'sitemap.xml')));
+  const siteMapXml = fs.existsSync(path.join(root, 'sitemap.xml')) ? fs.readFileSync(path.join(root, 'sitemap.xml'), 'utf8') : '';
+  ['faq.html', 'privacy.html', 'terms.html'].forEach(pg => {
+    T('sitemap lists ' + pg, siteMapXml.indexOf(pg) >= 0);
+  });
+  T('every page in the sitemap exists on disk',
+    (siteMapXml.match(/<loc>[^<]+<\/loc>/g) || []).every(l => {
+      const f = l.replace(/<\/?loc>/g, '').replace('https://jordoncissna.github.io/mileage-tracker/', '') || 'index.html';
+      return fs.existsSync(path.join(root, f));
+    }));
+
+  // GDPR: where the data physically lives has to be stated
+  const priv = fs.readFileSync(path.join(root, 'privacy.html'), 'utf8');
+  T('the privacy policy says where data is stored', /United States \(US West\)/.test(priv));
+  T('and that using Milo from abroad transfers data there', /transferred to and stored in the United States/.test(priv));
+
+
   console.log(`\ndom.test.js: ${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);
 })();

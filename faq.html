@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Milo FAQ — how the mileage log works</title>
+<meta name="description" content="Straight answers about Milo: whether it tracks you automatically (it doesn't), what the IRS actually requires, who can see your trips, and how to get your data out.">
+<link rel="canonical" href="https://jordoncissna.github.io/mileage-tracker/faq.html">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Milo">
+<meta property="og:title" content="Milo FAQ — how the mileage log works">
+<meta property="og:description" content="Straight answers about Milo: whether it tracks you automatically (it doesn't), what the IRS actually requires, who can see your trips, and how to get your data out.">
+<meta property="og:url" content="https://jordoncissna.github.io/mileage-tracker/faq.html">
+<meta property="og:image" content="https://jordoncissna.github.io/mileage-tracker/assets/og-card.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<style>
+  :root{color-scheme:light dark;}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    background:#f5f7fa;color:#1a1f2e;line-height:1.65;}
+  @media (prefers-color-scheme:dark){body{background:#0d1117;color:#e8edf5;}}
+  .wrap{max-width:720px;margin:0 auto;padding:48px 24px 80px;}
+  h1{font-size:28px;margin:0 0 4px;}
+  .meta{color:#6b7891;font-size:13px;margin-bottom:28px;}
+  h2{font-size:14px;margin:38px 0 14px;text-transform:uppercase;letter-spacing:.09em;color:#6b7891;}
+  h3{font-size:17px;margin:26px 0 6px;line-height:1.35;}
+  p,li{font-size:15px;}
+  a{color:#2a78d6;}
+  .back{display:inline-block;margin-bottom:24px;font-size:13px;text-decoration:none;font-weight:600;}
+  ul{padding-left:22px;}
+  .card{background:rgba(42,120,214,0.06);border:1px solid rgba(42,120,214,0.25);border-radius:10px;padding:14px 18px;font-size:14px;}
+  .warn{background:rgba(214,132,42,0.08);border:1px solid rgba(214,132,42,0.30);border-radius:10px;padding:14px 18px;font-size:14px;margin:18px 0;}
+  footer{margin-top:52px;padding-top:20px;border-top:1px solid rgba(128,140,160,0.25);font-size:13px;color:#6b7891;}
+  code{font-family:ui-monospace,'JetBrains Mono',Menlo,monospace;font-size:.9em;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="./">← Back to Milo</a>
+  <h1>Questions people actually ask</h1>
+  <div class="meta">Milo Mileage Tracker · last updated September 10, 2026</div>
+
+  <div class="card">
+    <strong>The one-line version:</strong> Milo is a place to write down business drives so that,
+    if you're ever asked to prove them, you can. You type the trips; it does the arithmetic, the
+    receipts and the report.
+  </div>
+
+  <h2>How it works</h2>
+
+  <h3>Does Milo track my drives automatically in the background?</h3>
+  <p><strong>No.</strong> Milo has never done this, and we'd rather say so plainly than let you find
+  out after a month of missing trips. Every trip in your log is there because you entered it. Milo
+  helps by looking up addresses, calculating the distance, remembering routes you drive often, and
+  reminding you about days with nothing logged — but the drive itself is something you record.</p>
+  <p>Automatic tracking needs a real phone app with background location permission. That isn't built
+  yet.</p>
+
+  <h3>How long does logging a trip actually take?</h3>
+  <p>A few seconds once your common places are saved. Type part of an address and pick from the
+  suggestions — addresses you've driven before come up first. Milo fills in the distance. If you
+  drove there and back, one toggle makes it a round trip: <strong>one line item with the miles
+  doubled</strong>, not two rows.</p>
+
+  <h3>What if I forget to log a day?</h3>
+  <p>Home shows recent days with nothing against them, and one tap starts a trip dated to that day.
+  It only ever says a day is <em>empty</em> — it never claims you drove. It learns which weekdays you
+  actually log, so it won't nag about a Sunday you never work, and there's a switch in Settings to
+  turn it off.</p>
+  <p>This matters more than it sounds. The IRS asks for records kept close to the time. A log written
+  the same week holds up; one reconstructed at tax time is the part that gets challenged.</p>
+
+  <h3>Can I bring in trips from a spreadsheet?</h3>
+  <p>Yes — History → Import, from a CSV with at least a Date and a Miles column. Rows that are
+  already in your log are skipped rather than duplicated, and rows with an unreadable date or an
+  impossible mileage are rejected instead of quietly landing in your tax records.</p>
+
+  <h2>The tax side</h2>
+
+  <h3>What does the IRS actually want?</h3>
+  <p>For vehicle expenses, IRC §274(d) wants each trip to show <strong>the date, where you went, the
+  business purpose, and the mileage</strong> — kept at or near the time of the drive. Milo's report
+  prints exactly those four things for every trip, plus the rate and the deduction.</p>
+
+  <h3>Is a mileage log enough on its own?</h3>
+  <p>For the driving, generally yes. For the toll, the parking, or the client lunch, it isn't — those
+  are separate expenses and an auditor asks for the receipt. That's why you can attach a photo to any
+  trip, and why the tax report prints those photos after the log as numbered exhibits. One file,
+  mileage plus evidence.</p>
+
+  <h3>Can I change the mileage rate?</h3>
+  <p>Yes, per year, in Settings. Milo ships with the IRS standard rates and you can override any of
+  them.</p>
+
+  <div class="warn">
+    <strong>Can I use Milo outside the United States?</strong> You can use it anywhere, and the trips
+    you record are your own records wherever you live. But Milo is built for <strong>US federal</strong>
+    rules — the rates are IRS rates, the amounts are US dollars, and the report cites US tax code. If
+    you file elsewhere, replace the rates with your own and treat the report as a mileage log rather
+    than a finished tax document. Per-country rules don't exist yet.
+  </div>
+
+  <h3>Is Milo tax advice?</h3>
+  <p>No. It keeps records; it doesn't tell you what you may deduct. What counts as a deductible
+  business trip is between you and a tax professional. See the <a href="terms.html">Terms</a>.</p>
+
+  <h2>Your data</h2>
+
+  <h3>Who can see my trips?</h3>
+  <p>You. Your records are stored with per-account access rules, so one account can never read
+  another's rows, and receipt photos live in a private bucket reachable only through a link that
+  expires in five minutes. Traffic is encrypted in transit and at rest.</p>
+  <p>To be precise about what that does <em>not</em> mean: it isn't end-to-end encrypted. The server
+  holds your data in a form it could read. We don't sell it, we don't run ads, and we don't track you
+  around the web — the <a href="privacy.html">Privacy Policy</a> spells this out.</p>
+
+  <h3>What happens if I lose my phone?</h3>
+  <p>Nothing. Your trips live in your account, not on the device. Sign in anywhere and they're
+  there.</p>
+
+  <h3>How do I get my data out?</h3>
+  <p>History → Export gives you a CSV of exactly what the ledger is showing, filters included. The
+  tax report gives you a printable PDF with the receipts embedded. <strong>Both are free forever,
+  on every plan</strong> — they're your own tax substantiation, and we won't put them behind a
+  payment. That rule is written into the Terms and enforced by the tests.</p>
+
+  <h3>Does Milo work offline?</h3>
+  <p>Yes. It installs to your home screen and keeps working with no signal; trips sync when you're
+  back online.</p>
+
+  <h2>Money</h2>
+
+  <h3>Is it free?</h3>
+  <p>Today, entirely — nothing is locked and nobody is charged. Paid plans may exist later. If they
+  do, prices and terms get published before anyone is charged, an existing free feature won't quietly
+  move behind a paywall, and the export and tax report stay free regardless.</p>
+
+  <h3>What do I get for inviting someone?</h3>
+  <p>Nothing yet, honestly. Invites are counted and every account has a share code, which is the
+  groundwork a reward would need — but there's no reward to grant until plans are real.</p>
+
+  <h2>Still stuck?</h2>
+  <p>Email <a href="mailto:cissnawilliam4545@gmail.com">cissnawilliam4545@gmail.com</a>. It's a small
+  operation, so the person reading it is the person who built it.</p>
+
+  <footer>
+    Milo is operated by Ridgeline Management Group LLC. ·
+    <a href="privacy.html">Privacy Policy</a> ·
+    <a href="terms.html">Terms</a> ·
+    <a href="./">Back to Milo</a>
+  </footer>
+</div>
+</body>
+</html>
