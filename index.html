@@ -2059,6 +2059,7 @@ body:not(.light) .offline-pill{color:#fbbf24;}
         </div>
         <div class="sc"><div class="sc-icon" style="background:linear-gradient(135deg,#ec4899,#db2777)">📋</div>
           <h3>IRS mileage rates</h3>
+          <p style="font-size:11.5px;color:var(--text3);line-height:1.5;margin:-2px 0 10px">Milo is built for <strong>United States federal</strong> mileage rules. Filing elsewhere? Your mileage is still yours, but replace these rates with your own tax authority's — the report cites US tax code.</p>
           <div class="g2" style="margin-bottom:10px">
             <div class="field"><span class="field-label">2026</span><div class="iw"><input type="number" id="r2026" step="0.001" value="0.700"/><span class="isuf">$/mi</span></div></div>
             <div class="field"><span class="field-label">2025</span><div class="iw"><input type="number" id="r2025" step="0.001" value="0.700"/><span class="isuf">$/mi</span></div></div>
@@ -5498,7 +5499,10 @@ function buildTaxReportHTML(year,shots){
       '<div class="legal">Copies of the receipts attached to the trips above, in the same order, reproduced from the originals retained in Milo. A receipt substantiates the expense itself; the mileage above substantiates the drive.</div>'+
       exhibits):'')+
     '<div class="sig"><div>Taxpayer signature</div><div>Date</div></div>'+
-    '<div class="foot">This report was generated from contemporaneous records kept in Milo (Ridgeline Management Group LLC). It is a recordkeeping document, not tax advice.</div>'+
+    '<div class="foot">This report was generated from contemporaneous records kept in Milo (Ridgeline Management Group LLC). '+
+      'It is prepared under <b>United States federal</b> rules — the IRS standard mileage rate and the substantiation required by IRC &sect;274(d) — and uses US dollars. '+
+      'If you file outside the United States, the figures are still your own mileage, but the rate and the citations above will not match your tax authority\'s rules. '+
+      'It is a recordkeeping document, not tax advice.</div>'+
     '</body></html>';
 }
 async function openTaxReport(year){
