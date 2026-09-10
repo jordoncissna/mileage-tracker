@@ -1,0 +1,8 @@
+# Milo — https://jordoncissna.github.io/mileage-tracker/
+# The app itself is behind a sign-in, so there is nothing useful to crawl there.
+# The public pages are the FAQ and the two policy documents.
+
+User-agent: *
+Allow: /
+
+Sitemap: https://jordoncissna.github.io/mileage-tracker/sitemap.xml

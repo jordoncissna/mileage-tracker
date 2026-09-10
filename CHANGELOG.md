@@ -5,6 +5,39 @@ if a change doesn't alter what you see or what you can trust, it isn't here.
 
 ---
 
+## The rest of the launch list: an FAQ, and an accessibility pass
+
+**There's an FAQ now** (`faq.html`), written from the questions people actually
+ask — starting with the one that matters most: no, Milo does not track your
+drives in the background, and never has. It also covers what the IRS wants,
+who can see your trips, what happens if you lose your phone, whether it's free,
+and using Milo outside the US.
+
+**Where your data lives is now stated.** Your Supabase servers are in the United
+States (US West). The privacy policy says so, and says that using Milo from
+abroad means your information is transferred there. That disclosure is required
+once someone outside the US signs up.
+
+**An accessibility pass, with the findings measured rather than guessed:**
+
+- **Four images had no alt text** — all of them the Milo logo. They now carry
+  `alt=""` so a screen reader skips them, which is correct: the word MILO is
+  right beside each one, and hearing "Milo Milo" is worse than hearing it once.
+- **Muted grey text failed the contrast standard** in light mode — 3.01:1 where
+  4.5:1 is required. It's now 4.81:1. This affects small print all over the app.
+- **Twelve controls had no name a screen reader could read** — the History
+  filters, the Analytics selects, the four year-rate boxes, and two fields in
+  the log window. All named now.
+- **Each view has a heading** for screen-reader navigation, invisible on screen.
+- **The keyboard focus ring is now designed** rather than left to the browser.
+  Honest correction: focus was *not* missing before, as I first reported — the
+  browser's own faint 1px ring was there. It's now a 2px accent ring with a
+  halo, which is a real improvement but a smaller one than I first claimed.
+
+**robots.txt and sitemap.xml** are in place too. Modest value while the app sits
+behind a sign-in, but now that the FAQ and both policy pages are real public
+pages, they cost nothing and are correct.
+
 ## Honest about borders: US rules, and rights where you live
 
 Milo is a Utah company, but the people you invite won't be — some won't be in
