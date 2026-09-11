@@ -658,6 +658,25 @@ T('sign out moved to settings foot', document.querySelector('.set-foot .signout-
   // GDPR: where the data physically lives has to be stated
   const priv = fs.readFileSync(path.join(root, 'privacy.html'), 'utf8');
   T('the privacy policy says where data is stored', /United States \(US West\)/.test(priv));
+  // erasure has to be self-serve, not an email to the founder
+  T('the privacy policy points at the in-app deletion', /Settings . Delete my account/.test(priv));
+  T('the privacy policy no longer says to email for deletion',
+    !/contact us at the address below/i.test(priv.split('delete your entire account')[1] || ''));
+  T('the FAQ explains how to delete an account', /How do I delete my account/i.test(faq));
+  T('Settings offers account deletion', /onclick="deleteAccount\(\)"/.test(html));
+  T('the deletion migration ships with the repo',
+    fs.existsSync(path.join(root, 'supabase', 'delete_account.sql')));
+  const daSql = fs.existsSync(path.join(root, 'supabase', 'delete_account.sql'))
+    ? fs.readFileSync(path.join(root, 'supabase', 'delete_account.sql'), 'utf8') : '';
+  T('the deletion function takes no arguments, so it can only act on the caller',
+    /create or replace function public\.delete_own_account\(\)/.test(daSql));
+  T('it derives the account from auth.uid(), not from input', /auth\.uid\(\)/.test(daSql));
+  T('it pins search_path, which SECURITY DEFINER requires', /set search_path/.test(daSql));
+  T('it is not callable anonymously',
+    /revoke all on function public\.delete_own_account\(\) from anon/.test(daSql) &&
+    /grant execute on function public\.delete_own_account\(\) to authenticated/.test(daSql));
+  T('it removes the trips explicitly rather than trusting a cascade',
+    /delete from public\.trips where user_id = uid/.test(daSql));
   T('and that using Milo from abroad transfers data there', /transferred to and stored in the United States/.test(priv));
 
 
