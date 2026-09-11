@@ -97,7 +97,16 @@ const INIT = `
       auth: { getSession: async function(){ return { data: { session: { user:{ id:'u1', email:'qa@test.co' } } } }; },
               onAuthStateChange: function(cb){ setTimeout(function(){ cb('SIGNED_IN', { user:{ id:'u1', email:'qa@test.co' } }); }, 30); return { data:{ subscription:{ unsubscribe:function(){} } } }; },
               signOut: async function(){ return {}; } },
-      from: function(name){ return name==='user_prefs' ? prefsTable : (name==='user_plan' ? planTable : table); }, storage: storage }; } };
+      from: function(name){ return name==='user_prefs' ? prefsTable : (name==='user_plan' ? planTable : table); }, storage: storage,
+      rpc: async function(fn, args){
+        var log = JSON.parse(localStorage.getItem('qa_rpcs')||'[]');
+        log.push({ fn: fn, args: args || null });
+        localStorage.setItem('qa_rpcs', JSON.stringify(log));
+        if(localStorage.getItem('qa_rpc_missing')==='1')
+          return { data:null, error:{ code:'PGRST202', message:'Could not find the function public.'+fn+' in the schema cache' } };
+        if(fn==='delete_own_account'){ put([]); }
+        return { data:null, error:null };
+      } }; } };
   })();
   window.__map = { directions: 0, markers: [], polylines: 0, fits: 0, lastReq: null, routeStatus: 'OK', log: [] };
   window.google = { maps: {
@@ -1083,6 +1092,51 @@ async function fillLog(page, o) {
   R('re-importing the same CSV inserts nothing', insAfter2 === insAfter1, 'inserts ' + insAfter1 + ' to ' + insAfter2);
   R('re-importing the same CSV does not grow the ledger', rowsAfter2 === rowsAfter1, 'rows ' + rowsAfter1 + ' to ' + rowsAfter2);
   await imp.close();
+
+  // ── deleting your own account, from the real Settings button ──────────
+  const del = await ctx.newPage();
+  del.on('dialog', d => d.accept('DELETE'));     // the typed confirmation
+  await del.route(/googleapis|gstatic|jsdelivr/, r => r.abort());
+  await del.goto(APP, { waitUntil: 'domcontentloaded' });
+  await del.waitForTimeout(1500);
+  await ask(del, () => {
+    ['authOverlay','onboardOverlay'].forEach(i => { const e = document.getElementById(i); if (e) { e.style.display = 'none'; e.classList.remove('active'); } });
+    Object.keys(localStorage).filter(k => /^(big|sm|t)\d+$/.test(k)).forEach(k => localStorage.removeItem(k));
+    localStorage.setItem('qa_rpcs', '[]');
+    localStorage.setItem('qa_srv', JSON.stringify([{ id:'srv-d1', user_id:'u1', date:'2026-04-01', miles:30,
+      from_addr:'1113 S 4090 W, Syracuse, UT', to_addr:'2975 Executive Pkwy, Lehi, UT',
+      purpose:'doomed trip', category:'Office Visit', receipt_path:'u1/srv-d1/x.jpg' }]));
+    localStorage.removeItem('ml3_trips');
+    return true;
+  }, false);
+  await del.reload({ waitUntil: 'domcontentloaded' });
+  await del.waitForTimeout(2200);
+  await ask(del, () => { ['authOverlay','onboardOverlay'].forEach(i => { const e = document.getElementById(i); if (e) { e.style.display = 'none'; e.classList.remove('active'); } }); window.switchNav('set', document.getElementById('nav-set')); return true; }, false);
+  await del.waitForTimeout(700);
+  const btnHit = await ask(del, () => {
+    const b = [].slice.call(document.querySelectorAll('button')).find(x => /delete my account/i.test(x.textContent));
+    if (!b) return 'missing';
+    b.scrollIntoView({ block: 'center' });
+    const r = b.getBoundingClientRect();
+    const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    return (b === hit || b.contains(hit)) ? 'ok' : 'covered by ' + (hit && (hit.id || hit.className));
+  }, 'threw');
+  R('Settings offers a reachable Delete my account button', btnHit === 'ok', btnHit);
+  await del.evaluate(() => {
+    const b = [].slice.call(document.querySelectorAll('button')).find(x => /delete my account/i.test(x.textContent));
+    if (b) b.click();
+  }).catch(() => {});
+  await del.waitForTimeout(2500);
+  const delState = await ask(del, () => ({
+    rpcs: JSON.parse(localStorage.getItem('qa_rpcs') || '[]').map(r => r.fn),
+    serverRows: JSON.parse(localStorage.getItem('qa_srv') || '[]').length,
+    receiptsRemoved: JSON.parse(localStorage.getItem('qa_files') || '[]').length,
+    cache: localStorage.getItem('ml3_trips')
+  }), null);
+  R('the button calls the account-deletion function', !!delState && delState.rpcs.indexOf('delete_own_account') >= 0, JSON.stringify(delState));
+  R('the account rows are gone from the server', !!delState && delState.serverRows === 0, JSON.stringify(delState));
+  R('the device cache is purged with it', !!delState && !delState.cache, JSON.stringify(delState));
+  await del.close();
 
   await browser.close();
   const bad = results.filter(r => !r.ok);

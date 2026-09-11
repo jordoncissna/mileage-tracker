@@ -2148,6 +2148,8 @@ body:not(.light) .offline-pill{color:#fbbf24;}
             <button class="btn" onclick="doExport()">↓ Export all as CSV</button>
             <button class="btn btn-danger" onclick="clearAll()">Clear all trips</button>
           </div>
+          <p style="font-size:11.5px;color:var(--text3);margin:16px 0 8px;line-height:1.6;padding-top:14px;border-top:1px solid var(--border)">Deleting your account removes every trip, receipt and setting from our servers, permanently. Export first — there is no restore.</p>
+          <button class="btn btn-danger" onclick="deleteAccount()">Delete my account</button>
         </div>
       </div>
       <div style="display:flex;justify-content:flex-end;margin-top:4px">
@@ -4885,6 +4887,58 @@ function clearAll(){
     trips=backup;save();updateSidebar();renderH();toast('Restored ✓');
   },null,8000);
 }
+
+// ── Deleting your own account ────────────────────────────────────────────
+// GDPR gives people the right to erasure, and "email the founder and wait" is a
+// poor way to honour it. This removes everything without anyone's inbox being
+// involved. Needs supabase/delete_account.sql to have been run once.
+async function deleteAccount(){
+  if(!currentUser){toast('\u26a0 Sign in first');return;}
+  var n=trips.length;
+  var typed=prompt('This permanently deletes your account and all '+n+' trip'+(n!==1?'s':'')+
+    ', including any receipt photos.\n\nThis cannot be undone, and there is no restore. '+
+    'Export your CSV or tax report first if you want a copy.\n\nType DELETE to confirm:');
+  if(typed===null)return;
+  if(typed.trim().toUpperCase()!=='DELETE'){toast('Cancelled \u2014 nothing deleted');return;}
+  setSyncing(true);
+  var photosGone=false;
+  try{
+    // Photos first. Deleting the storage.objects row removes the record of the
+    // file; the storage API is what removes the bytes. Someone deleting their
+    // account cares more about the photo than the row, so the bytes go first —
+    // and if the next step fails, the message says exactly what happened.
+    var paths=trips.filter(function(t){return t.receiptPath;}).map(function(t){return t.receiptPath;});
+    if(paths.length&&supa.storage){
+      try{await supa.storage.from(RECEIPT_BUCKET).remove(paths);photosGone=true;}
+      catch(e){console.error('Receipt cleanup failed:',e);}
+    }
+    const{error}=await supa.rpc('delete_own_account');
+    if(error){
+      var m=((error.message||'')+' '+(error.code||'')).toLowerCase();
+      if(/delete_own_account/.test(m)&&/does not exist|could not find/.test(m)||/pgrst202/.test(m)){
+        toast('\u26a0 Account deletion needs one-time setup \u2014 run supabase/delete_account.sql');
+      }else{
+        console.error('Delete account error:',error);
+        toast(photosGone
+          ? '\u26a0 Couldn\u2019t delete the account \u2014 receipt photos were removed, your trips were not'
+          : '\u26a0 Couldn\u2019t delete the account \u2014 nothing was removed');
+      }
+      return;
+    }
+    // Gone upstream. Clear this device too, so a cached copy can't outlive it.
+    trips=[];
+    try{
+      Object.keys(localStorage).filter(function(k){return /^ml3_|^ml_|^milo-/.test(k);})
+        .forEach(function(k){localStorage.removeItem(k);});
+    }catch(e){}
+    await signOut();
+    alert('Your account and every record in it have been deleted.');
+  }catch(e){
+    console.error('Delete account error:',e);
+    toast('\u26a0 Couldn\u2019t delete the account');
+  }finally{setSyncing(false);}
+}
+window.deleteAccount=deleteAccount;
 
 function switchNav(name,el){
   document.querySelectorAll('.np').forEach(b=>b.classList.remove('on'));

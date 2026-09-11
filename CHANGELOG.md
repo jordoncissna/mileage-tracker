@@ -5,6 +5,29 @@ if a change doesn't alter what you see or what you can trust, it isn't here.
 
 ---
 
+## Delete your own account, without emailing anyone
+*One-time setup: run `supabase/delete_account.sql` in the Supabase SQL editor*
+
+Settings → **Delete my account**. It removes every trip, every receipt photo and
+every setting from the servers, clears the copy on your device, and signs you
+out. You type DELETE to confirm, and there is no restore — export first.
+
+Until now the privacy policy said to email you and wait. That's a fragile way to
+honour a right people are legally entitled to, and it meant every request landed
+in your inbox as manual database work. Now it doesn't.
+
+Two things worth knowing about how it's built. The browser can delete its own
+rows, but it cannot delete the login itself — that needs privileges the app must
+never carry, since anyone can read a web page's source. So the deletion runs as a
+database function instead. **That function takes no arguments**: it can only ever
+act on whoever is calling it, so there is no way to point it at someone else's
+account. And receipt photos are deleted through the storage API first, because
+that's what removes the actual image — someone closing their account cares more
+about the photo than the database row.
+
+If you haven't run the SQL, the button says so rather than pretending the account
+is gone.
+
 ## The rest of the launch list: an FAQ, and an accessibility pass
 
 **There's an FAQ now** (`faq.html`), written from the questions people actually

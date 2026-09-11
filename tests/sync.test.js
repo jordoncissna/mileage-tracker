@@ -12,9 +12,9 @@ const { window } = dom;
 const { document } = window;
 
 // ---- recording Supabase stub: server rows live in `server` ----
-const server = { rows: [], inserts: 0, deletes: 0, nextId: 1, delay: 0, prefs: null, prefsReads: 0, prefsWrites: 0, prefsMissing: false, plan: null, planInserts: 0, planMissing: false, uploads: [], removed: [], signed: [], bucketMissing: false, updates: [], receiptColumnMissing: false };
+const server = { rows: [], inserts: 0, deletes: 0, nextId: 1, delay: 0, prefs: null, prefsReads: 0, prefsWrites: 0, prefsMissing: false, plan: null, planInserts: 0, planMissing: false, uploads: [], removed: [], signed: [], bucketMissing: false, updates: [], receiptColumnMissing: false, rpcs: [], rpcMissing: false, rpcFails: false };
 const wait = ms => new Promise(r => setTimeout(r, ms));
-function reset() { server.rows = []; server.inserts = 0; server.deletes = 0; server.nextId = 1; server.delay = 0; server.prefs = null; server.prefsReads = 0; server.prefsWrites = 0; server.prefsMissing = false; server.plan = null; server.planInserts = 0; server.planMissing = false; server.uploads = []; server.removed = []; server.signed = []; server.bucketMissing = false; server.updates = []; server.receiptColumnMissing = false; }
+function reset() { server.rows = []; server.inserts = 0; server.deletes = 0; server.nextId = 1; server.delay = 0; server.prefs = null; server.prefsReads = 0; server.prefsWrites = 0; server.prefsMissing = false; server.plan = null; server.planInserts = 0; server.planMissing = false; server.uploads = []; server.removed = []; server.signed = []; server.bucketMissing = false; server.updates = []; server.receiptColumnMissing = false; server.rpcs = []; server.rpcMissing = false; server.rpcFails = false; }
 function rowFrom(r) { return Object.assign({}, r, { id: 'srv-' + (server.nextId++) }); }
 // user_prefs: one row per user, or a "table missing" error when prefsMissing
 const prefsTable = {
@@ -82,7 +82,14 @@ const table = {
   delete: () => ({ eq: async (col, id) => { server.deletes++; server.rows = server.rows.filter(r => r.id !== id); return { error: null }; } })
 };
 window.google = { maps: { places: { Autocomplete: function () { return { addListener() {}, getPlace() { return {}; } }; }, AutocompleteService: function () { this.getPlacePredictions = () => {}; } }, Geocoder: function () { this.geocode = () => {}; }, Map: function () { this.addListener = () => {}; this.getCenter = () => ({ lat: () => 41, lng: () => -112 }); this.getZoom = () => 10; this.setOptions = () => {}; this.setCenter = () => {}; this.fitBounds = () => {}; }, Marker: function () {}, DirectionsService: function () { this.route = () => {}; }, DirectionsRenderer: function () { this.setMap = () => {}; }, LatLngBounds: function () { this.extend = () => {}; }, geometry: { spherical: { computeDistanceBetween: () => 1609 } }, event: { addListenerOnce: () => {} }, importLibrary: () => Promise.resolve({}) } };
-window.supabase = { createClient: () => ({ auth: { getSession: async () => ({ data: { session: null } }), onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }), signInWithPassword: async () => ({}), signUp: async () => ({}), signOut: async () => ({}) }, from: (name) => (name === 'user_prefs' ? prefsTable : name === 'user_plan' ? planTable : table), storage }) };
+window.supabase = { createClient: () => ({ auth: { getSession: async () => ({ data: { session: null } }), onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }), signInWithPassword: async () => ({}), signUp: async () => ({}), signOut: async () => ({}) }, from: (name) => (name === 'user_prefs' ? prefsTable : name === 'user_plan' ? planTable : table), storage,
+  rpc: async (fn, args) => {
+    server.rpcs.push({ fn, args: args || null });
+    if (server.rpcMissing) return { data: null, error: { code: 'PGRST202', message: 'Could not find the function public.' + fn + ' in the schema cache' } };
+    if (server.rpcFails) return { data: null, error: { code: '42501', message: 'permission denied' } };
+    if (fn === 'delete_own_account') { server.rows = []; server.prefs = null; server.plan = null; }
+    return { data: null, error: null };
+  } }) };
 window.QRCode = function () {};
 window.initGoogleMaps = window.initGoogleMaps || function () {};
 window.alert = () => {};
@@ -123,6 +130,7 @@ const exports_ = `
 ;window.__updateTrip=updateTripInSupabase;
 ;window.__importCSV=importCSV;
 ;window.__saveLocal=save;
+;window.__deleteAccount=(typeof deleteAccount==='function')?deleteAccount:function(){};
 `;
 const runner = new window.Function(inline + exports_);
 try { runner.call(window); } catch (e) { console.log('init threw (often benign):', e.message); }
@@ -552,6 +560,74 @@ const trip = o => Object.assign({ id: Date.now() + Math.random(), date: '2026-08
   // The quota failure cannot be simulated here: jsdom's localStorage.setItem
   // is not overridable, so a test written against it is a false green. That
   // case is covered in .claude/skills/qa/harness.js against a real browser.
+
+  // ── DELETING YOUR OWN ACCOUNT ────────────────────────────────────────
+  // Erasure has to actually erase: the rows, the photo bytes, and the device.
+  const withPrompt = async (answer, fn) => {
+    const real = window.prompt; window.prompt = () => answer;
+    try { await fn(); } finally { window.prompt = real; }
+  };
+
+  reset();
+  window.__setUser({ id: 'u1' });
+  window.__setTrips([trip({ id: 101, supaId: 'srv-101', receiptPath: 'u1/101/a.jpg' }),
+                     trip({ id: 102, supaId: 'srv-102' })]);
+  server.rows = [{ id: 'srv-101' }, { id: 'srv-102' }];
+  window.localStorage.setItem('ml3_trips', '[{"id":101}]');
+  window.localStorage.setItem('ml_view', 'hist');
+  await withPrompt('nope', () => window.__deleteAccount());
+  await wait(60);
+  T('a mistyped confirmation deletes nothing', server.rpcs.length === 0 && window.__trips().length === 2,
+    'rpcs=' + server.rpcs.length + ' trips=' + window.__trips().length);
+  T('and leaves the receipt files alone', server.removed.length === 0);
+
+  // the real thing
+  reset();
+  window.__setUser({ id: 'u1' });
+  window.__setTrips([trip({ id: 103, supaId: 'srv-103', receiptPath: 'u1/103/a.jpg' }),
+                     trip({ id: 104, supaId: 'srv-104', receiptPath: 'u1/104/b.jpg' }),
+                     trip({ id: 105, supaId: 'srv-105' })]);
+  window.localStorage.setItem('ml3_trips', '[{"id":103}]');
+  window.localStorage.setItem('ml_view', 'hist');
+  window.localStorage.setItem('unrelated_key', 'keep me');
+  await withPrompt('DELETE', () => window.__deleteAccount());
+  await wait(120);
+  T('deleting the account calls the server function once',
+    server.rpcs.filter(r => r.fn === 'delete_own_account').length === 1, JSON.stringify(server.rpcs));
+  T('the function is called with no arguments, so it can only act on the caller',
+    server.rpcs.every(r => r.args === null || r.args === undefined ||
+      (typeof r.args === 'object' && Object.keys(r.args).length === 0)), JSON.stringify(server.rpcs));
+  T('receipt photos are removed from storage', server.removed.length === 2,
+    JSON.stringify(server.removed));
+  T('every receipt belonging to the account is removed, not just the first',
+    server.removed.indexOf('u1/103/a.jpg') >= 0 && server.removed.indexOf('u1/104/b.jpg') >= 0);
+  T('the ledger is emptied in memory', window.__trips().length === 0);
+  T('the cached copy on the device is purged', !window.localStorage.getItem('ml3_trips'));
+  T('device preferences are purged too', !window.localStorage.getItem('ml_view'));
+  T('keys that are not ours are left alone', window.localStorage.getItem('unrelated_key') === 'keep me');
+
+  // the migration has not been run yet
+  reset();
+  window.__setUser({ id: 'u1' });
+  server.rpcMissing = true;
+  window.__setTrips([trip({ id: 106, supaId: 'srv-106' })]);
+  window.localStorage.setItem('ml3_trips', '[{"id":106}]');
+  await withPrompt('DELETE', () => window.__deleteAccount());
+  await wait(120);
+  T('a missing migration does not pretend the account is gone', window.__trips().length === 1,
+    'trips=' + window.__trips().length);
+  T('and does not wipe the device cache', !!window.localStorage.getItem('ml3_trips'));
+
+  // the call is refused
+  reset();
+  window.__setUser({ id: 'u1' });
+  server.rpcFails = true;
+  window.__setTrips([trip({ id: 107, supaId: 'srv-107' })]);
+  window.localStorage.setItem('ml3_trips', '[{"id":107}]');
+  await withPrompt('DELETE', () => window.__deleteAccount());
+  await wait(120);
+  T('a refused delete leaves the ledger intact', window.__trips().length === 1);
+  T('a refused delete leaves the device cache intact', !!window.localStorage.getItem('ml3_trips'));
 
   console.log(`sync.test.js: ${pass} passed${fail ? ', ' + fail + ' failed' : ''}`);
   process.exit(fail ? 1 : 0);
