@@ -240,5 +240,6 @@ no longer a numbered-download step — edit `index.html` directly.
 - [x] Receipt capture (photo attached to a trip)
 - [x] Persist auto-classify rules to Supabase (`user_prefs`)
 - [x] Duplicate review + idempotent sync
+- [x] Review queue for trips missing a business purpose (groundwork for auto-detect)
 
 Deferred: Capacitor native wrap (iOS/Android + auto-detect), native mobile app, paid tiers, marketing landing page.

@@ -156,6 +156,33 @@ T('274(d) substantiation note', rpt.indexOf('§274(d)') >= 0 || rpt.indexOf('274
 T('empty year message', buildTaxReportHTML(2019).indexOf('No trips recorded') >= 0);
 T('miles totals correct', rpt.indexOf('27.0') >= 0 && rpt.indexOf('10.0') >= 0);
 
+// ===== THE REVIEW QUEUE =====
+// A business trip with no stated purpose is what IRC §274(d) fails on. The
+// condition is derived, not stored, so it applies to trips logged years ago.
+try { eval(grab('needsReview')); } catch (e) { var needsReview = () => false; }
+
+T('a business trip with no purpose needs review',
+  needsReview({ purpose: '', category: 'Client Meeting' }));
+T('whitespace is not a purpose',
+  needsReview({ purpose: '   ', category: 'Client Meeting' }));
+T('a business trip with a purpose does not',
+  !needsReview({ purpose: 'Met the client', category: 'Client Meeting' }));
+T('a personal trip never needs a business purpose',
+  !needsReview({ purpose: '', category: PERSONAL_CAT }));
+T('needsReview tolerates a missing purpose field',
+  needsReview({ category: 'Client Meeting' }));
+T('needsReview tolerates nothing at all', !needsReview(null));
+
+// the report has to name the weakness rather than print a tidy lie
+trips.push({ id: 30, date: '2026-08-01', miles: 30, from: 'A', to: 'B', purpose: '',
+             category: 'Client Meeting' });
+const gap = buildTaxReportHTML(2026);
+T('the report counts trips with no business purpose', /Trips with no business purpose recorded/.test(gap));
+T('and cites the rule that asks for it', /no business purpose[\s\S]{0,220}274\(d\)/.test(gap));
+trips.pop();
+T('a clean year says nothing about missing purposes',
+  buildTaxReportHTML(2026).indexOf('no business purpose') < 0);
+
 // ===== THE VEHICLE BELONGS TO THE TRIP =====
 // It used to be one setting, stamped onto every row at print time — so changing
 // cars rewrote which vehicle you drove for every trip in every past year.

@@ -1138,6 +1138,82 @@ async function fillLog(page, o) {
   R('the device cache is purged with it', !!delState && !delState.cache, JSON.stringify(delState));
   await del.close();
 
+  // ── the review queue, driven from the real History button ─────────────
+  const rev = await ctx.newPage();
+  rev.on('dialog', d => d.accept());
+  await rev.route(/googleapis|gstatic|jsdelivr/, r => r.abort());
+  await rev.goto(APP, { waitUntil: 'domcontentloaded' });
+  await rev.waitForTimeout(1500);
+  await ask(rev, () => {
+    ['authOverlay','onboardOverlay'].forEach(i => { const e = document.getElementById(i); if (e) { e.style.display = 'none'; e.classList.remove('active'); } });
+    Object.keys(localStorage).filter(k => /^(big|sm|t)\d+$/.test(k)).forEach(k => localStorage.removeItem(k));
+    localStorage.setItem('qa_srv', JSON.stringify([
+      { id:'rv1', user_id:'u1', date:'2026-06-01', miles:40, from_addr:'1113 S 4090 W, Syracuse, UT',
+        to_addr:'2975 Executive Pkwy, Lehi, UT', purpose:'', category:'Office Visit', receipt_path:null },
+      { id:'rv2', user_id:'u1', date:'2026-06-02', miles:22, from_addr:'A', to_addr:'B',
+        purpose:'', category:'Client Meeting', receipt_path:null },
+      { id:'rv3', user_id:'u1', date:'2026-06-03', miles:15, from_addr:'A', to_addr:'C',
+        purpose:'Bank run', category:'Bank / Finance', receipt_path:null },
+      { id:'rv4', user_id:'u1', date:'2026-06-04', miles:9, from_addr:'A', to_addr:'D',
+        purpose:'', category:'Personal (Non-deductible)', receipt_path:null }]));
+    localStorage.removeItem('ml3_trips');
+    return true;
+  }, false);
+  await rev.reload({ waitUntil: 'domcontentloaded' });
+  await rev.waitForTimeout(2300);
+  await ask(rev, () => { ['authOverlay','onboardOverlay'].forEach(i => { const e = document.getElementById(i); if (e) { e.style.display = 'none'; e.classList.remove('active'); } }); window.switchNav('hist', document.getElementById('nav-hist')); return true; }, false);
+  await rev.waitForTimeout(800);
+
+  R('only business trips with no purpose are queued', await ask(rev, () => {
+    const q = window.reviewQueue().map(t => t.id).sort().join(',');
+    return q === 'rv1,rv2';      // rv3 has a purpose, rv4 is personal
+  }, false), await ask(rev, () => JSON.stringify(window.reviewQueue().map(t => t.id)), '?'));
+
+  const revBtn = await ask(rev, () => {
+    const b = document.getElementById('reviewBtn');
+    if (!b || getComputedStyle(b).display === 'none') return 'hidden';
+    b.scrollIntoView({ block: 'center' });
+    const r = b.getBoundingClientRect();
+    const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    return (b === hit || b.contains(hit)) ? b.textContent.trim() : 'covered';
+  }, 'threw');
+  R('History offers a reachable Review trips button', /Review trips \(2\)/.test(revBtn || ''), revBtn);
+
+  await rev.evaluate(() => document.getElementById('reviewBtn').click()).catch(() => {});
+  await rev.waitForTimeout(700);
+  R('the queue opens with a row per trip', await ask(rev, () =>
+    document.getElementById('reviewModal').style.display === 'flex' &&
+    document.querySelectorAll('#reviewBody input[id^="rvP"]').length === 2, false));
+
+  // fill one in, leave the other blank: the blank must stay queued
+  await rev.fill('#rvP0', 'Quarterly client review').catch(() => {});
+  await rev.evaluate(() => { const b = [].slice.call(document.querySelectorAll('#reviewModal button')).find(x => /save reviewed/i.test(x.textContent)); if (b) b.click(); }).catch(() => {});
+  await rev.waitForTimeout(1500);
+  const after = await ask(rev, () => ({
+    queued: window.reviewQueue().map(t => t.id),
+    filled: (JSON.parse(localStorage.getItem('ml3_trips') || '[]')
+      .find(t => t.purpose === 'Quarterly client review') || {}).id || null,
+    closed: document.getElementById('reviewModal').style.display === 'none'
+  }), null);
+  R('a reviewed trip leaves the queue', !!after && after.queued.length === 1, JSON.stringify(after));
+  // the queue is newest-first, so row 0 is not necessarily rv1 — assert the
+  // relationship (the one left queued is the one not filled in), not an id
+  R('a blank row stays in the queue',
+    !!after && after.queued.length === 1 && after.queued[0] !== after.filled, JSON.stringify(after));
+  R('the purpose is written to the trip', !!after && after.filled !== null, JSON.stringify(after));
+  R('the queue closes after saving', !!after && after.closed, JSON.stringify(after));
+
+  // and it survives a reload, which is where the purpose has to have synced
+  await rev.reload({ waitUntil: 'domcontentloaded' });
+  await rev.waitForTimeout(2300);
+  R('the reviewed purpose survives a reload', await ask(rev, () =>
+    JSON.parse(localStorage.getItem('ml3_trips') || '[]').some(t => t.purpose === 'Quarterly client review'), false));
+
+  const rpt = await ask(rev, () => window.buildTaxReportHTML('2026'), '');
+  R('the tax report names the remaining gap', /Trips with no business purpose recorded/.test(rpt || ''),
+    ((rpt || '').match(/Trips with no business purpose recorded[\s\S]{0,90}/) || [''])[0].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').slice(0, 80));
+  await rev.close();
+
   await browser.close();
   const bad = results.filter(r => !r.ok);
   results.forEach(r => console.log((r.ok ? '  ok  ' : 'FAIL  ') + r.name + (r.note ? '   [' + r.note + ']' : '')));

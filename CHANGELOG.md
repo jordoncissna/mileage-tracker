@@ -5,6 +5,33 @@ if a change doesn't alter what you see or what you can trust, it isn't here.
 
 ---
 
+## A review queue for trips missing their business purpose
+
+The IRS asks for four things per trip: the date, where you went, **why**, and
+how far. Your log has trips with the "why" blank — I could see several in the
+report you sent — and nothing in Milo pointed them out.
+
+**History now has a "Review trips" button** when any business trip is missing
+its purpose. It opens a list of just those trips, with the date, route and
+miles already there, one box to type why you drove, and your auto-classify
+rules pre-filling the category. Fill in what you know and save; anything left
+blank stays on the list rather than being quietly marked done.
+
+**The tax report now counts them**, in the summary, in amber: *"Trips with no
+business purpose recorded — 3 of 38 · IRC §274(d) asks for this."* A report
+that looks tidy while omitting the weakest thing about it isn't doing you a
+favour — that line is the first one an auditor would go looking for.
+
+Two things it deliberately doesn't do. **Personal trips never appear** — they
+don't need a business purpose. And **nothing is stored to mark a trip as
+"needing review"**: the missing purpose *is* the condition, so it applies to
+trips you logged months ago, and a trip leaves the list only by getting a real
+purpose or being marked personal.
+
+This is also the groundwork for automatic tracking. A drive detected by a phone
+knows where and how far, but never why — so every auto-logged trip would arrive
+in exactly this queue.
+
 ## The app is 37% smaller to download
 
 Milo's logo — a 1024-pixel image — was pasted into the page four separate times,
