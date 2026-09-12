@@ -12,9 +12,9 @@ const { window } = dom;
 const { document } = window;
 
 // ---- recording Supabase stub: server rows live in `server` ----
-const server = { rows: [], inserts: 0, deletes: 0, nextId: 1, delay: 0, prefs: null, prefsReads: 0, prefsWrites: 0, prefsMissing: false, plan: null, planInserts: 0, planMissing: false, uploads: [], removed: [], signed: [], bucketMissing: false, updates: [], receiptColumnMissing: false, rpcs: [], rpcMissing: false, rpcFails: false };
+const server = { rows: [], inserts: 0, deletes: 0, nextId: 1, delay: 0, prefs: null, prefsReads: 0, prefsWrites: 0, prefsMissing: false, plan: null, planInserts: 0, planMissing: false, uploads: [], removed: [], signed: [], bucketMissing: false, updates: [], receiptColumnMissing: false, rpcs: [], rpcMissing: false, rpcFails: false, vehicleColumnMissing: false };
 const wait = ms => new Promise(r => setTimeout(r, ms));
-function reset() { server.rows = []; server.inserts = 0; server.deletes = 0; server.nextId = 1; server.delay = 0; server.prefs = null; server.prefsReads = 0; server.prefsWrites = 0; server.prefsMissing = false; server.plan = null; server.planInserts = 0; server.planMissing = false; server.uploads = []; server.removed = []; server.signed = []; server.bucketMissing = false; server.updates = []; server.receiptColumnMissing = false; server.rpcs = []; server.rpcMissing = false; server.rpcFails = false; }
+function reset() { server.rows = []; server.inserts = 0; server.deletes = 0; server.nextId = 1; server.delay = 0; server.prefs = null; server.prefsReads = 0; server.prefsWrites = 0; server.prefsMissing = false; server.plan = null; server.planInserts = 0; server.planMissing = false; server.uploads = []; server.removed = []; server.signed = []; server.bucketMissing = false; server.updates = []; server.receiptColumnMissing = false; server.rpcs = []; server.rpcMissing = false; server.rpcFails = false; server.vehicleColumnMissing = false; }
 function rowFrom(r) { return Object.assign({}, r, { id: 'srv-' + (server.nextId++) }); }
 // user_prefs: one row per user, or a "table missing" error when prefsMissing
 const prefsTable = {
@@ -130,6 +130,8 @@ const exports_ = `
 ;window.__updateTrip=updateTripInSupabase;
 ;window.__importCSV=importCSV;
 ;window.__saveLocal=save;
+;window.__backfill=(typeof backfillVehicles==='function')?backfillVehicles:function(){return 0;};
+;window.__vehiclesIn=(typeof vehiclesIn==='function')?vehiclesIn:function(){return [];};
 ;window.__deleteAccount=(typeof deleteAccount==='function')?deleteAccount:function(){};
 `;
 const runner = new window.Function(inline + exports_);
@@ -628,6 +630,41 @@ const trip = o => Object.assign({ id: Date.now() + Math.random(), date: '2026-08
   await wait(120);
   T('a refused delete leaves the ledger intact', window.__trips().length === 1);
   T('a refused delete leaves the device cache intact', !!window.localStorage.getItem('ml3_trips'));
+
+  // ── THE VEHICLE TRAVELS WITH THE TRIP ────────────────────────────────
+  reset();
+  window.__setUser({ id: 'u1' });
+  const v1 = trip({ id: 130, vehicle: 'F-150' });
+  window.__setTrips([v1]);
+  await window.__save(v1);
+  T('the vehicle is sent with a new trip', (server.rows[0] || {}).vehicle === 'F-150',
+    JSON.stringify(server.rows[0] && server.rows[0].vehicle));
+
+  // it must survive the server round trip, which is where the old model lost it
+  reset();
+  window.__setUser({ id: 'u1' });
+  server.rows = [{ id: 'srv-a', date: '2026-05-01', miles: 20, from_addr: 'A', to_addr: 'B',
+                   purpose: 'p', category: 'Client Meeting', vehicle: 'Rental Van' }];
+  window.__setTrips([]);
+  await window.__load();
+  T('the vehicle comes back on load', (window.__trips()[0] || {}).vehicle === 'Rental Van',
+    JSON.stringify(window.__trips()[0]));
+
+  // backfill: existing trips get pinned once, and then stop moving
+  reset();
+  window.__setUser({ id: 'u1' });
+  const cfgNow = window.__cfg(); cfgNow.vehicle = 'Tesla Model Y';
+  window.__setTrips([trip({ id: 131 }), trip({ id: 132, vehicle: 'F-150' })]);
+  const filled = window.__backfill();
+  T('a trip with no vehicle is pinned to the account default', filled === 1 && window.__trips()[0].vehicle === 'Tesla Model Y',
+    'filled=' + filled);
+  T('a trip that already names a vehicle is left alone', window.__trips()[1].vehicle === 'F-150');
+  cfgNow.vehicle = 'Something Else';
+  const again = window.__backfill();
+  T('backfill does not run twice over the same trip', again === 0);
+  T('and changing the default afterwards moves nothing',
+    window.__trips()[0].vehicle === 'Tesla Model Y' && window.__trips()[1].vehicle === 'F-150',
+    JSON.stringify(window.__trips().map(t => t.vehicle)));
 
   console.log(`sync.test.js: ${pass} passed${fail ? ', ' + fail + ' failed' : ''}`);
   process.exit(fail ? 1 : 0);

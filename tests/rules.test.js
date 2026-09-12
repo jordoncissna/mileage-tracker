@@ -139,6 +139,9 @@ let trips = [
   { id: 3, date: '2026-05-02', miles: 5, from: '', to: '250 Gym Way', purpose: 'gym', category: PERSONAL_CAT },
 ];
 cfg.office = '500 Main St, Farmington, UT';
+// Guarded so a build without the helper fails its assertions rather than
+// crashing the suite, which would look like "no failures".
+try { eval(grab('vehiclesIn')); } catch (e) { var vehiclesIn = () => []; }
 eval(grab('buildTaxReportHTML'));
 const rpt = buildTaxReportHTML(2026);
 T('report titled with year', rpt.indexOf('Tax Year 2026') >= 0);
@@ -152,6 +155,41 @@ T('signature block present', rpt.indexOf('Taxpayer signature') >= 0);
 T('274(d) substantiation note', rpt.indexOf('§274(d)') >= 0 || rpt.indexOf('274(d)') >= 0);
 T('empty year message', buildTaxReportHTML(2019).indexOf('No trips recorded') >= 0);
 T('miles totals correct', rpt.indexOf('27.0') >= 0 && rpt.indexOf('10.0') >= 0);
+
+// ===== THE VEHICLE BELONGS TO THE TRIP =====
+// It used to be one setting, stamped onto every row at print time — so changing
+// cars rewrote which vehicle you drove for every trip in every past year.
+trips.push({ id: 20, date: '2026-07-01', miles: 100, from: 'A', to: 'B', purpose: 'truck run',
+             category: 'Client Meeting', vehicle: 'F-150' });
+trips.push({ id: 21, date: '2026-07-02', miles: 50, from: 'A', to: 'C', purpose: 'car run',
+             category: 'Client Meeting', vehicle: 'Tesla Model Y' });
+
+const twoVeh = buildTaxReportHTML(2026);
+T('both vehicles are named in the header', /Vehicles:[^<]*F-150/.test(twoVeh) && /Vehicles:[^<]*Tesla Model Y/.test(twoVeh));
+T('the header does not claim a single vehicle', twoVeh.indexOf('>Vehicle: ') < 0);
+T('the trip log gains a Vehicle column', twoVeh.indexOf('<th>Vehicle</th>') >= 0);
+T('each row carries its own vehicle', twoVeh.indexOf('<td>F-150</td>') >= 0 && twoVeh.indexOf('<td>Tesla Model Y</td>') >= 0);
+T('the summary splits miles per vehicle',
+  /of which F-150<\/td><td class="num">100\.0 mi/.test(twoVeh) &&
+  /of which Tesla Model Y<\/td><td class="num">50\.0 mi/.test(twoVeh));
+T('changing the account default does not move a logged trip',
+  (function () { const before = cfg.vehicle; cfg.vehicle = 'Rental Van';
+    const after = buildTaxReportHTML(2026); cfg.vehicle = before;
+    return after.indexOf('<td>F-150</td>') >= 0 && after.indexOf('Rental Van') < 0; })());
+
+// one vehicle is the ordinary case and must look exactly as it did
+trips.pop();
+const oneVeh = buildTaxReportHTML(2026);
+T('a single vehicle still goes in the header', /Vehicle: F-150/.test(oneVeh));
+T('and no Vehicle column is added for it', oneVeh.indexOf('<th>Vehicle</th>') < 0);
+T('and no per-vehicle split is added', oneVeh.indexOf('of which') < 0);
+T('the totals row still matches the column count',
+  (oneVeh.match(/<thead><tr>(.*?)<\/tr>/)[1].match(/<th/g) || []).length === 9);
+trips.pop();
+
+T('vehiclesIn lists each vehicle once, in the order first seen',
+  JSON.stringify(vehiclesIn([{ vehicle: 'B' }, { vehicle: 'A' }, { vehicle: 'B' }, {}])) === '["B","A"]');
+T('vehiclesIn ignores blanks', vehiclesIn([{ vehicle: '  ' }, { vehicle: null }]).length === 0);
 
 // ===== RECEIPTS INSIDE THE TAX REPORT =====
 // The report used to say "attached" and stop there. An auditor cannot see a

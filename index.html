@@ -2263,6 +2263,11 @@ body:not(.light) .offline-pill{color:#fbbf24;}
           <span class="field-label">Purpose / Client</span>
           <input type="text" id="tPurpose" placeholder="e.g. Met with Acme Corp re: contract"/>
         </div>
+        <div class="field" style="margin-bottom:10px">
+          <span class="field-label">Vehicle</span>
+          <input type="text" id="tVehicle" list="vehicleList" aria-label="Vehicle used for this trip" placeholder="Which vehicle?"/>
+          <datalist id="vehicleList"></datalist>
+        </div>
       <details id="logDetails">
         <summary>Stops &amp; repeat dates</summary>
         <!-- Extra stops (multi-leg day). Each stop chains a new leg onto the route. -->
@@ -2512,12 +2517,22 @@ async function updateTripInSupabase(trip){
       date:trip.date,miles:trip.miles,from_addr:trip.from||'',to_addr:trip.to||'',
       purpose:trip.purpose||'',category:trip.category||'',
       coords:trip.coords||null,from_latlng:trip.fromLatLng||null,to_latlng:trip.toLatLng||null,
-      receipt_path:trip.receiptPath||null
+      receipt_path:trip.receiptPath||null,
+      vehicle:vehicleColumnOff?undefined:(trip.vehicle||null)
     }).eq('id',trip.supaId);
     if(error){
       // The column arrives with supabase/receipts.sql. Until then, save the
       // rest of the trip rather than losing the edit entirely.
-      if(missingReceiptColumn(error)){
+      if(missingVehicleColumn(error)){
+        vehicleColumnOff=true;
+        const{error:ev}=await supa.from('trips').update({
+          date:trip.date,miles:trip.miles,from_addr:trip.from||'',to_addr:trip.to||'',
+          purpose:trip.purpose||'',category:trip.category||'',
+          coords:trip.coords||null,from_latlng:trip.fromLatLng||null,to_latlng:trip.toLatLng||null,
+          receipt_path:trip.receiptPath||null
+        }).eq('id',trip.supaId);
+        if(ev)throw ev;
+      }else if(missingReceiptColumn(error)){
         receiptsState='unavailable';
         const{error:e2}=await supa.from('trips').update({
           date:trip.date,miles:trip.miles,from_addr:trip.from||'',to_addr:trip.to||'',
@@ -2603,6 +2618,20 @@ var _storageWarned=false;
 // unhandled rejection: the trip reached neither the cache nor the server, the
 // form stayed full, and nothing was said. Losing the trip is the one outcome
 // that is never acceptable, so this reports and keeps going.
+// Trips logged before the vehicle belonged to the trip have none. Pin them to
+// the account's setting once — the best available answer for a drive already
+// taken — and then they stop moving, which is the whole point of the change.
+function backfillVehicles(){
+  if(!cfg.vehicle)return 0;
+  var n=0;
+  trips.forEach(function(t){
+    if(!t.vehicle){t.vehicle=cfg.vehicle;n++;if(t.supaId)updateTripInSupabase(t);}
+  });
+  if(n){save();}
+  return n;
+}
+window.backfillVehicles=backfillVehicles;
+
 function save(){
   try{
     localStorage.setItem(TK,JSON.stringify(trips,function(k,v){return (k==='_saving'||k==='_dupExact')?undefined:v;}));
@@ -2657,7 +2686,7 @@ async function loadFromSupabase(){
       from:r.from_addr||'', to:r.to_addr||'',
       purpose:r.purpose||'', category:r.category||'',
       coords:r.coords||null, fromLatLng:r.from_latlng||null, toLatLng:r.to_latlng||null,
-      receiptPath:r.receipt_path||null,
+      receiptPath:r.receipt_path||null, vehicle:r.vehicle||null,
       supaId:r.id
     }));
     if(unsynced.length){
@@ -2681,9 +2710,11 @@ async function loadFromSupabase(){
       }
     }
     if(kept.length)trips=kept.concat(trips);
+    backfillVehicles();
     save();
     updateSidebar();renderH();
     renderHomeIfActive();
+    refreshVehicleOptions();
   }catch(e){console.error('Load error:',e);}
   _supaLoading=false;
   setSyncing(false);
@@ -2708,10 +2739,16 @@ async function saveToSupabase(trip){
       category:trip.category||'',
       coords:trip.coords||null,
       from_latlng:trip.fromLatLng||null,
-      to_latlng:trip.toLatLng||null
+      to_latlng:trip.toLatLng||null,
+      vehicle:trip.vehicle||null
     };
+    if(vehicleColumnOff)delete row.vehicle;
     trip._saving=true;
-    const{data,error}=await supa.from('trips').insert(row).select().single();
+    let{data,error}=await supa.from('trips').insert(row).select().single();
+    if(error&&missingVehicleColumn(error)){
+      vehicleColumnOff=true;delete row.vehicle;
+      ({data,error}=await supa.from('trips').insert(row).select().single());
+    }
     if(error)throw error;
     // Stamp the id on the trip object itself: a refresh may have swapped the
     // trips array out from under us, and an id lookup would then miss and
@@ -2735,9 +2772,14 @@ async function saveBatchToSupabase(list){
       user_id:currentUser.id,date:t.date,miles:t.miles,
       from_addr:t.from||'',to_addr:t.to||'',purpose:t.purpose||'',
       category:t.category||'',coords:t.coords||null,
-      from_latlng:t.fromLatLng||null,to_latlng:t.toLatLng||null};});
+      from_latlng:t.fromLatLng||null,to_latlng:t.toLatLng||null,
+      vehicle:vehicleColumnOff?undefined:(t.vehicle||null)};});
     list.forEach(function(t){t._saving=true;});
-    const{data,error}=await supa.from('trips').insert(rows).select();
+    let{data,error}=await supa.from('trips').insert(rows).select();
+    if(error&&missingVehicleColumn(error)){
+      vehicleColumnOff=true;rows.forEach(function(r){delete r.vehicle;});
+      ({data,error}=await supa.from('trips').insert(rows).select());
+    }
     if(error)throw error;
     if(data&&data.length===list.length){
       data.forEach(function(row,i){
@@ -2769,6 +2811,29 @@ var receiptsState='idle';   // idle | ready | unavailable
 function missingBucket(err){
   var m=((err&&(err.message||err.error||err.code))||'')+'';
   return /bucket/i.test(m)&&/(not found|does not exist)/i.test(m);
+}
+// The vehicle column arrives with supabase/trip_vehicle.sql. Until it is run,
+// stop sending the field rather than failing every save. Same shape as the
+// receipt-column handling below it.
+var vehicleColumnOff=false;
+function missingVehicleColumn(err){
+  var m=((err&&(err.message||err.details||err.code))||'')+'';
+  return /\bvehicle\b/.test(m)&&/column|schema cache|does not exist/i.test(m);
+}
+// A trip's vehicle: what the log form says, falling back to the account default.
+function tripVehicleValue(){
+  var el=document.getElementById('tVehicle');
+  var v=el?String(el.value||'').trim():'';
+  return v||(cfg.vehicle||'');
+}
+// Every distinct vehicle across a set of trips, in the order first seen.
+function vehiclesIn(list){
+  var seen={},out=[];
+  (list||[]).forEach(function(t){
+    var v=(t.vehicle||'').trim();
+    if(v&&!seen[v]){seen[v]=1;out.push(v);}
+  });
+  return out;
 }
 function missingReceiptColumn(err){
   var m=((err&&(err.message||err.details||err.code))||'')+'';
@@ -4034,6 +4099,9 @@ function editTrip(id){
   setV('tFromStreet',fp[0]);setV('tFromCity',fp[1]);setV('tFromState',fp[2]);
   setV('tToStreet',tp[0]);setV('tToCity',tp[1]);setV('tToState',tp[2]);
   setV('tMiles',t.miles);setV('tPurpose',t.purpose||'');setV('tDate',t.date);
+  // The trip's own vehicle, not the account default — editing must not silently
+  // relabel which car a past drive was made in.
+  setV('tVehicle',t.vehicle||'');
   var cat=document.getElementById('tCat');if(cat&&t.category)cat.value=t.category;
   buildAddr();
   openLogOverlay();
@@ -4487,6 +4555,7 @@ async function addTrip(){
       et.to=document.getElementById('tTo').value.trim();
       et.purpose=document.getElementById('tPurpose').value.trim();
       et.category=document.getElementById('tCat').value;
+      et.vehicle=tripVehicleValue();
       save();clearF();updateSidebar();renderH();renderHomeIfActive();closeLogOverlay();
       toast('Trip updated ✓');
       drawTripOnMap(et.from,et.to,fmt(et.date));
@@ -4516,7 +4585,10 @@ async function addTrip(){
       from:document.getElementById('tFrom').value.trim(),
       to:document.getElementById('tTo').value.trim(),
       purpose:(typeof purp!=='undefined')?purp:document.getElementById('tPurpose').value.trim(),
-      category:document.getElementById('tCat').value};
+      category:document.getElementById('tCat').value,
+      // Stamped now, from the field on the form. A trip's vehicle must not
+      // change later because the account's default changed.
+      vehicle:tripVehicleValue()};
     // Save route geometry if we calculated it
     if(pendingDist&&pendingDist.coords){
       trip.coords=pendingDist.coords;
@@ -4544,6 +4616,7 @@ async function addTrip(){
   const from=document.getElementById('tFrom').value.trim();
   const to=document.getElementById('tTo').value.trim();
   if(!from||!to){toast('⚠ Enter From and To addresses');return;}
+  const veh=tripVehicleValue();
   const points=[from,to].concat(stops);
   const outLegs=[];
   for(var i=0;i<points.length-1;i++)outLegs.push([points[i],points[i+1]]);
@@ -4580,7 +4653,7 @@ async function addTrip(){
     legDefs.forEach(function(lg){
       batch.push({id:Date.now()+(seq++),date:dt,miles:lg.miles,from:lg.from,to:lg.to,
         purpose:(purpose+(lg.ret?' (round trip)':'')).trim(),
-        category:cat});
+        category:cat,vehicle:veh});
     });
   });
   var dupN=0;
@@ -4594,10 +4667,24 @@ async function addTrip(){
   saveBatchToSupabase(batch);
 }
 
+// Offer the vehicles this account has actually driven, so a second car is one
+// keystroke rather than retyped (and retyped slightly differently) each time.
+function refreshVehicleOptions(){
+  var dl=document.getElementById('vehicleList');
+  if(!dl)return;
+  var opts=vehiclesIn(trips);
+  if(cfg.vehicle&&opts.indexOf(cfg.vehicle)<0)opts.unshift(cfg.vehicle);
+  dl.innerHTML=opts.map(function(v){return '<option value="'+esc(v)+'"></option>';}).join('');
+}
+window.refreshVehicleOptions=refreshVehicleOptions;
+
 function clearF(){
   document.getElementById('tMiles').value='';
   document.getElementById('tTo').value='';
   document.getElementById('tPurpose').value='';
+  var vEl=document.getElementById('tVehicle');
+  if(vEl)vEl.value=cfg.vehicle||'';
+  refreshVehicleOptions();
   document.getElementById('tDate').value=today();
   document.getElementById('tFrom').value=cfg.home||'';
   // Clear the visible address part inputs — the hidden tFrom/tTo are built from these,
@@ -4866,7 +4953,7 @@ function doExport(){
   // No Commute column: the concept was removed, so it was 'No' on every row.
   const rows=[['Date','From','To','Purpose','Category','Miles','Rate ($/mi)','Deductible Value','Vehicle']];
   fl.forEach(t=>{const r=rate(t.date);rows.push([t.date,t.from||'',t.to||'',t.purpose||'',t.category||'',
-    parseFloat(t.miles||0).toFixed(1),r.toFixed(3),deductibleValue(t).toFixed(2),cfg.vehicle||'']);});
+    parseFloat(t.miles||0).toFixed(1),r.toFixed(3),deductibleValue(t).toFixed(2),t.vehicle||cfg.vehicle||'']);});
   const csv=rows.map(r=>r.map(csvCell).join(',')).join('\n');
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
@@ -5478,6 +5565,13 @@ function buildTaxReportHTML(year,shots){
   var fl=trips.filter(function(t){return t.date&&t.date.slice(0,4)===y;})
     .sort(function(a,b){return (a.date||'').localeCompare(b.date||'');});
   var bizMi=0,perMi=0,ded=0,rows='',exhibits='',exNo=0;
+  // Which vehicles this year was actually driven in. One is the common case and
+  // the header carries it, as before. More than one and the header cannot be
+  // true for every row, so the log gains a column and the summary gains a
+  // per-vehicle split — which is what a preparer needs anyway.
+  var vehList=vehiclesIn(fl);
+  var multiVeh=vehList.length>1;
+  var vehMiles={};
   fl.forEach(function(t){
     var mi=parseFloat(t.miles||0);
     var r=rate(t.date);
@@ -5494,8 +5588,13 @@ function buildTaxReportHTML(year,shots){
       '<td class="num">'+mi.toFixed(1)+'</td>'+
       '<td class="num">'+(excl?'—':r.toFixed(3))+'</td>'+
       '<td class="num">'+(excl?'0.00 <span class="excl">('+excl+')</span>':v.toFixed(2))+'</td>'+
+      (multiVeh?('<td>'+esc(t.vehicle||'—')+'</td>'):'')+
       '<td>'+(t.receiptPath?('R-'+(exNo+1)):'—')+'</td>'+
     '</tr>';
+    if(!excl){
+      var vk=(t.vehicle||'').trim()||'(unspecified)';
+      vehMiles[vk]=(vehMiles[vk]||0)+mi;
+    }
     if(!t.receiptPath)return;
     exNo++;
     // The exhibit is only substantiation if it says which trip it belongs to.
@@ -5541,7 +5640,7 @@ function buildTaxReportHTML(year,shots){
     '.exmiss{font-size:10px;color:#666;border:0.5px dashed #bbb;padding:11px 13px;}'+
     '</style></head><body>'+
     '<h1>Mileage Log &amp; Deduction Report — Tax Year '+esc(y)+'</h1>'+
-    '<div class="meta">'+(cfg.biz?'Prepared for: <b>'+esc(cfg.biz)+'</b> · ':'')+(cfg.vehicle?'Vehicle: '+esc(cfg.vehicle)+' · ':'')+'Generated '+gen+' · Method: IRS Standard Mileage Rate</div>'+
+    '<div class="meta">'+(cfg.biz?'Prepared for: <b>'+esc(cfg.biz)+'</b> · ':'')+(vehList.length===1?'Vehicle: '+esc(vehList[0])+' · ':(multiVeh?'Vehicles: '+esc(vehList.join(', '))+' · ':(cfg.vehicle?'Vehicle: '+esc(cfg.vehicle)+' · ':'')))+'Generated '+gen+' · Method: IRS Standard Mileage Rate</div>'+
     '<h2>Summary</h2>'+
     '<table class="sumtable">'+
     '<tr><td class="lbl">Business miles (deductible)</td><td class="num">'+bizMi.toFixed(1)+' mi</td><td class="lbl">at $'+Number(yRate).toFixed(3)+'/mi</td><td class="num">$'+ded.toFixed(2)+'</td></tr>'+
@@ -5549,14 +5648,17 @@ function buildTaxReportHTML(year,shots){
       var withR=fl.filter(function(t){return !!t.receiptPath;}).length;
       return withR?('<tr><td class="lbl">Trips with a receipt attached</td><td class="num">'+withR+' of '+fl.length+'</td><td class="lbl"></td><td class="num"></td></tr>'):'';
     })()+
+    (multiVeh?Object.keys(vehMiles).map(function(v){
+      return '<tr><td class="lbl">&nbsp;&nbsp;of which '+esc(v)+'</td><td class="num">'+vehMiles[v].toFixed(1)+' mi</td><td class="lbl"></td><td class="num">$'+(vehMiles[v]*Number(yRate)).toFixed(2)+'</td></tr>';
+    }).join(''):'')+
     '<tr><td class="lbl">Personal miles — non-deductible</td><td class="num">'+perMi.toFixed(1)+' mi</td><td class="lbl"></td><td class="num">$0.00</td></tr>'+
     '<tr class="tot"><td>Total deduction claimed ('+fl.length+' trips)</td><td class="num">'+(bizMi+perMi).toFixed(1)+' mi</td><td></td><td class="num">$'+ded.toFixed(2)+'</td></tr>'+
     '</table>'+
     '<div class="legal">Substantiation: each entry below records the date, origin, destination, business purpose, and mileage required by IRC §274(d) for vehicle expense deductions under §162. Commuting between the taxpayer’s residence and regular workplace is treated as a personal expense per §262 and Treas. Reg. §1.262-1(b)(5), and is excluded from the deduction above.</div>'+
     '<h2>Trip Log</h2>'+
-    '<table><thead><tr><th>Date</th><th>From</th><th>To</th><th>Business Purpose</th><th>Category</th><th class="num">Miles</th><th class="num">Rate $/mi</th><th class="num">Deduction $</th><th>Receipt</th></tr></thead>'+
-    '<tbody>'+(rows||'<tr><td colspan="9" style="text-align:center;color:#777">No trips recorded for '+esc(y)+'</td></tr>')+'</tbody>'+
-    '<tfoot><tr><td colspan="5">Totals</td><td class="num">'+(bizMi+perMi).toFixed(1)+'</td><td></td><td class="num">'+ded.toFixed(2)+'</td><td></td></tr></tfoot></table>'+
+    '<table><thead><tr><th>Date</th><th>From</th><th>To</th><th>Business Purpose</th><th>Category</th><th class="num">Miles</th><th class="num">Rate $/mi</th><th class="num">Deduction $</th>'+(multiVeh?'<th>Vehicle</th>':'')+'<th>Receipt</th></tr></thead>'+
+    '<tbody>'+(rows||'<tr><td colspan="'+(multiVeh?10:9)+'" style="text-align:center;color:#777">No trips recorded for '+esc(y)+'</td></tr>')+'</tbody>'+
+    '<tfoot><tr><td colspan="5">Totals</td><td class="num">'+(bizMi+perMi).toFixed(1)+'</td><td></td><td class="num">'+ded.toFixed(2)+'</td>'+(multiVeh?'<td></td>':'')+'<td></td></tr></tfoot></table>'+
     (exhibits?('<h2 class="exhead">Receipts</h2>'+
       '<div class="legal">Copies of the receipts attached to the trips above, in the same order, reproduced from the originals retained in Milo. A receipt substantiates the expense itself; the mileage above substantiates the drive.</div>'+
       exhibits):'')+
