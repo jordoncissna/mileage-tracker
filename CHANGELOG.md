@@ -5,6 +5,20 @@ if a change doesn't alter what you see or what you can trust, it isn't here.
 
 ---
 
+## The app is 37% smaller to download
+
+Milo's logo — a 1024-pixel image — was pasted into the page four separate times,
+once for each place it appears. That was **225 KB of the 608 KB file**, for a
+picture never shown larger than 60 pixels.
+
+It's now one 7 KB file the browser fetches once and keeps. **`index.html` went
+from 608 KB to 382 KB.** Nothing looks different: same logo, same white tile,
+same rounded corners — I compared them side by side at phone resolution before
+and after.
+
+That's most of a megabyte saved across a few page loads on cell data, and the
+logo is now in the offline bundle so it still appears with no signal.
+
 ## The vehicle belongs to the trip, not to the account
 *One-time setup: run `supabase/trip_vehicle.sql` in the Supabase SQL editor*
 

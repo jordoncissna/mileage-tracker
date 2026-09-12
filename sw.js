@@ -8,7 +8,7 @@
      requests must not be interfered with. */
 
 var CACHE = 'milo-v1';
-var SHELL = ['./', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'];
+var SHELL = ['./', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png', 'assets/milo-mark.jpg'];
 var VENDOR_HOSTS = ['cdn.jsdelivr.net'];
 
 self.addEventListener('install', function (e) {
