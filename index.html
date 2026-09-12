@@ -1887,6 +1887,7 @@ body:not(.light) .offline-pill{color:#fbbf24;}
           <option>Personal (Non-deductible)</option>
         </select>
         <div style="flex:1"></div>
+        <button class="btn" id="reviewBtn" onclick="openReviewQueue()" style="display:none">✎ Review trips</button>
         <button class="btn btn-danger" id="dupBtn" onclick="openDupReview()" style="display:none">⧉ Review duplicates</button>
         <button class="btn" onclick="doExport()">↓ Export CSV</button>
         <button class="btn" onclick="openTaxReport()">🧾 Tax Report</button>
@@ -2311,6 +2312,26 @@ body:not(.light) .offline-pill{color:#fbbf24;}
     </div>
   </div>
 </div>
+<div id="reviewModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:1200;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:14px;max-width:760px;width:100%;max-height:86vh;display:flex;flex-direction:column;box-shadow:0 24px 60px rgba(0,0,0,0.45)">
+    <div style="padding:18px 20px 12px;border-bottom:1px solid var(--border2)">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="flex:1">
+          <div style="font-size:15px;font-weight:650;color:var(--text)">Trips missing a business purpose</div>
+          <div style="font-size:12px;color:var(--text3);margin-top:3px" id="reviewSub"></div>
+        </div>
+        <button class="btn" onclick="closeReviewQueue()" aria-label="Close">✕</button>
+      </div>
+    </div>
+    <div id="reviewBody" style="overflow:auto;padding:14px 20px;flex:1"></div>
+    <div style="padding:12px 20px;border-top:1px solid var(--border2);display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <span style="font-size:11.5px;color:var(--text3);flex:1">IRC §274(d) asks for the business purpose of each trip. Rows left blank stay here.</span>
+      <button class="btn" onclick="closeReviewQueue()">Later</button>
+      <button class="btn btn-primary" onclick="saveReviewQueue()">Save reviewed trips</button>
+    </div>
+  </div>
+</div>
+
 <div id="dupModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:1200;align-items:center;justify-content:center;padding:20px;">
   <div style="background:var(--surface);border:1px solid var(--border2);border-radius:14px;max-width:760px;width:100%;max-height:86vh;display:flex;flex-direction:column;box-shadow:0 24px 60px rgba(0,0,0,.35)">
     <div style="padding:18px 20px 12px;border-bottom:1px solid var(--border2)">
@@ -4754,7 +4775,84 @@ function updateDupBtn(){
   var n=dupCount();
   b.style.display=n?'':'none';
   b.textContent='⧉ Review duplicates ('+n+')';
+  updateReviewBtn();
 }
+function updateReviewBtn(){
+  var b=document.getElementById('reviewBtn');if(!b)return;
+  var n=reviewQueue().length;
+  b.style.display=n?'':'none';
+  b.textContent='✎ Review trips ('+n+')';
+}
+window.updateReviewBtn=updateReviewBtn;
+// ── REVIEW QUEUE ────────────────────────────────────────────────────────
+// A trip that claims a deduction with no stated business purpose is the row an
+// auditor pulls: IRC §274(d) asks for the purpose by name. Nothing is stored to
+// mark these — the condition IS the problem, so it is derived. That means it
+// works on trips logged long before this existed, and a trip leaves the queue
+// the only two honest ways: it gets a purpose, or it is marked personal.
+function needsReview(t){
+  return !!t && !isPersonal(t) && !String(t.purpose||'').trim();
+}
+function reviewQueue(){
+  return trips.filter(needsReview)
+    .slice().sort(function(a,b){return (b.date||'').localeCompare(a.date||'');});
+}
+var _reviewShown=[];
+function openReviewQueue(){
+  var m=document.getElementById('reviewModal'),body=document.getElementById('reviewBody');
+  if(!m||!body)return;
+  var q=reviewQueue();
+  _reviewShown=q;
+  var sub=document.getElementById('reviewSub');
+  if(sub)sub.textContent=q.length?
+    (q.length+' trip'+(q.length!==1?'s':'')+' claim a deduction with no business purpose written down. Add one, or mark the trip personal.'):
+    'Every business trip has a purpose. Nothing to review.';
+  var cats=Object.keys(PCOLOR);
+  body.innerHTML=q.map(function(t,i){
+    var sug=suggestFor(t);
+    var cat=(sug&&sug.cat)||t.category||'Other Business';
+    return '<div style="border:1px solid var(--border2);border-radius:10px;padding:10px 12px;margin-bottom:10px">'+
+      '<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:7px">'+
+        '<b style="font-size:13px;color:var(--text);white-space:nowrap">'+fmt(t.date)+'</b>'+
+        '<span style="font-size:12px;color:var(--text2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(t.from||'—')+' → '+esc(t.to||'—')+'</span>'+
+        '<span class="mono" style="font-size:12px;color:var(--text);white-space:nowrap">'+parseFloat(t.miles||0).toFixed(1)+' mi</span>'+
+        '<span class="mono" style="font-size:12px;color:var(--green);white-space:nowrap">$'+deductibleValue(t).toFixed(2)+'</span>'+
+      '</div>'+
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">'+
+        '<input type="text" id="rvP'+i+'" aria-label="Business purpose for this trip" placeholder="Why was this drive for business?" style="flex:1;min-width:180px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:8px 10px;font-size:12.5px;color:var(--text);font-family:inherit"/>'+
+        '<select id="rvC'+i+'" aria-label="Category for this trip" style="background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:8px 10px;font-size:12.5px;color:var(--text);font-family:inherit">'+
+          cats.map(function(c){return '<option'+(c===cat?' selected':'')+'>'+esc(c)+'</option>';}).join('')+
+        '</select>'+
+        (sug?'<span style="font-size:10.5px;color:var(--accent);white-space:nowrap">rule: '+esc(sug.cat)+'</span>':'')+
+      '</div>'+
+    '</div>';
+  }).join('')||'<div style="padding:24px;text-align:center;color:var(--text3);font-size:13px">Nothing to review — every business trip in your log states why you drove.</div>';
+  m.style.display='flex';
+}
+function closeReviewQueue(){var m=document.getElementById('reviewModal');if(m)m.style.display='none';}
+// Only rows the owner actually filled in are touched. A blank stays in the
+// queue rather than being quietly written as reviewed-with-no-purpose.
+function saveReviewQueue(){
+  var n=0;
+  _reviewShown.forEach(function(t,i){
+    var pEl=document.getElementById('rvP'+i),cEl=document.getElementById('rvC'+i);
+    var purpose=pEl?String(pEl.value||'').trim():'';
+    var cat=cEl?cEl.value:'';
+    if(!purpose&&cat!==PERSONAL_CAT)return;
+    if(purpose)t.purpose=purpose;
+    if(cat)t.category=cat;
+    n++;
+    if(t.supaId)updateTripInSupabase(t);
+  });
+  if(!n){toast('Nothing filled in yet');return;}
+  save();updateSidebar();renderH();renderHomeIfActive();
+  closeReviewQueue();
+  toast(n+' trip'+(n!==1?'s':'')+' reviewed ✓');
+}
+window.needsReview=needsReview;window.reviewQueue=reviewQueue;
+window.openReviewQueue=openReviewQueue;window.closeReviewQueue=closeReviewQueue;
+window.saveReviewQueue=saveReviewQueue;
+
 function openDupReview(){
   var m=document.getElementById('dupModal'),body=document.getElementById('dupBody');
   if(!m||!body)return;
@@ -5644,6 +5742,12 @@ function buildTaxReportHTML(year,shots){
     '<h2>Summary</h2>'+
     '<table class="sumtable">'+
     '<tr><td class="lbl">Business miles (deductible)</td><td class="num">'+bizMi.toFixed(1)+' mi</td><td class="lbl">at $'+Number(yRate).toFixed(3)+'/mi</td><td class="num">$'+ded.toFixed(2)+'</td></tr>'+
+    (function(){
+      // The row an auditor pulls first. Saying so on the document is more use
+      // than a clean-looking report that quietly omits it.
+      var noPurpose=fl.filter(function(t){return !isPersonal(t)&&!String(t.purpose||'').trim();}).length;
+      return noPurpose?('<tr><td class="lbl" style="color:#a8641a">Trips with no business purpose recorded</td><td class="num" style="color:#a8641a">'+noPurpose+' of '+fl.length+'</td><td class="lbl" colspan="2" style="color:#a8641a">IRC &sect;274(d) asks for this</td></tr>'):'';
+    })()+
     (function(){
       var withR=fl.filter(function(t){return !!t.receiptPath;}).length;
       return withR?('<tr><td class="lbl">Trips with a receipt attached</td><td class="num">'+withR+' of '+fl.length+'</td><td class="lbl"></td><td class="num"></td></tr>'):'';
