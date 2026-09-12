@@ -5,6 +5,31 @@ if a change doesn't alter what you see or what you can trust, it isn't here.
 
 ---
 
+## The vehicle belongs to the trip, not to the account
+*One-time setup: run `supabase/trip_vehicle.sql` in the Supabase SQL editor*
+
+Your vehicle was a single setting, and the tax report stamped whatever was in
+Settings **at print time** onto every row — including trips from years earlier.
+Change "Tesla" to "F-150" and last year's report retroactively claimed you drove
+the F-150 for all 4,766 miles. That's a tax document asserting something untrue,
+and there was no way to say otherwise.
+
+Each trip now records the vehicle it was actually driven in:
+
+- **The log form has a Vehicle field**, filled in from your default, offering
+  vehicles you've already used so a second car isn't retyped slightly
+  differently each time.
+- **Editing a trip shows that trip's vehicle**, not today's default.
+- **One vehicle looks exactly as it always did** — it stays in the report header
+  and nothing else changes.
+- **Two or more** and the report adds a Vehicle column and splits the miles per
+  vehicle in the summary, which is what a preparer needs anyway.
+- **Your existing trips are pinned once** to your current setting — the best
+  available answer for a drive already taken — and then they stop moving.
+
+If you haven't run the SQL, trips still save and the vehicle is simply kept on
+this device until you do.
+
 ## Delete your own account, without emailing anyone
 *One-time setup: run `supabase/delete_account.sql` in the Supabase SQL editor*
 
