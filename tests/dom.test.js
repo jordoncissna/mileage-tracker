@@ -633,6 +633,37 @@ T('sign out moved to settings foot', document.querySelector('.set-foot .signout-
   T('light-mode muted text is no longer the old failing grey', html.indexOf('--text3:#8896a8') < 0);
 
   // ── the rest of the launch checklist ──────────────────────────────────
+  // ── PAGE WEIGHT ───────────────────────────────────────────────────────
+  // The same 1024px logo was inlined four times: 225 KB, 37% of the file, for
+  // an image never displayed above 60px.
+  T('no image is inlined as a data URI in the markup',
+    (html.match(/src="data:image\/[a-z]+;base64/g) || []).length === 0,
+    String((html.match(/src="data:image\/[a-z]+;base64/g) || []).length) + ' remaining');
+  T('the logo is a file the browser can cache', html.indexOf('assets/milo-mark.jpg') >= 0);
+  T('that file exists', fs.existsSync(path.join(root, 'assets', 'milo-mark.jpg')));
+  T('index.html is under 450 KB', fs.statSync(path.join(root, 'index.html')).size < 450 * 1024,
+    Math.round(fs.statSync(path.join(root, 'index.html')).size / 1024) + ' KB');
+  T('the size checks are reading real files', fs.statSync(path.join(root, 'index.html')).size > 1000);
+  // sized through a helper: statSync on a missing file throws, which would abort
+  // the suite and hide every check after it — that reads as "fewer failures"
+  const sizeOf = (f) => { try { return fs.statSync(path.join(root, f)).size; } catch (e) { return -1; } };
+  T('the logo is small enough to be worth caching',
+    sizeOf('assets/milo-mark.jpg') > 0 && sizeOf('assets/milo-mark.jpg') < 20 * 1024,
+    Math.round(sizeOf('assets/milo-mark.jpg') / 1024) + ' KB');
+  T('the offline shell pre-caches the logo',
+    fs.readFileSync(path.join(root, 'sw.js'), 'utf8').indexOf('assets/milo-mark.jpg') >= 0);
+  // every local asset the markup points at must actually be on disk
+  T('every same-origin asset referenced by the app exists', (() => {
+    const refs = (html.match(/(?:src|href)="([^"h#][^":]*?)"/g) || [])
+      .map(m => m.replace(/^(?:src|href)="/, '').replace(/"$/, ''))
+      .filter(f => !/^(data:|mailto:|https?:)/.test(f) && f.indexOf("'+") < 0);
+    const missing = refs.filter(f => !fs.existsSync(path.join(root, f.replace(/\/$/, '') || 'index.html')));
+    return missing.length === 0 || JSON.stringify(missing);
+  })() === true, JSON.stringify((html.match(/(?:src|href)="([^"h#][^":]*?)"/g) || [])
+      .map(m => m.replace(/^(?:src|href)="/, '').replace(/"$/, ''))
+      .filter(f => !/^(data:|mailto:|https?:)/.test(f) && f.indexOf("'+") < 0)
+      .filter(f => !fs.existsSync(path.join(root, f.replace(/\/$/, '') || 'index.html')))));
+
   T('there is an FAQ', fs.existsSync(path.join(root, 'faq.html')));
   const faq = fs.existsSync(path.join(root, 'faq.html')) ? fs.readFileSync(path.join(root, 'faq.html'), 'utf8') : '';
   T('the FAQ answers the automatic-tracking question honestly',
