@@ -29,8 +29,10 @@ Live: https://jordoncissna.github.io/mileage-tracker
   - Supabase (Postgres + Auth, row-level security) is the source of truth for trips.
   - `localStorage` holds device-local settings. Keys: `ml3_trips` (cache),
     `ml3_set` (cfg: rates, home/office, commute toggles, auto-classify rules),
-    `ml3_routew` (remembered Route column width), `ml3_geo` (address→[lng,lat]
-    geocode cache for the map ghost layer; failures cached as null).
+    `ml3_colw` (remembered History column widths, `{route,purpose}` in px —
+    supersedes the old Route-only `ml3_routew`, which is still migrated on
+    load), `ml3_geo` (address→[lng,lat] geocode cache for the map ghost layer;
+    failures cached as null).
 - **Maps:** Google Maps JS API (Places autocomplete + Geometry for distance).
   The log map is **always** driven: `previewLogRoute()` follows the address
   fields (debounced), `drawTripOnMap()` draws the pair — Directions when it can
@@ -145,6 +147,12 @@ trip; in multi-stop batches the return distance folds into the last leg.
   receipt photos. `addTrip()` captures `pendingReceipt` **before** `clearF()`
   runs, or the chosen photo is discarded between save and upload.
 - `saveToSupabase()` / `updateTripInSupabase()` — sync.
+- `applyColWidth()` / `fitCol()` / `startColResize()` — resizable History
+  columns. Only Route and Purpose get a handle, because only they clamp; a
+  column is clamped on a block **inside** the cell (`.route-cell`,
+  `.cell-purpose`), never on the `<td>`, because the table is
+  `table-layout:auto` where a cell's `max-width` is advisory. A column nobody
+  has dragged is left out of storage so it stays content-sized.
 - `dupGroups()` / `openDupReview()` — the duplicate-review tool in History:
   groups trips sharing a date and route, preselects only byte-identical
   repeats, bulk-deletes with a 6s undo.
@@ -226,6 +234,10 @@ no longer a numbered-download step — edit `index.html` directly.
   look broken). Test on the live URL or a local server (`python3 -m http.server`).
 - Client-side keys: the Supabase anon key is public by design (RLS is the real
   protection); the Google Maps key must be HTTP-referrer restricted.
+- **Never name an asset file that isn't in the repo.** CSS has no "use it if it
+  exists", so a placeholder `url()` costs every visitor a 404 — the optional
+  `assets/login-bg.jpg` background is commented out for exactly this reason.
+  `tests/dom.test.js` fails if any live `assets/...` reference has no file.
 - User-entered text (addresses, purpose, rule fields) must go through `esc()`
   before being rendered via `innerHTML`; CSV cells must go through `csvCell()`.
 

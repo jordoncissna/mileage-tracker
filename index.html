@@ -473,9 +473,20 @@ tfoot td{padding:8px 8px;font-weight:600;font-family:'JetBrains Mono',monospace;
 .p-other     {background:rgba(139,149,168,0.1); color:#8b95a8;border:1px solid rgba(139,149,168,0.15);}
 .p-personal  {background:rgba(244,114,182,0.12);color:#f472b6;border:1px solid rgba(244,114,182,0.25);}
 
-.route-cell{font-size:11px;color:var(--text3);font-family:'JetBrains Mono',monospace;max-width:var(--route-w,140px);min-width:var(--route-w,140px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.col-resizer{position:absolute;top:0;right:-4px;width:9px;height:100%;cursor:col-resize;z-index:5;touch-action:none;}
-.col-resizer:hover,.col-resizer.dragging{background:linear-gradient(90deg,transparent 3px,var(--accent) 3px,var(--accent) 6px,transparent 6px);}
+.route-cell{font-size:11px;color:var(--text3);font-family:'JetBrains Mono',monospace;max-width:var(--cw-route,140px);min-width:var(--cw-route,140px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+/* A resizable column clamps its width on a block INSIDE the cell, not on the
+   <td>: the table is table-layout:auto, where max-width on a cell is advisory
+   at best and ignored by most engines. */
+.cell-clamp{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.cell-purpose{max-width:var(--cw-purpose,240px);min-width:var(--cw-purpose,0);}
+.col-resizer{position:absolute;top:0;right:-4px;width:11px;height:100%;cursor:col-resize;z-index:5;touch-action:none;
+  background:linear-gradient(90deg,transparent 4px,var(--border2) 4px,var(--border2) 5px,transparent 5px);}
+.col-resizer:hover,.col-resizer:focus-visible,.col-resizer.dragging{outline:none;
+  background:linear-gradient(90deg,transparent 3px,var(--accent) 3px,var(--accent) 7px,transparent 7px);}
+/* A finger is not a cursor: give the grip more to aim at on touch, where the
+   ledger also scrolls sideways and would otherwise swallow the drag. */
+@media (pointer:coarse){.col-resizer{width:22px;right:-9px;
+  background:linear-gradient(90deg,transparent 9px,var(--border2) 9px,var(--border2) 10px,transparent 10px);}}
 th.sortable{position:relative;}
 .mono{font-family:'JetBrains Mono',monospace;}
 .empty{text-align:center;padding:60px 24px;color:var(--text3);font-size:13px;line-height:1.8;}
@@ -662,7 +673,8 @@ th.sortable{position:relative;}
   .trips-table td{padding:10px 12px;border-bottom:1px solid var(--border);font-size:13px;}
   .trips-table tr:hover td{background:var(--surface2);}
   .trips-table tfoot td{font-weight:700;border-top:2px solid var(--border2);border-bottom:none;}
-  .route-cell{max-width:var(--route-w,200px);min-width:var(--route-w,200px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--text2);font-family:'JetBrains Mono',monospace;}
+  .route-cell{max-width:var(--cw-route,200px);min-width:var(--cw-route,200px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--text2);font-family:'JetBrains Mono',monospace;}
+  .cell-purpose{max-width:var(--cw-purpose,240px);min-width:var(--cw-purpose,0);}
 
 /* Refined auth polish */
 
@@ -1402,11 +1414,13 @@ body:not(.light) .offline-pill{color:#fbbf24;}
 /* ── AUTH REDESIGN: night-city glass (pins dark tokens; photo-swappable bg) ── */
 .auth-overlay{
   --text:#eef2f8;--text2:#c3cbd8;--text3:#8f9aae;--red:#ff8484;
-  /* Layers, top→bottom: legibility scrim · your photo (drop it at
-     assets/login-bg.jpg) · CSS gradient fallback shown until the photo exists. */
+  /* Layers, top→bottom: legibility scrim · (optional) your photo · the CSS
+     night-city gradient. The photo layer is commented out on purpose: naming a
+     file that isn't there costs every visitor a 404 on the sign-in screen. Drop
+     a JPG at assets/login-bg.jpg and delete the comment markers to switch it on. */
   background:
     linear-gradient(rgba(6,10,20,0.28), rgba(6,10,20,0.52)),
-    url('assets/login-bg.jpg') center/cover no-repeat,
+    /* url('assets/login-bg.jpg') center/cover no-repeat, */
     radial-gradient(ellipse 60% 38% at 22% 96%, rgba(255,166,66,0.28), transparent 60%),
     radial-gradient(ellipse 70% 40% at 82% 92%, rgba(255,140,50,0.22), transparent 60%),
     radial-gradient(ellipse 90% 55% at 50% 115%, rgba(244,120,32,0.18), transparent 65%),
@@ -3265,29 +3279,106 @@ function applySettings(){
   document.getElementById('sYear').textContent=new Date().getFullYear();
   renderRules();
 }
-// ── COLUMN RESIZE (Route) ────────────────────────────────────
-function applyRouteWidth(px){document.documentElement.style.setProperty('--route-w',px+'px');}
-(function(){try{var w=localStorage.getItem('ml3_routew');if(w)applyRouteWidth(parseInt(w,10));}catch(e){}})();
+// ── RESIZABLE HISTORY COLUMNS ────────────────────────────────
+// Only the columns that actually truncate get a handle. Date, Category, Miles
+// and Value are sized by their own content and never clip, so a divider there
+// would be a control that does nothing.
+var COLW={route:200,purpose:240};          // defaults, in px — must match the CSS fallbacks
+var COLW_MIN=90, COLW_MAX=900;
+var COLW_KEY='ml3_colw';
+
+function applyColWidth(col,px){
+  if(!COLW.hasOwnProperty(col))return;
+  if(!isFinite(px))px=COLW[col];
+  px=Math.round(Math.max(COLW_MIN,Math.min(COLW_MAX,px)));
+  document.documentElement.style.setProperty('--cw-'+col,px+'px');
+  return px;
+}
+function colCells(col){
+  return document.querySelectorAll('#htable '+(col==='route'?'.route-cell':'.cell-'+col));
+}
+function storedColWidth(col){
+  // Read it back from the inline style we wrote it to, not from
+  // getComputedStyle: exact, no layout flush, and it reports "never set" as
+  // empty instead of resolving the CSS fallback.
+  var v=parseInt(document.documentElement.style.getPropertyValue('--cw-'+col),10);
+  return isFinite(v)&&v>0?v:0;
+}
+function colWidth(col){
+  var v=storedColWidth(col);
+  if(v)return v;
+  // Never set: the column is sized by its own content, so a drag has to start
+  // from where it actually sits or the first nudge jumps.
+  var cell=colCells(col)[0];
+  return cell?Math.round(cell.getBoundingClientRect().width):COLW[col];
+}
+function saveColWidths(){
+  var out={};
+  for(var c in COLW){
+    if(!COLW.hasOwnProperty(c))continue;
+    var v=storedColWidth(c);
+    if(v)out[c]=v;                  // untouched columns stay content-sized
+  }
+  try{localStorage.setItem(COLW_KEY,JSON.stringify(out));}catch(e){}
+}
+function loadColWidths(){
+  var saved=null;
+  try{saved=JSON.parse(localStorage.getItem(COLW_KEY)||'null');}catch(e){}
+  if(!saved||typeof saved!=='object'){
+    // Before this, only Route was resizable and its width lived in its own key.
+    saved={};
+    try{var legacy=parseInt(localStorage.getItem('ml3_routew'),10);
+        if(isFinite(legacy)&&legacy>0)saved.route=legacy;}catch(e){}
+  }
+  for(var c in COLW)if(COLW.hasOwnProperty(c)&&isFinite(saved[c]))applyColWidth(c,saved[c]);
+}
+loadColWidths();
+
+function resizerCol(handle){return (handle&&handle.getAttribute('data-col'))||'route';}
+
 function startColResize(e){
   e.preventDefault();e.stopPropagation();
-  var handle=e.currentTarget;handle.classList.add('dragging');
-  var th=handle.closest('th');
-  var startX=e.clientX, startW=th.getBoundingClientRect().width;
-  function move(ev){
-    var w=Math.max(80,Math.min(700,startW+(ev.clientX-startX)));
-    applyRouteWidth(Math.round(w));
-  }
+  var handle=e.currentTarget, col=resizerCol(handle);
+  handle.classList.add('dragging');
+  document.body.style.cursor='col-resize';
+  var startX=e.clientX, startW=colWidth(col);
+  function move(ev){applyColWidth(col,startW+(ev.clientX-startX));}
   function up(){
     document.removeEventListener('pointermove',move);
     document.removeEventListener('pointerup',up);
     handle.classList.remove('dragging');
-    var cur=getComputedStyle(document.documentElement).getPropertyValue('--route-w').trim();
-    try{localStorage.setItem('ml3_routew',parseInt(cur,10)||140);}catch(e){}
+    document.body.style.cursor='';
+    saveColWidths();
   }
   document.addEventListener('pointermove',move);
   document.addEventListener('pointerup',up);
 }
+
+// Arrow keys once the handle has focus — a drag-only control is unreachable
+// without a mouse, and this table is the part of the app people live in.
+function colResizeKey(e){
+  var col=resizerCol(e.currentTarget), step=e.shiftKey?40:10;
+  if(e.key==='ArrowRight')applyColWidth(col,colWidth(col)+step);
+  else if(e.key==='ArrowLeft')applyColWidth(col,colWidth(col)-step);
+  else if(e.key==='Home'||e.key==='Enter'||e.key===' ')fitCol(col);
+  else return;
+  e.preventDefault();e.stopPropagation();saveColWidths();
+}
+
+// Double-click a divider to widen the column until nothing is cut off — the
+// one gesture that answers "I can't read the whole address".
+function fitCol(col){
+  var cells=colCells(col), widest=0;
+  for(var i=0;i<cells.length;i++){
+    // scrollWidth is the untruncated content width; padding is on the <td>.
+    if(cells[i].scrollWidth>widest)widest=cells[i].scrollWidth;
+  }
+  applyColWidth(col,widest?widest+2:COLW[col]);
+  saveColWidths();
+}
 window.startColResize=startColResize;
+window.colResizeKey=colResizeKey;
+window.fitCol=fitCol;
 
 function saveSet(){
   cfg.rates[2026]=parseFloat(document.getElementById('r2026').value)||0.700;
@@ -4999,8 +5090,8 @@ function renderH(){
   box.innerHTML=sugBanner+`<table>
     <thead><tr>
       <th class="sortable" onclick="sortBy('date')">Date <span class="sort-ind" data-col="date"></span></th>
-      <th class="sortable" onclick="sortBy('route')">Route <span class="sort-ind" data-col="route"></span><span class="col-resizer" onclick="event.stopPropagation()" onpointerdown="startColResize(event)"></span></th>
-      <th class="sortable" onclick="sortBy('purpose')">Purpose <span class="sort-ind" data-col="purpose"></span></th>
+      <th class="sortable" onclick="sortBy('route')">Route <span class="sort-ind" data-col="route"></span><span class="col-resizer" data-col="route" role="separator" aria-orientation="vertical" tabindex="0" aria-label="Resize the Route column. Left and right arrows adjust it, Enter widens it to fit." title="Drag to resize · double-click to fit" onclick="event.stopPropagation()" ondblclick="event.stopPropagation();fitCol('route')" onkeydown="colResizeKey(event)" onpointerdown="startColResize(event)"></span></th>
+      <th class="sortable" onclick="sortBy('purpose')">Purpose <span class="sort-ind" data-col="purpose"></span><span class="col-resizer" data-col="purpose" role="separator" aria-orientation="vertical" tabindex="0" aria-label="Resize the Purpose column. Left and right arrows adjust it, Enter widens it to fit." title="Drag to resize · double-click to fit" onclick="event.stopPropagation()" ondblclick="event.stopPropagation();fitCol('purpose')" onkeydown="colResizeKey(event)" onpointerdown="startColResize(event)"></span></th>
       <th class="sortable" onclick="sortBy('category')">Category <span class="sort-ind" data-col="category"></span></th>
       <th class="sortable" style="text-align:right" onclick="sortBy('miles')">Miles <span class="sort-ind" data-col="miles"></span></th>
       <th class="sortable" style="text-align:right" onclick="sortBy('value')">Value <span class="sort-ind" data-col="value"></span></th>
@@ -5009,7 +5100,7 @@ function renderH(){
     <tbody>${fl.map((t,_i)=>`${_mh(fl,t,_i,sortMode)}<tr style="cursor:pointer" onclick="showTripDetail(${t.id})">
       <td class="mono" style="white-space:nowrap;font-size:12px;color:var(--text2)">${fmt(t.date)}</td>
       <td><div class="route-cell" title="${esc(t.from)}${t.from&&t.to?' → ':''}${esc(t.to)}">${esc(t.from)}${t.from&&t.to?' → ':''}${esc(t.to)}</div></td>
-      <td style="font-size:12px;color:var(--text2);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.purpose)||'—'}</td>
+      <td style="font-size:12px;color:var(--text2)"><div class="cell-clamp cell-purpose" title="${esc(t.purpose)}">${esc(t.purpose)||'—'}</div></td>
       <td><span class="pill ${pc(t.category)}">${esc(t.category)}</span>${(function(){var s=suggestFor(t);return s?'<div style="margin-top:4px;display:flex;align-items:center;gap:4px;font-size:11px;color:#f59e0b;white-space:nowrap">💡 '+esc(s.cat)+'<button class="map-btn" style="padding:1px 7px" title="Apply" onclick="event.stopPropagation();acceptSuggestion('+t.id+','+s.id+')">✓</button><button class="map-btn" style="padding:1px 7px" title="Dismiss" onclick="event.stopPropagation();dismissSuggestion('+t.id+','+s.id+')">✕</button></div>':'';})()}</td>
       <td class="mono" style="text-align:right;font-weight:500">${parseFloat(t.miles||0).toFixed(1)}</td>
       <td class="mono" style="text-align:right;color:${(isCommute(t)&&cfg.commuteExclude)||isPersonal(t)?'var(--text3)':'var(--green)'}">${(isCommute(t)&&cfg.commuteExclude)||isPersonal(t)?'<span style="text-decoration:line-through;opacity:0.5">$'+(parseFloat(t.miles||0)*rate(t.date)).toFixed(2)+'</span> $0.00':'$'+(parseFloat(t.miles||0)*rate(t.date)).toFixed(2)}</td>

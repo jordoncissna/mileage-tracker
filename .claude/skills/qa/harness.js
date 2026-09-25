@@ -1214,6 +1214,107 @@ async function fillLog(page, o) {
     ((rpt || '').match(/Trips with no business purpose recorded[\s\S]{0,90}/) || [''])[0].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').slice(0, 80));
   await rev.close();
 
+  // ── RESIZABLE HISTORY COLUMNS ─────────────────────────────────────────
+  // The owner could not read a full address: Route truncates, and the only
+  // divider was an invisible 9px sliver that no keyboard could reach.
+  const cols = await ctx.newPage();
+  await cols.goto(APP, { waitUntil: 'domcontentloaded' });
+  await cols.waitForTimeout(2300);
+  await ask(cols, () => {
+    try { localStorage.removeItem('ml3_colw'); localStorage.removeItem('ml3_routew'); } catch (e) {}
+    ['authOverlay','onboardOverlay'].forEach(i => { const e = document.getElementById(i); if (e) { e.style.display = 'none'; e.classList.remove('active'); } });
+    window.switchNav('hist', document.getElementById('nav-hist'));
+    return true;
+  }, false);
+  // poll for the ledger rather than sleeping on it
+  for (let i = 0; i < 40; i++) {
+    if (await ask(cols, () => document.querySelectorAll('#htable .route-cell').length > 0, false)) break;
+    await cols.waitForTimeout(150);
+  }
+
+  const grip = await ask(cols, () => {
+    const hs = [].slice.call(document.querySelectorAll('#htable th .col-resizer'));
+    const h = hs.filter(x => x.getAttribute('data-col') === 'route')[0];
+    if (!h) return null;
+    const r = h.getBoundingClientRect(), cs = getComputedStyle(h);
+    return { n: hs.length, cols: hs.map(x => x.getAttribute('data-col')).join(','),
+             visible: cs.backgroundImage !== 'none' && cs.backgroundImage !== '',
+             x: r.left + r.width / 2, y: r.top + r.height / 2 };
+  }, null);
+  R('both truncating columns carry a divider', !!grip && grip.cols === 'route,purpose', grip ? grip.cols : 'no handles');
+  R('the divider is visible before you hover it', !!grip && grip.visible);
+
+  const cellW = () => ask(cols, () => {
+    const c = document.querySelector('#htable .route-cell');
+    return c ? { w: Math.round(c.getBoundingClientRect().width), clipped: c.scrollWidth > c.clientWidth + 1 } : null;
+  }, null);
+  const w0 = await cellW();
+  // Whether these particular seeded addresses overflow depends on the fixture,
+  // so assert the mechanism that truncates them, not this run's data.
+  const clamp = await ask(cols, () => {
+    const c = document.querySelector('#htable .route-cell');
+    if (!c) return null;
+    const cs = getComputedStyle(c);
+    return { ellipsis: cs.textOverflow === 'ellipsis', hidden: cs.overflow === 'hidden',
+             max: parseInt(cs.maxWidth, 10) || 0, title: c.hasAttribute('title') };
+  }, null);
+  R('the Route column is clamped, so a long address truncates instead of stretching the table',
+    !!clamp && clamp.ellipsis && clamp.hidden && clamp.max > 0, JSON.stringify(clamp));
+  R('a truncated address is still readable on hover', !!clamp && clamp.title);
+
+  if (grip && grip.x) {
+    await cols.mouse.move(grip.x, grip.y);
+    await cols.mouse.down();
+    await cols.mouse.move(grip.x + 120, grip.y, { steps: 6 });
+    await cols.mouse.move(grip.x + 240, grip.y, { steps: 6 });
+    await cols.mouse.up();
+  }
+  for (let i = 0; i < 20; i++) { const w = await cellW(); if (w && w0 && w.w - w0.w > 150) break; await cols.waitForTimeout(80); }
+  const w1 = await cellW();
+  R('dragging the divider widens the Route column',
+    !!w0 && !!w1 && (w1.w - w0.w) > 150, `${w0 && w0.w}px -> ${w1 && w1.w}px`);
+
+  // reload immediately, at the speed a person actually refreshes
+  await cols.reload({ waitUntil: 'domcontentloaded' });
+  await cols.waitForTimeout(2300);
+  await ask(cols, () => { ['authOverlay','onboardOverlay'].forEach(i => { const e = document.getElementById(i); if (e) { e.style.display = 'none'; e.classList.remove('active'); } }); window.switchNav('hist', document.getElementById('nav-hist')); return true; }, false);
+  for (let i = 0; i < 40; i++) { if (await ask(cols, () => document.querySelectorAll('#htable .route-cell').length > 0, false)) break; await cols.waitForTimeout(150); }
+  const w2 = await cellW();
+  R('the column width survives a reload',
+    !!w1 && !!w2 && Math.abs(w2.w - w1.w) <= 3, `${w1 && w1.w}px -> ${w2 && w2.w}px`);
+
+  // double-click to fit: the one gesture that answers "let me read the address"
+  const grip2 = await ask(cols, () => {
+    const h = document.querySelector('#htable th .col-resizer[data-col="route"]');
+    if (!h) return null; const r = h.getBoundingClientRect();
+    return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+  }, null);
+  if (grip2 && grip2.x) { await cols.mouse.dblclick(grip2.x, grip2.y); }
+  for (let i = 0; i < 20; i++) { const w = await cellW(); if (w && !w.clipped) break; await cols.waitForTimeout(80); }
+  const fit = await ask(cols, () => {
+    const c = [].slice.call(document.querySelectorAll('#htable .route-cell'));
+    return { n: c.length, clipped: c.filter(x => x.scrollWidth > x.clientWidth + 1).length };
+  }, null);
+  R('double-clicking the divider shows every address in full',
+    !!fit && fit.n > 0 && fit.clipped === 0, JSON.stringify(fit));
+
+  // keyboard: a drag-only control is unusable without a mouse
+  const k0 = await ask(cols, () => { const h = document.querySelector('#htable th .col-resizer[data-col="purpose"]'); if (!h) return null; h.focus(); const c = document.querySelector('#htable .cell-purpose'); return c ? Math.round(c.getBoundingClientRect().width) : null; }, null);
+  await cols.keyboard.press('ArrowRight').catch(() => {});
+  await cols.keyboard.press('ArrowRight').catch(() => {});
+  await cols.waitForTimeout(200);
+  const k1 = await ask(cols, () => { const c = document.querySelector('#htable .cell-purpose'); return c ? Math.round(c.getBoundingClientRect().width) : null; }, null);
+  R('arrow keys resize a focused divider', typeof k0 === 'number' && typeof k1 === 'number' && k1 > k0,
+    `purpose ${k0}px -> ${k1}px`);
+
+  // grabbing the divider must not trigger the sort underneath it
+  const order0 = await ask(cols, () => [].slice.call(document.querySelectorAll('#htable .route-cell')).map(c => c.textContent.trim()).join('|'), '');
+  const grip3 = await ask(cols, () => { const h = document.querySelector('#htable th .col-resizer[data-col="route"]'); if (!h) return null; const r = h.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; }, null);
+  if (grip3 && grip3.x) { await cols.mouse.move(grip3.x, grip3.y); await cols.mouse.down(); await cols.mouse.move(grip3.x + 20, grip3.y, { steps: 3 }); await cols.mouse.up(); await cols.waitForTimeout(200); }
+  const order1 = await ask(cols, () => [].slice.call(document.querySelectorAll('#htable .route-cell')).map(c => c.textContent.trim()).join('|'), '');
+  R('grabbing the divider does not re-sort the ledger', order0 === order1 && order0 !== '');
+  await cols.close();
+
   await browser.close();
   const bad = results.filter(r => !r.ok);
   results.forEach(r => console.log((r.ok ? '  ok  ' : 'FAIL  ') + r.name + (r.note ? '   [' + r.note + ']' : '')));

@@ -5,6 +5,42 @@ if a change doesn't alter what you see or what you can trust, it isn't here.
 
 ---
 
+## Drag the History columns wider, so you can read the whole address
+
+The Route column cut every address off at `Syracuse → 2…`. There *was* a
+divider you could drag, but it was an invisible nine-pixel sliver at the edge of
+the Route heading — no line, no cursor hint until you were already on top of
+it. Effectively it didn't exist.
+
+Now **Route and Purpose each have a visible divider** in the column heading.
+
+- **Drag it** left or right to set the width. It sticks, on that device, across
+  reloads.
+- **Double-click it** to widen the column until nothing is cut off — one
+  gesture, every address in full. This is the fast way.
+- **Or use the keyboard**: tab to a divider and use ← and → (hold Shift for
+  bigger steps), Enter to fit.
+- Grabbing a divider no longer re-sorts the column underneath it.
+
+Two columns, not six. Date, Category, Miles and Value are already sized to their
+own contents and never clip anything, so a divider there would be a control that
+does nothing. If you'd rather not resize at all, hovering a cut-off address
+still shows it in full, and the width you had before this update is preserved.
+
+## The sign-in screen stopped asking for a file that was never there
+
+The login background was wired up to load `assets/login-bg.jpg` — a photo slot
+that has been empty since it was added. CSS has no way to say "use this image
+only if it exists", so every single visit to the sign-in screen fired a request
+for it and got a 404 back. Nothing looked broken (the night-city gradient was
+always the fallback), but it was a wasted round trip on the first screen anyone
+sees, and a red line in the browser console.
+
+The photo layer is now switched off until there's a photo. Drop a JPG at
+`assets/login-bg.jpg` and follow the two-line instruction in `assets/README.md`
+to turn it back on. A test now fails if the app ever again points at an image
+file that isn't in the repo.
+
 ## A review queue for trips missing their business purpose
 
 The IRS asks for four things per trip: the date, where you went, **why**, and

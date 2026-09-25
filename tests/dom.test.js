@@ -20,7 +20,10 @@ const store = {};
 window.localStorage = { getItem: k => k in store ? store[k] : null, setItem: (k, v) => { store[k] = String(v); }, removeItem: k => { delete store[k]; }, clear: () => { for (const k in store) delete store[k]; } };
 
 const inline = html.match(/<script>([\s\S]*?)<\/script>/g).pop().replace(/^<script>/, '').replace(/<\/script>$/, '');
-const runner = new window.Function(inline + '\n;window.__clearF=clearF;window.__addTrip=addTrip;window.__trips=()=>trips;window.__renderH=renderH;window.__renderAnalytics=renderAnalytics;window.__showTip=showChartTip;window.__logEndpoints=logRouteEndpoints;window.renderHome=renderHome;');
+const runner = new window.Function(inline + '\n;window.__clearF=clearF;window.__addTrip=addTrip;window.__trips=()=>trips;window.__renderH=renderH;window.__renderAnalytics=renderAnalytics;window.__showTip=showChartTip;window.__logEndpoints=logRouteEndpoints;window.renderHome=renderHome;'
+  // Column-resize plumbing. Wrapped so a renamed function degrades into a
+  // failing assertion below instead of silently skipping the whole block.
+  + '\n;try{window.__colw={apply:applyColWidth,stored:storedColWidth,width:colWidth,save:saveColWidths,load:loadColWidths,defaults:COLW,MIN:COLW_MIN,MAX:COLW_MAX,KEY:COLW_KEY};}catch(e){window.__colw=null;}');
 try { runner.call(window); } catch (e) { console.log('init threw (often benign):', e.message); }
 
 let pass = 0, fail = 0;
@@ -710,6 +713,115 @@ T('sign out moved to settings foot', document.querySelector('.set-foot .signout-
     /delete from public\.trips where user_id = uid/.test(daSql));
   T('and that using Milo from abroad transfers data there', /transferred to and stored in the United States/.test(priv));
 
+
+  // ===== RESIZABLE HISTORY COLUMNS =====
+  // The owner could not read a full address: the Route column truncates and the
+  // only divider was a 9px invisible sliver with no data-col and no tab stop.
+  const cw = window.__colw;
+  T('the column-resize functions are reachable under their documented names', !!cw);
+  if (cw) {
+    const rootStyle = document.documentElement.style;
+    const varOf = c => rootStyle.getPropertyValue('--cw-' + c);
+
+    T('Route and Purpose are the resizable columns',
+      Object.keys(cw.defaults).sort().join(',') === 'purpose,route');
+
+    cw.apply('route', 5);
+    T('a column cannot be dragged narrower than its minimum', varOf('route') === cw.MIN + 'px');
+    cw.apply('route', 99999);
+    T('a column cannot be dragged wider than its maximum', varOf('route') === cw.MAX + 'px');
+    cw.apply('route', 412.6);
+    T('a width is stored as whole pixels', varOf('route') === '413px');
+    T('storedColWidth reads back exactly what was applied', cw.stored('route') === 413);
+
+    // A handle on a column that has no width var must not invent one.
+    const beforeMiles = rootStyle.getPropertyValue('--cw-miles');
+    cw.apply('miles', 300);
+    T('an unknown column is ignored rather than given a width',
+      rootStyle.getPropertyValue('--cw-miles') === beforeMiles);
+
+    // Untouched columns must stay content-sized, or every ledger suddenly
+    // gets a 240px Purpose column whether or not it needs one.
+    // NB: `store` above is decorative — window.localStorage is a getter-only
+    // accessor in jsdom, so that assignment silently did nothing and the app
+    // has always written to jsdom's own storage. Read it from there.
+    const LS = window.localStorage;
+    rootStyle.removeProperty('--cw-purpose');
+    cw.save();
+    let saved = JSON.parse(LS.getItem(cw.KEY) || '{}');
+    T('saving records the column that was dragged', saved.route === 413);
+    T('saving leaves an untouched column out entirely', !('purpose' in saved));
+
+    // Anyone who had dragged Route before this change keeps their width.
+    rootStyle.removeProperty('--cw-route');
+    LS.removeItem(cw.KEY);
+    LS.setItem('ml3_routew', '333');
+    cw.load();
+    T('a Route width saved by the previous version still applies', cw.stored('route') === 333);
+
+    // And a stored pair round-trips.
+    cw.apply('route', 260); cw.apply('purpose', 300); cw.save();
+    rootStyle.removeProperty('--cw-route'); rootStyle.removeProperty('--cw-purpose');
+    cw.load();
+    T('both widths come back after a reload', cw.stored('route') === 260 && cw.stored('purpose') === 300);
+
+    // A corrupt value must not wedge the table at 0px wide.
+    LS.setItem(cw.KEY, '{"route":"banana"}');
+    LS.removeItem('ml3_routew');
+    rootStyle.removeProperty('--cw-route');
+    cw.load();
+    T('a corrupt stored width is ignored, not applied', cw.stored('route') === 0);
+    LS.setItem(cw.KEY, 'not json at all');
+    rootStyle.removeProperty('--cw-route');
+    let threw = false;
+    try { cw.load(); } catch (e) { threw = true; }
+    T('unreadable storage does not throw on load', !threw);
+    LS.removeItem(cw.KEY); LS.removeItem('ml3_routew');
+    rootStyle.removeProperty('--cw-route'); rootStyle.removeProperty('--cw-purpose');
+  }
+
+  // The rendered table is where the handles have to actually be.
+  window.__renderH();
+  const htable = $('htable');
+  const grips = [].slice.call(htable.querySelectorAll('th .col-resizer'));
+  T('History renders a divider on each resizable column',
+    grips.map(g => g.getAttribute('data-col')).join(',') === 'route,purpose');
+  T('a divider is reachable by keyboard', grips.length > 0 && grips.every(g => g.getAttribute('tabindex') === '0'));
+  T('a divider announces itself as a separator',
+    grips.length > 0 && grips.every(g => g.getAttribute('role') === 'separator' &&
+      (g.getAttribute('aria-label') || '').length > 10));
+  T('grabbing a divider does not sort the column underneath it',
+    grips.length > 0 && grips.every(g => /stopPropagation/.test(g.getAttribute('onclick') || '')));
+  T('a divider offers double-click to fit',
+    grips.length > 0 && grips.every(g => /fitCol\(/.test(g.getAttribute('ondblclick') || '')));
+  T('a divider handles keys as well as the pointer',
+    grips.length > 0 && grips.every(g => /colResizeKey\(/.test(g.getAttribute('onkeydown') || '') &&
+      /startColResize\(/.test(g.getAttribute('onpointerdown') || '')));
+  T('the resize handlers are exposed on window for the inline attributes',
+    typeof window.startColResize === 'function' && typeof window.colResizeKey === 'function' &&
+    typeof window.fitCol === 'function');
+  T('Purpose clamps on a block inside the cell, which is the only place it works',
+    htable.querySelectorAll('td .cell-purpose').length === htable.querySelectorAll('td .route-cell').length &&
+    htable.querySelectorAll('td .route-cell').length > 0);
+  T('a truncated Route still shows in full on hover',
+    [].slice.call(htable.querySelectorAll('td .route-cell')).every(c => c.hasAttribute('title')));
+  T('a truncated Purpose still shows in full on hover',
+    [].slice.call(htable.querySelectorAll('td .cell-purpose')).every(c => c.hasAttribute('title')));
+
+  // ===== NO MISSING ASSETS ON THE SIGN-IN SCREEN =====
+  // Naming a file that isn't there costs every visitor a 404 on the first
+  // screen they see, and CSS has no way to say "only if it exists".
+  const cssNoComments = html.replace(/\/\*[\s\S]*?\*\//g, '');
+  const urlRefs = (cssNoComments.match(/url\(\s*['"]?(assets\/[^'")]+)/g) || [])
+    .map(m => m.replace(/^url\(\s*['"]?/, ''));
+  const imgRefs = (cssNoComments.match(/(?:src|href)=["'](assets\/[^"']+)["']/g) || [])
+    .map(m => m.replace(/^(?:src|href)=["']/, '').replace(/["']$/, ''));
+  const missing = urlRefs.concat(imgRefs).filter((v, i, a) => a.indexOf(v) === i)
+    .filter(f => !fs.existsSync(path.join(root, f)));
+  T('index.html references no asset file that is not in the repo' +
+    (missing.length ? ' (missing: ' + missing.join(', ') + ')' : ''), missing.length === 0);
+  T('the optional login background is documented where the file would go',
+    /login-bg\.jpg/.test(fs.readFileSync(path.join(root, 'assets', 'README.md'), 'utf8')));
 
   console.log(`\ndom.test.js: ${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);
