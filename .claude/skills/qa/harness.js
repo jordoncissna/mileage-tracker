@@ -9,7 +9,11 @@
 // tiles is out of scope here and must be reported as unverified.
 // playwright-core lives with the test suite so this harness needs no install of its own
 const { chromium } = require(require('path').resolve(__dirname, '../../../tests/node_modules/playwright-core'));
-const APP = 'file://' + require('path').resolve(__dirname, '../../../index.html');
+// CLAUDE.md warns that file:// is not the deployed origin and can make the
+// script throw during init. Default to it for a zero-setup run, but allow the
+// same checks to be pointed at a real server:
+//   python3 -m http.server 8899 & MILO_URL=http://127.0.0.1:8899/index.html node harness.js
+const APP = process.env.MILO_URL || ('file://' + require('path').resolve(__dirname, '../../../index.html'));
 
 const results = [];
 const R = (name, ok, note = '') => { results.push({ name, ok: !!ok, note }); };
@@ -1314,6 +1318,56 @@ async function fillLog(page, o) {
   const order1 = await ask(cols, () => [].slice.call(document.querySelectorAll('#htable .route-cell')).map(c => c.textContent.trim()).join('|'), '');
   R('grabbing the divider does not re-sort the ledger', order0 === order1 && order0 !== '');
   await cols.close();
+
+  // ── LEAVING THE LOG WINDOW BY THE PHONE'S BOTTOM NAV ──────────────────
+  // The mobile nav is z-index 998, above the overlay's 200 — deliberately, the
+  // overlay reserves 86px of bottom padding for it. So the tab is tappable
+  // while logging, and used to switch the view *underneath* a window that
+  // never closed, leaving the ledger unreachable behind it.
+  const ph = await ctx.newPage();
+  await ph.setViewportSize({ width: 390, height: 844 });
+  await ph.route(/googleapis|gstatic|jsdelivr/, r => r.abort());
+  await ph.goto(APP, { waitUntil: 'domcontentloaded' });
+  await ph.waitForTimeout(2300);
+  await ask(ph, () => { ['authOverlay','onboardOverlay'].forEach(i => { const e = document.getElementById(i); if (e) { e.style.display = 'none'; e.classList.remove('active'); } }); if (window.initGoogleMaps) window.initGoogleMaps(); return true; }, false);
+  await ph.waitForTimeout(1200);
+  await ask(ph, () => { window.openLogOverlay && window.openLogOverlay(); return true; }, false);
+  await ph.waitForTimeout(500);
+  const tab = await ask(ph, () => {
+    const el = document.querySelector('.mobile-bottom-nav [data-nav="hist"]');
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    const t = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    return { x: r.left + r.width / 2, y: r.top + r.height / 2,
+             reachable: !!(t && (t === el || el.contains(t))),
+             open: getComputedStyle(document.getElementById('logOverlay')).display !== 'none' };
+  }, null);
+  R('the log window opens on a phone', !!tab && tab.open, JSON.stringify(tab));
+  R('the History tab stays tappable while the log window is open', !!tab && tab.reachable, JSON.stringify(tab));
+  if (tab && tab.reachable) { await ph.mouse.click(tab.x, tab.y); await ph.waitForTimeout(700); }
+  const left = await ask(ph, () => ({
+    overlay: getComputedStyle(document.getElementById('logOverlay')).display,
+    view: (() => { for (const v of ['home','hist','analytics','set']) { const e = document.getElementById('view-' + v); if (e && getComputedStyle(e).display !== 'none') return v; } return '?'; })(),
+    ledger: (() => { const t = document.getElementById('htable'); if (!t) return 'none'; const r = t.getBoundingClientRect();
+      if (r.width === 0) return 'none';
+      const e = document.elementFromPoint(r.left + r.width / 2, Math.max(1, r.top + 20));
+      return e ? (e.closest('#logOverlay') ? 'BLOCKED by log window' : 'visible') : 'nothing'; })()
+  }), null);
+  R('tapping a tab closes the log window rather than navigating behind it',
+    !!left && left.overlay === 'none', JSON.stringify(left));
+  R('and the ledger it navigated to is actually visible',
+    !!left && left.view === 'hist' && left.ledger === 'visible', JSON.stringify(left));
+
+  // Leaving must not throw away a half-typed trip.
+  await ask(ph, () => { window.openLogOverlay && window.openLogOverlay(); const el = document.getElementById('tPurpose'); if (el) el.value = 'Half-written'; return true; }, false);
+  await ph.waitForTimeout(300);
+  await ask(ph, () => { window.switchNav('home', document.getElementById('nav-home')); return true; }, false);
+  await ph.waitForTimeout(400);
+  await ask(ph, () => { window.openLogOverlay && window.openLogOverlay(); return true; }, false);
+  await ph.waitForTimeout(300);
+  R('leaving mid-entry keeps the draft for when you come back',
+    (await ask(ph, () => (document.getElementById('tPurpose') || {}).value, null)) === 'Half-written');
+  await ph.close();
 
   await browser.close();
   const bad = results.filter(r => !r.ok);

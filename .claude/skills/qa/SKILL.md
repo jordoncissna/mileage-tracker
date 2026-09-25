@@ -68,7 +68,19 @@ Chromium and click the real controls:
 
 ```bash
 node .claude/skills/qa/harness.js        # boots index.html with Supabase + Maps stubbed
+
+# and the same checks against a real origin, which is what ships:
+python3 -m http.server 8899 --bind 127.0.0.1 &
+MILO_URL=http://127.0.0.1:8899/index.html node .claude/skills/qa/harness.js
+node .claude/skills/qa/journey.js        # one continuous user story over HTTP
 ```
+
+`journey.js` is the end-to-end pass: one person, one session — arrive signed
+out, log a trip, hit the duplicate guard, widen a column, export, print the tax
+report, correct a trip, delete one, reload at every step, then do it again at
+390px. It exists because isolated checks kept passing while the *sequence* was
+broken: the log window staying open behind a tab switch was found by walking
+the story, not by any single assertion.
 
 Rules for browser checks:
 - Never assert on a fixed `waitForTimeout` for something the app draws

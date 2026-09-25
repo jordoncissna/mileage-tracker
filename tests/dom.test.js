@@ -823,6 +823,34 @@ T('sign out moved to settings foot', document.querySelector('.set-foot .signout-
   T('the optional login background is documented where the file would go',
     /login-bg\.jpg/.test(fs.readFileSync(path.join(root, 'assets', 'README.md'), 'utf8')));
 
+  // ===== LEAVING THE LOG WINDOW BY THE NAV =====
+  // On a phone the bottom nav sits at z-index 998, above the log overlay's 200
+  // — deliberately, since the overlay reserves 86px of bottom padding for it.
+  // So a tap on History while logging navigates underneath a window that never
+  // closes, and the ledger is unreachable behind it.
+  T('the app exposes the log window controls', typeof window.openLogOverlay === 'function' &&
+    typeof window.switchNav === 'function');
+  if (typeof window.openLogOverlay === 'function' && typeof window.switchNav === 'function') {
+    const ov = $('logOverlay');
+    window.openLogOverlay();
+    T('the log window opens', ov && ov.style.display !== 'none');
+    window.switchNav('hist', $('nav-hist'));
+    T('switching views closes the log window instead of leaving it on top',
+      ov && ov.style.display === 'none');
+    T('and the view behind it really did change', $('view-hist').classList.contains('on'));
+
+    // Leaving must not throw away what was typed — the draft is still in the
+    // inputs when the window is reopened.
+    window.openLogOverlay();
+    $('tPurpose').value = 'Half-written purpose';
+    window.switchNav('home', $('nav-home'));
+    T('leaving mid-entry does not wipe the draft', $('tPurpose').value === 'Half-written purpose');
+    window.openLogOverlay();
+    T('reopening shows the draft again', $('tPurpose').value === 'Half-written purpose');
+    window.switchNav('hist', $('nav-hist'));
+    $('tPurpose').value = '';
+  }
+
   console.log(`\ndom.test.js: ${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);
 })();

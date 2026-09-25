@@ -196,9 +196,19 @@ reported passed them. Before calling anything done, follow `.claude/skills/qa/`
 (`SKILL.md` for the protocol, `harness.js` for the browser pass):
 
 ```bash
-cd tests && npm test              # 4 suites, jsdom
-node .claude/skills/qa/harness.js # real Chromium, real clicks, real reloads
+cd tests && npm test               # 4 suites, jsdom
+node .claude/skills/qa/harness.js  # real Chromium, real clicks, real reloads
+
+# and over a real origin, which is what actually ships:
+python3 -m http.server 8899 --bind 127.0.0.1 &
+MILO_URL=http://127.0.0.1:8899/index.html node .claude/skills/qa/harness.js
+node .claude/skills/qa/journey.js  # one continuous user story, end to end
 ```
+
+`harness.js` defaults to `file://` for a zero-setup run; `MILO_URL` points the
+same checks at a server. `journey.js` is the end-to-end pass and is HTTP-only —
+it walks one person through arriving signed out, logging, exporting, correcting,
+deleting and reloading, then repeats it at 390px.
 
 ## Plans
 

@@ -5217,6 +5217,13 @@ async function deleteAccount(){
 window.deleteAccount=deleteAccount;
 
 function switchNav(name,el){
+  // The mobile bottom nav sits at z-index 998, above the log overlay's 200 —
+  // deliberately, since the overlay reserves 86px of bottom padding for it. So
+  // a tap on History while logging used to change the view *underneath* a
+  // window that never closed, leaving the ledger unreachable behind it. Going
+  // somewhere means leaving; closeLogOverlay() keeps what was typed, so
+  // reopening still shows the draft.
+  if(name!=='log'&&typeof logOverlayOpen==='function'&&logOverlayOpen())closeLogOverlay();
   document.querySelectorAll('.np').forEach(b=>b.classList.remove('on'));
   if(el)el.classList.add('on');
   // Also sync top nav button by ID if el not provided

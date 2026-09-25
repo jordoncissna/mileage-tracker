@@ -5,6 +5,24 @@ if a change doesn't alter what you see or what you can trust, it isn't here.
 
 ---
 
+## On a phone, tapping a tab while logging left you staring at the log window
+
+Found during a full end-to-end pass, reproduced with real taps at phone size.
+
+Open **Log Trip**, change your mind, tap **History** in the bottom bar. The
+History view loaded — but the log window stayed on top of it, covering the
+whole screen. Nothing looked like it had happened. The ledger was there, behind
+a window that had no reason to still be open, and the only way out was finding
+the ✕.
+
+The bottom bar sits above the log window on purpose, so the tab was genuinely
+tappable — it just navigated underneath. **Now going somewhere means leaving:
+switching views closes the log window.** What you had already typed is kept, so
+reopening it shows your half-finished trip exactly as you left it.
+
+Desktop was never affected — the log window covers the side rail there, so you
+could not click a tab in the first place.
+
 ## Drag the History columns wider, so you can read the whole address
 
 The Route column cut every address off at `Syracuse → 2…`. There *was* a
