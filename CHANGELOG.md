@@ -5,6 +5,17 @@ if a change doesn't alter what you see or what you can trust, it isn't here.
 
 ---
 
+## The Privacy Policy named the wrong half of the country
+
+It told users their records were on servers in the **United States (US West)**.
+The Supabase project is in **us-east-1 — Northern Virginia**, which is US East.
+
+Nothing moved and no data was ever anywhere unexpected; the policy was simply
+describing it wrong. But where personal data physically sits is a factual claim
+in a legal document, and one a regulator or a cautious customer will check. It
+now says East, and a test fails if the page ever drifts from the real region
+again.
+
 ## On a phone, tapping a tab while logging left you staring at the log window
 
 Found during a full end-to-end pass, reproduced with real taps at phone size.

@@ -691,7 +691,13 @@ T('sign out moved to settings foot', document.querySelector('.set-foot .signout-
 
   // GDPR: where the data physically lives has to be stated
   const priv = fs.readFileSync(path.join(root, 'privacy.html'), 'utf8');
-  T('the privacy policy says where data is stored', /United States \(US West\)/.test(priv));
+  // The region is a factual claim in a legal document: it must match the
+  // Supabase project's actual region, which is us-east-1 (Northern Virginia).
+  // It said "US West" until 2026-10 — wrong, and the kind of wrong a regulator
+  // reads as carelessness about where personal data lives.
+  T('the privacy policy says where data is stored',
+    /United States \(US East, Northern Virginia\)/.test(priv));
+  T('and it does not still claim the old, wrong region', !/US West/.test(priv));
   // erasure has to be self-serve, not an email to the founder
   T('the privacy policy points at the in-app deletion', /Settings . Delete my account/.test(priv));
   T('the privacy policy no longer says to email for deletion',
