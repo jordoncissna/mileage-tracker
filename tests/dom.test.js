@@ -857,6 +857,39 @@ T('sign out moved to settings foot', document.querySelector('.set-foot .signout-
     $('tPurpose').value = '';
   }
 
+  // ===== THE LEGAL PAGES HAVE TO BE REACHABLE FROM THE APP =====
+  // terms.html §1 says creating an account is agreement to the Terms. That
+  // claim is only honest if the Terms are (a) stated at signup and (b) still
+  // findable afterwards. Settings linked the Privacy Policy alone, so the one
+  // document users were told they accepted was unreachable once signed in.
+  const legal = $('authLegal');
+  T('signup states that creating an account accepts the Terms', !!legal &&
+    /creating an account you agree/i.test(legal.textContent));
+  T('and that statement links both documents', !!legal &&
+    !!legal.querySelector('a[href="terms.html"]') && !!legal.querySelector('a[href="privacy.html"]'));
+  T('it is hidden while signing in, so only new accounts see it',
+    !!legal && legal.style.display === 'none');
+
+  const setView = $('view-set');
+  T('Settings links the Privacy Policy', !!setView && !!setView.querySelector('a[href="privacy.html"]'));
+  T('Settings links the Terms, not just the Privacy Policy',
+    !!setView && !!setView.querySelector('a[href="terms.html"]'));
+  T('Settings links the FAQ', !!setView && !!setView.querySelector('a[href="faq.html"]'));
+
+  // Every legal link must open a file that exists, or it is worse than absent.
+  const legalHrefs = [].slice.call(document.querySelectorAll('a[href$=".html"]'))
+    .map(a => a.getAttribute('href'))
+    .filter(h => /^(privacy|terms|faq)\.html$/.test(h))
+    .filter((v, i, a) => a.indexOf(v) === i);
+  T('the app links all three legal pages' + ' (' + legalHrefs.sort().join(', ') + ')',
+    legalHrefs.length === 3);
+  T('every legal page the app links actually exists',
+    legalHrefs.every(h => fs.existsSync(path.join(root, h))));
+  // They open in a new tab, so a half-written trip is not lost to a back button.
+  T('legal links open in a new tab without leaking the opener',
+    [].slice.call(document.querySelectorAll('a[href="terms.html"], a[href="privacy.html"], a[href="faq.html"]'))
+      .every(a => a.getAttribute('target') === '_blank' && /noopener/.test(a.getAttribute('rel') || '')));
+
   console.log(`\ndom.test.js: ${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);
 })();

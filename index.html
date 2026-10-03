@@ -1498,6 +1498,7 @@ body:not(.light) .offline-pill{color:#fbbf24;}
     <div id="pwdStrength" style="display:none;font-size:11px;padding:8px 12px;border-radius:8px;background:rgba(0,0,0,0.25);line-height:1.5;"></div>
     <div class="auth-error" id="authError"></div>
     <div class="auth-forgot" id="forgotToggle">Forgot Password?</div>
+    <div id="authLegal" style="display:none;font-size:11px;color:var(--text3);line-height:1.55;text-align:center;margin:2px 0 4px">By creating an account you agree to the <a href="terms.html" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline">Terms</a> and the <a href="privacy.html" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline">Privacy Policy</a>.</div>
     <button class="btn btn-primary" id="authBtn" style="width:100%;justify-content:center">Sign in</button>
     <div class="auth-divider"><span>Or continue with:</span></div>
     <div class="auth-social">
@@ -2148,7 +2149,7 @@ body:not(.light) .offline-pill{color:#fbbf24;}
           <button class="btn btn-primary" id="changePwdBtn" style="width:100%">Change Password</button>
           <div id="changePwdMsg" style="font-size:12px;margin-top:10px;display:none"></div>
           <button class="btn" onclick="startOnboarding()" style="width:100%;margin-top:10px">↻ Replay the welcome tour</button>
-          <div style="margin-top:10px;text-align:center"><a href="privacy.html" target="_blank" rel="noopener" style="font-size:11.5px;color:var(--text3)">Privacy Policy</a></div>
+          <div style="margin-top:10px;text-align:center;font-size:11.5px;color:var(--text3)"><a href="privacy.html" target="_blank" rel="noopener" style="color:inherit">Privacy Policy</a> &middot; <a href="terms.html" target="_blank" rel="noopener" style="color:inherit">Terms</a> &middot; <a href="faq.html" target="_blank" rel="noopener" style="color:inherit">FAQ</a></div>
           <div class="set-foot"><span>Milo v2 · data syncs via Supabase</span><span class="signout-red" onclick="var b=document.getElementById('signOutBtn');if(b)b.click()">Sign out</span></div>
           <button class="btn btn-primary" onclick="openInviteModal()" style="width:100%;margin-top:8px">📨 Invite a coworker</button>
           <div id="planNote" style="font-size:11px;color:var(--text3);margin-top:8px;text-align:center"></div>
@@ -7079,6 +7080,7 @@ window.addEventListener('DOMContentLoaded',function(){
   var _aPwd2=document.getElementById('authPasswordConfirm');
   var _aTog=document.getElementById('authToggle');
   var _aConfirm=document.getElementById('confirmPasswordField');
+  var _aLegal=document.getElementById('authLegal');
   var _aStr=document.getElementById('pwdStrength');
   var _aErr=document.getElementById('authError');
   var _aForgot=document.getElementById('forgotToggle');
@@ -7090,6 +7092,7 @@ window.addEventListener('DOMContentLoaded',function(){
     if(_aBtn)_aBtn.textContent=isSignUp?'Create account':'Sign in';
     if(_aTog)_aTog.textContent=isSignUp?'Already have an account? Sign in':"Don't have an account? Sign up";
     if(_aConfirm)_aConfirm.style.display=isSignUp?'flex':'none';
+    if(_aLegal)_aLegal.style.display=isSignUp?'block':'none';
     if(_aStr)_aStr.style.display=isSignUp?'block':'none';
     if(_aErr)_aErr.style.display='none';
     if(_aForgot)_aForgot.style.display=isSignUp?'none':'block';

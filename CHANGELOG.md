@@ -5,6 +5,29 @@ if a change doesn't alter what you see or what you can trust, it isn't here.
 
 ---
 
+## The Terms were unreachable from inside the app
+
+The Terms say, in section 1, that creating an account means you agree to them.
+That was only half true in practice: the Terms were linked on the sign-in
+screen, but **once you were signed in there was no way to find them anywhere**
+— Settings linked the Privacy Policy and nothing else. The FAQ wasn't linked
+from the app at all.
+
+And nothing at signup ever said what you were agreeing to. The links sat in a
+footer under the card; the form itself was silent.
+
+Three fixes:
+
+- **Signing up now says so**, in a line above the Create account button: *"By
+  creating an account you agree to the Terms and the Privacy Policy"*, with both
+  linked. It appears only when you're creating an account, not when signing in.
+- **Settings links all three** — Privacy Policy, Terms, FAQ.
+- All of them open in a new tab, so following one never costs you a half-typed
+  trip.
+
+Nothing in the documents changed. They were simply hard to find, which is a poor
+look for the one page that tells you what we do with your mileage records.
+
 ## The Privacy Policy named the wrong half of the country
 
 It told users their records were on servers in the **United States (US West)**.
