@@ -61,38 +61,61 @@
   location permission, which doesn't exist yet.</p>
   <p><strong>But your car can tell Milo</strong>, and the next answer explains how.</p>
 
-  <h3 id="carplay">Can my iPhone fill the trip in for me when I park?</h3>
-  <p>Yes — with a Shortcut, and it takes about two minutes to set up once. When your car
-  disconnects, your phone grabs where you are and opens Milo with the trip already filled in. You
-  check it and press Save. <strong>You still press Save</strong>: nothing is ever written to your
-  log without you seeing it.</p>
+  <h3 id="carplay">Can my phone notice when I'm driving and handle the trip?</h3>
+  <p>Close. Your phone can't hand Milo a drive on its own — but <strong>your car can tell it when
+  you set off and when you arrive</strong>, using two Shortcuts you set up once. You get a
+  notification as you pull away, and when you park, Milo opens with the whole trip already worked
+  out: both addresses, the date, and the driving distance. You add why you went and press Save.</p>
+  <p><strong>You always press Save.</strong> Nothing is ever written to your log without you seeing
+  it.</p>
+
+  <h4>Shortcut 1 — when you get in (captures where you started)</h4>
   <ol>
-    <li>Open <strong>Shortcuts</strong> → the <strong>Automation</strong> tab → <strong>+</strong>.</li>
-    <li>Pick <strong>CarPlay</strong> and choose <em>Disconnects</em>. No CarPlay? Pick
-      <strong>Bluetooth</strong> and choose your car, <em>Disconnects</em>.</li>
-    <li>Set it to run immediately, without asking you first.</li>
-    <li>Add these actions, in order:
+    <li><strong>Shortcuts</strong> → <strong>Automation</strong> → <strong>+</strong>.</li>
+    <li>Pick <strong>CarPlay</strong> → <em>Connects</em>. No CarPlay? Use <strong>Bluetooth</strong>
+      → your car → <em>Connects</em>.</li>
+    <li>Set it to run immediately, without asking.</li>
+    <li>Actions, in order:
       <ul>
         <li><strong>Get Current Location</strong></li>
-        <li><strong>Get Details of Location</strong> → choose <em>Address</em></li>
-        <li><strong>URL Encode</strong> that address <em>(this step matters — addresses contain
-          spaces and commas, which break a web link if they aren't encoded)</em></li>
-        <li><strong>Text</strong>, set to:<br>
-          <code>https://jordoncissna.github.io/mileage-tracker/?log=1&amp;to=</code> followed by the
-          encoded address</li>
-        <li><strong>Open URLs</strong>, using that text</li>
+        <li><strong>Get Details of Location</strong> → <em>Address</em></li>
+        <li><strong>Save File</strong> — into iCloud Drive, name it <code>milo-start.txt</code>,
+          and turn <em>Ask Where to Save</em> off and <em>Overwrite</em> on</li>
+        <li><strong>Show Notification</strong> — "Milo: trip started" <em>(this is the heads-up
+          that it's working — leave it out once you trust it)</em></li>
       </ul>
     </li>
   </ol>
-  <p>Apple moves these action names around between iOS versions, so yours may read slightly
-  differently — the shape is always the same: get location, turn it into an address, encode it, open
-  the link.</p>
-  <p>You can add more to the link if you want: <code>&amp;from=</code> a starting address,
-  <code>&amp;miles=</code> a distance, <code>&amp;date=</code> as <code>2026-06-02</code>,
-  <code>&amp;purpose=</code> and <code>&amp;cat=</code> for the category. Anything Milo can't make
-  sense of is ignored rather than guessed at, and the trip never stays in your browser history.</p>
-  <p>Android: the same idea works with any automation app that can open a web link when your car's
-  Bluetooth disconnects.</p>
+
+  <h4>Shortcut 2 — when you get out (finishes the trip)</h4>
+  <ol>
+    <li>Another automation, same trigger, but <em>Disconnects</em>.</li>
+    <li>Actions, in order:
+      <ul>
+        <li><strong>Get File</strong> → <code>milo-start.txt</code></li>
+        <li><strong>URL Encode</strong> it → call the result <em>Start</em></li>
+        <li><strong>Get Current Location</strong> → <strong>Get Details of Location</strong> →
+          <em>Address</em> → <strong>URL Encode</strong> → call it <em>End</em></li>
+        <li><strong>Text</strong>:<br>
+          <code>https://jordoncissna.github.io/mileage-tracker/?log=1&amp;from=</code><em>Start</em><code>&amp;to=</code><em>End</em></li>
+        <li><strong>Open URLs</strong></li>
+      </ul>
+    </li>
+  </ol>
+  <p><strong>Don't send a mileage figure.</strong> Given both ends, Milo asks Google for the real
+  driving route and fills the distance in itself — more accurate than anything a Shortcut can work
+  out, and the round-trip figure is right there if you drove back.</p>
+  <p>The <strong>URL Encode</strong> steps matter: addresses contain spaces and commas, which break a
+  web link if they aren't encoded.</p>
+  <p>Apple renames these actions between iOS versions, so yours may read a little differently — the
+  shape is always the same: get the location, turn it into an address, encode it, open the link.</p>
+  <p>Want something simpler? Skip Shortcut 1 and send only <code>&amp;to=</code>. You'll get the
+  destination filled in and type the starting point yourself. You can also add <code>&amp;date=</code>
+  as <code>2026-06-02</code>, <code>&amp;purpose=</code> and <code>&amp;cat=</code>. Anything Milo
+  can't make sense of is ignored rather than guessed at, and the trip is stripped out of the address
+  bar the moment it's read, so it never sits in your browser history.</p>
+  <p>Android: the same idea works with any automation app that can save a file and open a web link
+  when your car's Bluetooth connects and disconnects.</p>
 
   <h3>How long does logging a trip actually take?</h3>
   <p>A few seconds once your common places are saved. Type part of an address and pick from the

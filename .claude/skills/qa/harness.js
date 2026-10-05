@@ -1420,6 +1420,43 @@ async function fillLog(page, o) {
     trips: JSON.parse(localStorage.getItem('ml3_trips') || '[]').length }), null);
   R('one link means one form: a reload does not re-open it',
     !!again && again.overlay === 'none', JSON.stringify(again));
+
+  // Both ends and no mileage — the two-automation Shortcut (capture at
+  // CarPlay connect, finish at disconnect). Someone who just parked should
+  // not have to press "Calculate distance".
+  const two = await ctx.newPage();
+  await two.setViewportSize({ width: 390, height: 844 });
+  // Shared context: the ledger already holds trips from the steps above, so
+  // the claim is "this link added none", not "the ledger is empty".
+  const tripsBeforeBoth = await tripCount(page).catch(() => -1);
+  await two.route(/googleapis|gstatic|jsdelivr/, r => r.abort());
+  await two.goto(APP + (APP.indexOf('?') < 0 ? '?' : '&') + 'log=1'
+    + '&from=' + encodeURIComponent('1113 S 4090 W, Syracuse, UT 84075')
+    + '&to=' + encodeURIComponent('222 S Main St, Salt Lake City, UT 84101'),
+    { waitUntil: 'domcontentloaded' });
+  await two.waitForTimeout(2600);
+  await ask(two, () => { const e = document.getElementById('onboardOverlay'); if (e) { e.style.display = 'none'; e.classList.remove('active'); } if (window.initGoogleMaps) window.initGoogleMaps(); return true; }, false);
+  for (let i = 0; i < 50; i++) {
+    if (await ask(two, () => !!(document.getElementById('tMiles') || {}).value, false)) break;
+    await two.waitForTimeout(200);
+  }
+  const both = await ask(two, () => ({
+    from: (document.getElementById('tFromStreet') || {}).value,
+    to: (document.getElementById('tToStreet') || {}).value,
+    miles: (document.getElementById('tMiles') || {}).value,
+    offered: (function () { const d = document.getElementById('distBox'); return !!d && d.classList.contains('show'); })(),
+    saved: JSON.parse(localStorage.getItem('ml3_trips') || '[]').length
+  }), null);
+  R('a link carrying both ends fills both ends',
+    !!both && both.from === '1113 S 4090 W' && both.to === '222 S Main St',
+    both ? both.from + ' -> ' + both.to : 'no page');
+  R('and works the driving distance out without being asked',
+    !!both && parseFloat(both.miles) > 0, `miles=${both && both.miles}`);
+  R('with the round-trip option still one tap away', !!both && both.offered === true);
+  R('and still saves nothing by itself',
+    !!both && tripsBeforeBoth >= 0 && both.saved === tripsBeforeBoth,
+    `before=${tripsBeforeBoth} after=${both && both.saved}`);
+  await two.close();
   await dl.close();
 
   await browser.close();

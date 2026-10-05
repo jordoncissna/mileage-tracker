@@ -5,6 +5,30 @@ if a change doesn't alter what you see or what you can trust, it isn't here.
 
 ---
 
+## Your car now tells Milo when you set off, not just when you arrive
+
+The first version of this only noticed when you **parked**, and only captured
+where you'd ended up — you still typed the starting address yourself, then
+pressed a button to work out the distance.
+
+Now there are two Shortcuts instead of one. **When you get in**, your phone
+quietly notes where you are and shows you a "trip started" notification, so you
+know it's working. **When you get out**, Milo opens with the entire drive
+already worked out — both addresses, the date, and the real driving distance
+from Google, with the round-trip figure one tap away. You add why you went and
+press Save.
+
+**Don't send a mileage figure any more.** Given both ends, Milo now asks Google
+for the actual route and fills the distance in by itself. It used to sit there
+with both addresses and make you press *Calculate distance*, which is a silly
+thing to ask of someone who has just parked.
+
+Setup is in the FAQ under **"Can my phone notice when I'm driving and handle the
+trip?"** — reachable from Settings. Two automations, a few minutes, once.
+
+Still true, and still the point: **you always press Save.** A link can fill the
+form; it can never write to your log.
+
 ## Your car can now fill the trip in for you
 
 Milo still can't track you in the background, and it never will as a web page —

@@ -5832,7 +5832,19 @@ function applyLogIntent(){
   if(typeof updateBatchSummary==='function')updateBatchSummary();
   openLogOverlay();
   toast('Trip filled in from your phone — check it and save');
+  // Both ends and no mileage: the car handed over a whole drive, so work the
+  // distance out rather than making someone who just parked press a button.
+  // calcDist() needs the Maps SDK, which is still loading on a cold start, so
+  // wait for it — bounded, and silent if it never arrives (the addresses are
+  // filled either way and the button is still there).
+  if(it.from&&it.to&&!it.miles)whenMapsReady(function(){try{calcDist();}catch(e){}});
   return true;
+}
+function whenMapsReady(fn,tries){
+  tries=tries==null?40:tries;                  // ~8s at 200ms
+  if(typeof googleReady!=='undefined'&&googleReady&&typeof googleMap!=='undefined'&&googleMap)return fn();
+  if(tries<=0)return;
+  setTimeout(function(){whenMapsReady(fn,tries-1);},200);
 }
 window.captureLogIntent=captureLogIntent;
 captureLogIntent();

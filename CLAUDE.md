@@ -155,8 +155,12 @@ trip; in multi-stop batches the return distance folds into the last leg.
   `sessionStorage` under `ml_logintent` so it survives the OAuth redirect, and
   strips the params from the URL. `applyLogIntent()` runs once from
   `onSignedIn()`, fills the form and opens it. **It never saves** — a link
-  someone sends must not be able to write a tax record. Documented for owners in
-  `faq.html#carplay`.
+  someone sends must not be able to write a tax record. When a link carries both
+  ends and no mileage it calls `calcDist()` via `whenMapsReady()`, because the
+  route preview draws the map but never computes a distance — leaving someone
+  who just parked to press *Calculate distance* themselves. Documented for
+  owners in `faq.html#carplay` as a two-automation recipe: capture the origin at
+  CarPlay **connect**, finish at **disconnect**.
 - `applyColWidth()` / `fitCol()` / `startColResize()` — resizable History
   columns. Only Route and Purpose get a handle, because only they clamp; a
   column is clamped on a block **inside** the cell (`.route-cell`,
