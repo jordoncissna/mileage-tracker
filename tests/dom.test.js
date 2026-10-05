@@ -23,7 +23,9 @@ const inline = html.match(/<script>([\s\S]*?)<\/script>/g).pop().replace(/^<scri
 const runner = new window.Function(inline + '\n;window.__clearF=clearF;window.__addTrip=addTrip;window.__trips=()=>trips;window.__renderH=renderH;window.__renderAnalytics=renderAnalytics;window.__showTip=showChartTip;window.__logEndpoints=logRouteEndpoints;window.renderHome=renderHome;'
   // Column-resize plumbing. Wrapped so a renamed function degrades into a
   // failing assertion below instead of silently skipping the whole block.
-  + '\n;try{window.__colw={apply:applyColWidth,stored:storedColWidth,width:colWidth,save:saveColWidths,load:loadColWidths,defaults:COLW,MIN:COLW_MIN,MAX:COLW_MAX,KEY:COLW_KEY};}catch(e){window.__colw=null;}');
+  + '\n;try{window.__colw={apply:applyColWidth,stored:storedColWidth,width:colWidth,save:saveColWidths,load:loadColWidths,defaults:COLW,MIN:COLW_MIN,MAX:COLW_MAX,KEY:COLW_KEY};}catch(e){window.__colw=null;}'
+  // Deep-link (CarPlay/Shortcuts) plumbing, same guarded pattern.
+  + '\n;try{window.__link={split:splitAddr,capture:captureLogIntent,apply:applyLogIntent,take:takeLogIntent,validDate:validIntentDate,known:knownCategory,KEY:LOG_INTENT_KEY,MAXLEN:MAX_INTENT_LEN};}catch(e){window.__link=null;}');
 try { runner.call(window); } catch (e) { console.log('init threw (often benign):', e.message); }
 
 let pass = 0, fail = 0;
@@ -889,6 +891,95 @@ T('sign out moved to settings foot', document.querySelector('.set-foot .signout-
   T('legal links open in a new tab without leaking the opener',
     [].slice.call(document.querySelectorAll('a[href="terms.html"], a[href="privacy.html"], a[href="faq.html"]'))
       .every(a => a.getAttribute('target') === '_blank' && /noopener/.test(a.getAttribute('rel') || '')));
+
+  // ===== DEEP LINK FROM THE PHONE (CarPlay / Shortcuts) =====
+  // The web cannot detect a drive — iOS suspends the page when backgrounded —
+  // so a Shortcut hands one over in the URL. The link must fill the form and
+  // NEVER save, or a link someone sends you could write your tax records.
+  const lk = window.__link;
+  T('the deep-link functions are reachable under their documented names', !!lk);
+  if (lk) {
+    // Shortcuts hands over a flat address with a ZIP and a country on the end.
+    let a = lk.split('2500 S State St, Salt Lake City, UT 84115, United States');
+    T('a Shortcuts address splits into street, city and state',
+      a.street === '2500 S State St' && a.city === 'Salt Lake City' && a.state === 'UT');
+    T('the ZIP is not left stuck to the state', a.state === 'UT');
+    a = lk.split('1113 S 4090 W, Syracuse, UT');
+    T('an address without a ZIP or country still splits', a.street === '1113 S 4090 W' && a.city === 'Syracuse' && a.state === 'UT');
+    a = lk.split('');
+    T('an empty address yields empty fields, not undefined', a.street === '' && a.city === '' && a.state === '');
+    a = lk.split('Somewhere');
+    T('a one-part address does not invent a city or state', a.street === 'Somewhere' && a.city === '' && a.state === '');
+
+    T('a real date is accepted', lk.validDate('2026-06-01'));
+    T('a malformed date is rejected', !lk.validDate('06/01/2026') && !lk.validDate('2026-6-1') && !lk.validDate(''));
+    T('an impossible date is rejected', !lk.validDate('2026-02-30') && !lk.validDate('2026-13-01'));
+    T('a real category is accepted', lk.known('Client Meeting'));
+    T('an unknown category is rejected', !lk.known('Not A Category') && !lk.known(''));
+
+    // Capture: the query string is the untrusted part.
+    const setUrl = q => window.history.replaceState(null, '', '/mileage-tracker/' + q);
+    const SS = window.sessionStorage;
+    const grab = () => { try { return JSON.parse(SS.getItem(lk.KEY) || 'null'); } catch (e) { return null; } };
+
+    SS.removeItem(lk.KEY);
+    setUrl('?ref=abc123');
+    lk.capture();
+    T('a URL with no trip parameters stores nothing', grab() === null);
+
+    SS.removeItem(lk.KEY);
+    setUrl('?log=1&to=2500%20S%20State%20St,%20Salt%20Lake%20City,%20UT&date=2026-06-01&miles=15.5&cat=Client%20Meeting&purpose=Client%20visit');
+    lk.capture();
+    let it = grab();
+    T('a well-formed link is captured', !!it && it.to.indexOf('2500 S State St') === 0);
+    T('its date is kept', !!it && it.date === '2026-06-01');
+    T('its miles are kept', !!it && it.miles === '15.5');
+    T('its category is kept', !!it && it.cat === 'Client Meeting');
+    T('the trip is stripped from the address bar so a shared link cannot carry it',
+      !/[?&](log|to|date|miles|cat|purpose)=/.test(window.location.search));
+
+    // Junk must be dropped, not written into a tax record.
+    SS.removeItem(lk.KEY);
+    setUrl('?log=1&date=garbage&miles=-5&cat=Nonsense');
+    lk.capture();
+    it = grab();
+    T('a garbage date is dropped rather than stored', !!it && it.date === '');
+    T('negative mileage is dropped', !!it && it.miles === '');
+    SS.removeItem(lk.KEY);
+    setUrl('?log=1&miles=99999999');
+    lk.capture();
+    it = grab();
+    T('mileage beyond the cap is dropped', !!it && it.miles === '');
+
+    SS.removeItem(lk.KEY);
+    setUrl('?log=1&purpose=' + encodeURIComponent('x'.repeat(500)));
+    lk.capture();
+    it = grab();
+    T('an absurdly long field is truncated, not stored whole',
+      !!it && it.purpose.length === lk.MAXLEN);
+
+    // Apply: fills the form, opens it, and saves nothing.
+    const tripsBefore = window.__trips().length;
+    SS.removeItem(lk.KEY);
+    setUrl('?log=1&from=1113%20S%204090%20W,%20Syracuse,%20UT&to=222%20S%20Main%20St,%20Salt%20Lake%20City,%20UT%2084101&date=2026-06-02&miles=42&cat=Team%20Meeting&purpose=Quarterly%20review');
+    lk.capture();
+    const applied = lk.apply();
+    T('applying a captured link reports success', applied === true);
+    T('it fills the origin fields', $('tFromStreet').value === '1113 S 4090 W' && $('tFromCity').value === 'Syracuse' && $('tFromState').value === 'UT');
+    T('it fills the destination fields', $('tToStreet').value === '222 S Main St' && $('tToCity').value === 'Salt Lake City' && $('tToState').value === 'UT');
+    T('it fills date, miles, category and purpose',
+      $('tDate').value === '2026-06-02' && $('tMiles').value === '42' &&
+      $('tCat').value === 'Team Meeting' && $('tPurpose').value === 'Quarterly review');
+    T('it opens the log window', $('logOverlay').style.display !== 'none');
+    T('IT SAVES NOTHING — the person still presses Save', window.__trips().length === tripsBefore);
+
+    // One drive, one form. A refresh must not reopen it.
+    T('the intent is consumed, so a token refresh cannot reopen it', lk.apply() === false);
+    T('and nothing is left in session storage', SS.getItem(lk.KEY) === null);
+
+    window.__clearF();
+    setUrl('');
+  }
 
   console.log(`\ndom.test.js: ${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);

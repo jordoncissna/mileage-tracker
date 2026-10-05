@@ -1369,6 +1369,59 @@ async function fillLog(page, o) {
     (await ask(ph, () => (document.getElementById('tPurpose') || {}).value, null)) === 'Half-written');
   await ph.close();
 
+  // ── ARRIVING FROM THE PHONE (CarPlay / Shortcuts deep link) ───────────
+  // iOS suspends the page when backgrounded, so the web can never detect a
+  // drive. A Shortcut hands one over in the URL instead. The contract is that
+  // it FILLS the form and saves nothing — otherwise a link someone sends you
+  // could write your tax records.
+  const dl = await ctx.newPage();
+  await dl.setViewportSize({ width: 390, height: 844 });
+  // This context already holds trips from the steps above, so the claim is
+  // "the link added none", not "the ledger is empty".
+  const tripsBeforeLink = await tripCount(page).catch(() => -1);
+  await dl.route(/googleapis|gstatic|jsdelivr/, r => r.abort());
+  const dlUrl = APP + (APP.indexOf('?') < 0 ? '?' : '&') + 'log=1'
+    + '&to=' + encodeURIComponent('222 S Main St, Salt Lake City, UT 84101, United States')
+    + '&date=2026-06-02&miles=41.8&cat=' + encodeURIComponent('Client Meeting');
+  await dl.goto(dlUrl, { waitUntil: 'domcontentloaded' });
+  await dl.waitForTimeout(2600);
+  await ask(dl, () => { const e = document.getElementById('onboardOverlay'); if (e) { e.style.display = 'none'; e.classList.remove('active'); } return true; }, false);
+  for (let i = 0; i < 40; i++) {
+    if (await ask(dl, () => getComputedStyle(document.getElementById('logOverlay')).display !== 'none', false)) break;
+    await dl.waitForTimeout(150);
+  }
+  const land = await ask(dl, () => ({
+    open: getComputedStyle(document.getElementById('logOverlay')).display !== 'none',
+    street: (document.getElementById('tToStreet') || {}).value,
+    city: (document.getElementById('tToCity') || {}).value,
+    state: (document.getElementById('tToState') || {}).value,
+    date: (document.getElementById('tDate') || {}).value,
+    miles: (document.getElementById('tMiles') || {}).value,
+    cat: (document.getElementById('tCat') || {}).value,
+    url: window.location.search,
+    saved: JSON.parse(localStorage.getItem('ml3_trips') || '[]').length
+  }), null);
+  R('a Shortcut link opens the log window on arrival', !!land && land.open, JSON.stringify(land && land.open));
+  R('it fills the destination, stripping the ZIP and country',
+    !!land && land.street === '222 S Main St' && land.city === 'Salt Lake City' && land.state === 'UT',
+    land ? [land.street, land.city, land.state].join(' / ') : 'no page');
+  R('it fills date, miles and category',
+    !!land && land.date === '2026-06-02' && land.miles === '41.8' && land.cat === 'Client Meeting',
+    land ? [land.date, land.miles, land.cat].join(' ') : '');
+  R('the trip is stripped from the address bar', !!land && !/log=|to=|miles=/.test(land.url), JSON.stringify(land && land.url));
+  R('a Shortcut link saves nothing on its own',
+    !!land && tripsBeforeLink >= 0 && land.saved === tripsBeforeLink,
+    `before=${tripsBeforeLink} after=${land && land.saved}`);
+  // and a reload must not re-open or re-create it
+  await dl.reload({ waitUntil: 'domcontentloaded' });
+  await dl.waitForTimeout(2600);
+  const again = await ask(dl, () => ({
+    overlay: getComputedStyle(document.getElementById('logOverlay')).display,
+    trips: JSON.parse(localStorage.getItem('ml3_trips') || '[]').length }), null);
+  R('one link means one form: a reload does not re-open it',
+    !!again && again.overlay === 'none', JSON.stringify(again));
+  await dl.close();
+
   await browser.close();
   const bad = results.filter(r => !r.ok);
   results.forEach(r => console.log((r.ok ? '  ok  ' : 'FAIL  ') + r.name + (r.note ? '   [' + r.note + ']' : '')));

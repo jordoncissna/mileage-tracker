@@ -147,6 +147,16 @@ trip; in multi-stop batches the return distance folds into the last leg.
   receipt photos. `addTrip()` captures `pendingReceipt` **before** `clearF()`
   runs, or the chosen photo is discarded between save and upload.
 - `saveToSupabase()` / `updateTripInSupabase()` — sync.
+- `captureLogIntent()` / `applyLogIntent()` / `splitAddr()` — the CarPlay deep
+  link. iOS suspends the page when backgrounded, so the web can never detect a
+  drive; a Shortcut hands one over as `?log=1&to=…&date=…&miles=…&cat=…`.
+  `captureLogIntent()` runs beside `captureReferral()` at load, validates every
+  field (a bad date/mileage/category is **dropped**, never written), parks it in
+  `sessionStorage` under `ml_logintent` so it survives the OAuth redirect, and
+  strips the params from the URL. `applyLogIntent()` runs once from
+  `onSignedIn()`, fills the form and opens it. **It never saves** — a link
+  someone sends must not be able to write a tax record. Documented for owners in
+  `faq.html#carplay`.
 - `applyColWidth()` / `fitCol()` / `startColResize()` — resizable History
   columns. Only Route and Purpose get a handle, because only they clamp; a
   column is clamped on a block **inside** the cell (`.route-cell`,
@@ -264,4 +274,11 @@ no longer a numbered-download step — edit `index.html` directly.
 - [x] Duplicate review + idempotent sync
 - [x] Review queue for trips missing a business purpose (groundwork for auto-detect)
 
-Deferred: Capacitor native wrap (iOS/Android + auto-detect), native mobile app, paid tiers, marketing landing page.
+- [x] Semi-automatic capture: a CarPlay/Bluetooth Shortcut opens Milo with the
+      trip pre-filled (`faq.html#carplay`). Not background tracking — the web
+      cannot do that on iOS — but it removes the typing and the forgetting.
+
+Deferred: Capacitor native wrap (iOS/Android + true background auto-detect;
+needs $99/yr Apple Developer, a Mac, and App Store review of "Always" location —
+`trips` would also need a `source` column and start/end timestamps), native
+mobile app, paid tiers, marketing landing page.

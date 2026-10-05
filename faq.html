@@ -55,8 +55,44 @@
   out after a month of missing trips. Every trip in your log is there because you entered it. Milo
   helps by looking up addresses, calculating the distance, remembering routes you drive often, and
   reminding you about days with nothing logged — but the drive itself is something you record.</p>
-  <p>Automatic tracking needs a real phone app with background location permission. That isn't built
-  yet.</p>
+  <p>This isn't a feature we skipped. Milo is a web page, and <strong>iPhones suspend web pages the
+  moment you switch away or lock the screen</strong> — so the page simply isn't running while you
+  drive. No web app can detect a drive on iOS. That needs a real installed app with background
+  location permission, which doesn't exist yet.</p>
+  <p><strong>But your car can tell Milo</strong>, and the next answer explains how.</p>
+
+  <h3 id="carplay">Can my iPhone fill the trip in for me when I park?</h3>
+  <p>Yes — with a Shortcut, and it takes about two minutes to set up once. When your car
+  disconnects, your phone grabs where you are and opens Milo with the trip already filled in. You
+  check it and press Save. <strong>You still press Save</strong>: nothing is ever written to your
+  log without you seeing it.</p>
+  <ol>
+    <li>Open <strong>Shortcuts</strong> → the <strong>Automation</strong> tab → <strong>+</strong>.</li>
+    <li>Pick <strong>CarPlay</strong> and choose <em>Disconnects</em>. No CarPlay? Pick
+      <strong>Bluetooth</strong> and choose your car, <em>Disconnects</em>.</li>
+    <li>Set it to run immediately, without asking you first.</li>
+    <li>Add these actions, in order:
+      <ul>
+        <li><strong>Get Current Location</strong></li>
+        <li><strong>Get Details of Location</strong> → choose <em>Address</em></li>
+        <li><strong>URL Encode</strong> that address <em>(this step matters — addresses contain
+          spaces and commas, which break a web link if they aren't encoded)</em></li>
+        <li><strong>Text</strong>, set to:<br>
+          <code>https://jordoncissna.github.io/mileage-tracker/?log=1&amp;to=</code> followed by the
+          encoded address</li>
+        <li><strong>Open URLs</strong>, using that text</li>
+      </ul>
+    </li>
+  </ol>
+  <p>Apple moves these action names around between iOS versions, so yours may read slightly
+  differently — the shape is always the same: get location, turn it into an address, encode it, open
+  the link.</p>
+  <p>You can add more to the link if you want: <code>&amp;from=</code> a starting address,
+  <code>&amp;miles=</code> a distance, <code>&amp;date=</code> as <code>2026-06-02</code>,
+  <code>&amp;purpose=</code> and <code>&amp;cat=</code> for the category. Anything Milo can't make
+  sense of is ignored rather than guessed at, and the trip never stays in your browser history.</p>
+  <p>Android: the same idea works with any automation app that can open a web link when your car's
+  Bluetooth disconnects.</p>
 
   <h3>How long does logging a trip actually take?</h3>
   <p>A few seconds once your common places are saved. Type part of an address and pick from the

@@ -5,6 +5,33 @@ if a change doesn't alter what you see or what you can trust, it isn't here.
 
 ---
 
+## Your car can now fill the trip in for you
+
+Milo still can't track you in the background, and it never will as a web page —
+iPhones suspend a web page the second you lock the screen or switch away, so it
+simply isn't running while you drive. That's an Apple rule, not something we
+skipped.
+
+**But your car can tell Milo you've arrived.** Set up one iPhone Shortcut and,
+when CarPlay or your car's Bluetooth disconnects, your phone grabs where you
+are and opens Milo with the trip already filled in — destination, date,
+distance, category. You glance at it and press Save.
+
+Two minutes to set up, once. The steps are in the FAQ under **"Can my iPhone
+fill the trip in for me when I park?"** — reachable from Settings, which now
+links the FAQ.
+
+**You always press Save.** A link can fill the form; it can never write to your
+log. That matters because a link is something anyone can send you, so Milo
+treats everything in one as untrusted: a date it can't read, a mileage that
+isn't a real number, a category that doesn't exist — each is quietly dropped
+rather than guessed at. And the trip is stripped out of the address bar the
+moment it's read, so it doesn't sit in your browser history or ride along in a
+link you share.
+
+Works on Android too, with any automation app that can open a link when your
+car's Bluetooth disconnects.
+
 ## The Terms were unreachable from inside the app
 
 The Terms say, in section 1, that creating an account means you agree to them.

@@ -5753,6 +5753,89 @@ function captureReferral(){
 }
 window.captureReferral=captureReferral;
 captureReferral();
+
+// ── DEEP LINK: ARRIVE WITH THE TRIP ALREADY FILLED IN ─────────────────
+// iOS Shortcuts can run an automation when CarPlay or the car's Bluetooth
+// disconnects, grab the current address, and open Milo at a URL like
+//   ...?log=1&to=2500%20S%20State%20St,%20Salt%20Lake%20City,%20UT%2084115
+// The web cannot detect a drive by itself — iOS suspends the page the moment
+// it is backgrounded — so this is how a phone hands a finished drive over.
+//
+// The link NEVER saves anything. It only fills the form and opens it, so a
+// link someone else sends can't put a row in your tax records; you still read
+// it and press Save. Everything below is validated for the same reason: a bad
+// value is dropped, never written into a field.
+var LOG_INTENT_KEY='ml_logintent';
+var MAX_INTENT_LEN=120;
+
+// "2500 S State St, Salt Lake City, UT 84115, United States" → the three
+// fields the form actually has. Shortcuts appends a country and a ZIP that
+// buildAddr() does not want.
+function splitAddr(raw){
+  var parts=String(raw||'').split(',').map(function(x){return x.trim();}).filter(Boolean);
+  if(parts.length&&/^(united states|usa|us)$/i.test(parts[parts.length-1]))parts.pop();
+  var st=parts.length>2?parts[2]:'';
+  var m=st.match(/\b([A-Za-z]{2})\b/);          // "UT 84115" → "UT"
+  return {street:parts[0]||'',city:parts[1]||'',state:m?m[1].toUpperCase():''};
+}
+function intentStr(v){
+  var t=String(v==null?'':v).trim();
+  return t.length>MAX_INTENT_LEN?t.slice(0,MAX_INTENT_LEN):t;
+}
+function validIntentDate(d){
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(d||''))return false;
+  var p=d.split('-'),dt=new Date(+p[0],+p[1]-1,+p[2]);
+  return dt.getFullYear()===+p[0]&&dt.getMonth()===+p[1]-1&&dt.getDate()===+p[2];
+}
+function knownCategory(c){
+  var sel=document.getElementById('tCat');if(!sel||!c)return false;
+  for(var i=0;i<sel.options.length;i++)if(sel.options[i].value===c)return true;
+  return false;
+}
+function captureLogIntent(){
+  try{
+    var p=new URLSearchParams(window.location.search);
+    var want=p.get('log')==='1'||p.has('to')||p.has('from')||p.has('miles');
+    var keys=['log','from','to','date','miles','purpose','cat'];
+    if(!want){ return; }
+    var it={from:intentStr(p.get('from')),to:intentStr(p.get('to')),
+            purpose:intentStr(p.get('purpose')),cat:intentStr(p.get('cat')),
+            date:'',miles:''};
+    var d=intentStr(p.get('date'));   if(validIntentDate(d))it.date=d;
+    var m=intentStr(p.get('miles'));  if(validMiles(m))it.miles=String(parseFloat(m));
+    // Survive the OAuth round trip: signing in reloads the page, and the
+    // trip the car just handed over must not be lost on the way.
+    try{sessionStorage.setItem(LOG_INTENT_KEY,JSON.stringify(it));}catch(e){}
+    // Out of the address bar, so a shared link can't carry someone's trip.
+    keys.forEach(function(k){p.delete(k);});
+    var q=p.toString();
+    history.replaceState(null,'',window.location.pathname+(q?'?'+q:''));
+  }catch(e){}
+}
+function takeLogIntent(){
+  var raw=null;
+  try{raw=sessionStorage.getItem(LOG_INTENT_KEY);sessionStorage.removeItem(LOG_INTENT_KEY);}catch(e){}
+  if(!raw)return null;
+  try{var it=JSON.parse(raw);return (it&&typeof it==='object')?it:null;}catch(e){return null;}
+}
+// Called once we are signed in and the form exists. Mirrors relogTrip().
+function applyLogIntent(){
+  var it=takeLogIntent();if(!it)return false;
+  var setV=function(id,v){var el=document.getElementById(id);if(el)el.value=(v==null?'':v);};
+  if(it.from){var f=splitAddr(it.from);setV('tFromStreet',f.street);setV('tFromCity',f.city);setV('tFromState',f.state);}
+  if(it.to){var t=splitAddr(it.to);setV('tToStreet',t.street);setV('tToCity',t.city);setV('tToState',t.state);}
+  if(it.miles)setV('tMiles',it.miles);
+  if(it.purpose)setV('tPurpose',it.purpose);
+  if(knownCategory(it.cat)){var c=document.getElementById('tCat');if(c)c.value=it.cat;}
+  setV('tDate',it.date||today());
+  if(typeof buildAddr==='function')buildAddr();
+  if(typeof updateBatchSummary==='function')updateBatchSummary();
+  openLogOverlay();
+  toast('Trip filled in from your phone — check it and save');
+  return true;
+}
+window.captureLogIntent=captureLogIntent;
+captureLogIntent();
 window.openInviteModal=openInviteModal;window.closeInviteModal=closeInviteModal;
 window.copyInviteLink=copyInviteLink;window.nativeInvite=nativeInvite;
 window.emailInvite=emailInvite;window.smsInvite=smsInvite;window.inviteQr=inviteQr;
@@ -6884,7 +6967,11 @@ function onSignedIn(user){
   // refreshes don't yank the user away from what they're doing.
   if(!window._mcLanded){window._mcLanded=true;
     var lv=null;try{lv=localStorage.getItem('ml_view');}catch(e){}
-    try{switchNav(lv||'home',document.getElementById('nav-'+(lv||'home')));}catch(e){}}
+    try{switchNav(lv||'home',document.getElementById('nav-'+(lv||'home')));}catch(e){}
+    // A trip handed over by the phone outranks the remembered view: the person
+    // just parked and the whole point is that the form is already waiting.
+    // After init(), so saved addresses and the map are ready to draw it.
+    try{setTimeout(applyLogIntent,350);}catch(e){}}
   setTimeout(()=>{initMainMap();initResize();initRightResize();},200);
   loadFromSupabase();
   loadPrefsFromSupabase();
