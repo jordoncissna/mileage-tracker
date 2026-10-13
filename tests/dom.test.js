@@ -981,6 +981,138 @@ T('sign out moved to settings foot', document.querySelector('.set-foot .signout-
     setUrl('');
   }
 
+  // ===== THE SORT ARROW MUST NOT LIE =====
+  // sortBy() maps a header click onto the fSort dropdown, which is what
+  // renderH() actually sorts by. It used to strip the direction off the three
+  // text columns, and the dropdown had no 'purpose' option at all — so
+  // clicking Purpose moved the arrow and left the rows exactly where they
+  // were, and Route/Category/Value could never be reversed.
+  const fSort = $('fSort');
+  const opts = [].slice.call(fSort.options).map(o => o.value);
+  ['date', 'route', 'purpose', 'category', 'miles', 'value'].forEach(col => {
+    T('the dropdown can express ' + col + ' ascending', opts.indexOf(col + '_asc') >= 0);
+    T('the dropdown can express ' + col + ' descending', opts.indexOf(col + '_desc') >= 0);
+  });
+
+  // Drive the headers the way a person does and watch the rows move.
+  const seed = [
+    { id: 9001, date: '2026-07-01', miles: 10, from: 'ZZZ St', to: 'ZZZ End', purpose: 'Zebra', category: 'Team Meeting' },
+    { id: 9002, date: '2026-07-02', miles: 30, from: 'AAA St', to: 'AAA End', purpose: 'Apple', category: 'Bank / Finance' },
+    { id: 9003, date: '2026-07-03', miles: 20, from: 'MMM St', to: 'MMM End', purpose: 'Mango', category: 'Office Visit' }
+  ];
+  const liveTrips = window.__trips();
+  const stash = liveTrips.splice(0, liveTrips.length);
+  seed.forEach(t => liveTrips.push(t));
+  $('fYear').value = ''; $('fMonth').value = ''; $('fCat').value = '';
+
+  const order = key => {
+    window.__renderH();
+    return [].slice.call(htableRows()).map(r => r[key]).join(',');
+  };
+  function htableRows() {
+    return [].slice.call($('htable').querySelectorAll('tbody .cell-purpose'))
+      .map(c => ({ purpose: c.textContent.trim() }));
+  }
+  const routeOrder = () => {
+    window.__renderH();
+    return [].slice.call($('htable').querySelectorAll('tbody .route-cell'))
+      .map(c => c.textContent.trim().slice(0, 3)).join(',');
+  };
+  const purposeOrder = () => {
+    window.__renderH();
+    return [].slice.call($('htable').querySelectorAll('tbody .cell-purpose'))
+      .map(c => c.textContent.trim()).join(',');
+  };
+
+  window.sortBy('purpose');
+  T('clicking Purpose actually sorts the rows', purposeOrder() === 'Apple,Mango,Zebra', purposeOrder());
+  window.sortBy('purpose');
+  T('clicking Purpose again reverses them', purposeOrder() === 'Zebra,Mango,Apple', purposeOrder());
+
+  window.sortBy('route');
+  T('clicking Route sorts A-Z', routeOrder() === 'AAA,MMM,ZZZ', routeOrder());
+  window.sortBy('route');
+  T('clicking Route again reverses to Z-A', routeOrder() === 'ZZZ,MMM,AAA', routeOrder());
+
+  window.sortBy('category');
+  const cat1 = fSort.value;
+  window.sortBy('category');
+  T('Category toggles direction rather than sticking', fSort.value !== cat1 && /category_(asc|desc)/.test(fSort.value), cat1 + ' -> ' + fSort.value);
+
+  window.sortBy('value');
+  const v1 = fSort.value;
+  window.sortBy('value');
+  T('Value toggles direction too', fSort.value !== v1 && /value_(asc|desc)/.test(fSort.value), v1 + ' -> ' + fSort.value);
+
+  // Whatever the header set, the dropdown must hold a key renderH can use —
+  // an unknown key silently falls back to date_desc, which is the lie.
+  ['date', 'route', 'purpose', 'category', 'miles', 'value'].forEach(col => {
+    window.sortBy(col);
+    T('a ' + col + ' header click leaves a usable sort key (' + fSort.value + ')',
+      opts.indexOf(fSort.value) >= 0 && /_(asc|desc)$/.test(fSort.value));
+  });
+
+  // The indicator has to point at the column that is actually sorted.
+  window.sortBy('purpose');
+  const marked = [].slice.call(document.querySelectorAll('#htable .sort-ind'))
+    .filter(e => (e.textContent || '').trim()).map(e => e.getAttribute('data-col'));
+  T('only the sorted column shows an arrow', marked.length === 1 && marked[0] === 'purpose', marked.join(','));
+  T('and the dropdown agrees with it', fSort.value.indexOf('purpose') === 0, fSort.value);
+
+  liveTrips.splice(0, liveTrips.length);
+  stash.forEach(t => liveTrips.push(t));
+  fSort.value = 'date_desc';
+  window.__renderH();
+
+  // ===== THE LEDGER PALETTE MUST CLEAR WCAG AA =====
+  // Computed from the stylesheet, not from a rendered page, so this fails the
+  // moment someone edits a colour — no browser needed. The ledger used to fail
+  // in both themes: all ten category pills on white (Client Meeting at
+  // 1.57:1 against a 4.5 floor for 11px text) and --text3 at 2.62:1 in dark.
+  const srgb = h => { h = h.replace('#', ''); return [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16)); };
+  const relLum = rgb => { const f = v => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+    const [r, g, b] = rgb.map(f); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+  const cr = (a, b) => { const l1 = relLum(a), l2 = relLum(b);
+    return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05); };
+  const over = (fg, alpha, bg) => fg.map((c, i) => c * alpha + bg[i] * (1 - alpha));
+  const WHITE = [255, 255, 255];
+  const AA = 4.5;
+
+  // Each pill sits on a 12% tint of its own colour over the white row.
+  const pillSrc = html.match(/body\.light \.p-[a-z]+\s*\{color:#[0-9a-f]{6};\}/g) || [];
+  T('light mode defines a colour for every category pill', pillSrc.length === 10, 'found ' + pillSrc.length);
+  pillSrc.forEach(rule => {
+    const cls = rule.match(/\.p-([a-z]+)/)[1];
+    const light = rule.match(/color:(#[0-9a-f]{6})/)[1];
+    const darkRule = html.match(new RegExp('\\\\.p-' + cls + '\\\\s*\\\\{background:rgba\\\\(([\\\\d, ]+),0?\\\\.12\\\\)'));
+    const tint = darkRule ? darkRule[1].split(',').map(n => parseFloat(n)) : [255, 255, 255];
+    const ratio = cr(srgb(light), over(tint, 0.12, WHITE));
+    T('pill ' + cls + ' clears AA on white (' + ratio.toFixed(2) + ':1)', ratio >= AA);
+  });
+
+  // --text3 in dark mode drives the column headers, month rows and subtotals.
+  // Solve against --surface3, the lightest surface it lands on.
+  const darkText3 = (html.match(/--text:#e8edf5; --text2:#8b95a8; --text3:(#[0-9a-f]{6})/) || [])[1];
+  T('the dark theme still declares --text3', !!darkText3);
+  if (darkText3) {
+    [['--bg', '#080b0f'], ['--bg2', '#0d1117'], ['--surface', '#111720'],
+     ['--surface2', '#161e2a'], ['--surface3', '#1c2535']].forEach(([name, bg]) => {
+      const ratio = cr(srgb(darkText3), srgb(bg));
+      T('--text3 clears AA on ' + name + ' (' + ratio.toFixed(2) + ':1)', ratio >= AA);
+    });
+    // Muted text must stay muted: --text2 is the brighter of the two.
+    T('--text2 is still brighter than --text3, so the hierarchy holds',
+      relLum(srgb('#8b95a8')) > relLum(srgb(darkText3)));
+  }
+
+  // The ledger prints deductible values in --green on a white row.
+  const lightGreen = (html.match(/--green:(#[0-9a-f]{6}); --green-bg/g) || [])
+    .map(m => m.match(/#[0-9a-f]{6}/)[0]);
+  const lg = lightGreen[lightGreen.length - 1];
+  T('the light theme declares a --green', !!lg);
+  if (lg) T('light --green clears AA on white (' + cr(srgb(lg), WHITE).toFixed(2) + ':1)',
+    cr(srgb(lg), WHITE) >= AA);
+
   console.log(`\ndom.test.js: ${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);
 })();

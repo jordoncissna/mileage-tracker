@@ -37,7 +37,7 @@
 :root {
   --bg:#080b0f; --bg2:#0d1117; --surface:#111720; --surface2:#161e2a; --surface3:#1c2535;
   --border:rgba(255,255,255,0.06); --border2:rgba(255,255,255,0.1); --border3:rgba(255,255,255,0.16);
-  --text:#e8edf5; --text2:#8b95a8; --text3:#4d5868;
+  --text:#e8edf5; --text2:#8b95a8; --text3:#7e8ca0;   /* was #4d5868 — 2.62:1 on --bg2. Solved against --surface3, the lightest surface it lands on, so it clears 4.5:1 everywhere (4.50 there, 5.77 on --bg). --text2 stays lighter, so the hierarchy holds. */
   --accent:#4f9eff; --accent2:#3d8ef0; --accent-glow:rgba(79,158,255,0.15); --accent-bg:rgba(79,158,255,0.08);
   --green:#3dd68c; --green-bg:rgba(61,214,140,0.08);
   --red:#f87171; --red-bg:rgba(248,113,113,0.08);
@@ -472,6 +472,22 @@ tfoot td{padding:8px 8px;font-weight:600;font-family:'JetBrains Mono',monospace;
 .p-supplies  {background:rgba(249,115,22,0.12); color:#f97316;border:1px solid rgba(249,115,22,0.2);}
 .p-other     {background:rgba(139,149,168,0.1); color:#8b95a8;border:1px solid rgba(139,149,168,0.15);}
 .p-personal  {background:rgba(244,114,182,0.12);color:#f472b6;border:1px solid rgba(244,114,182,0.25);}
+/* Light mode: the pills above are tuned for a dark background and every one of
+   them failed WCAG AA on white — Client Meeting was 1.57:1 against a 4.5 floor
+   for 11px text. Same hue and saturation, darkened until each clears 4.5:1
+   against its own 12% tint over white. The backgrounds and borders keep the
+   original colour, so the category stays recognisable at a glance.
+   PCOLOR is deliberately untouched: the charts are a separate surface. */
+body.light .p-office    {color:#784cf7;}
+body.light .p-blockchain{color:#0068e9;}
+body.light .p-team      {color:#1b8150;}
+body.light .p-client    {color:#946b03;}
+body.light .p-errand    {color:#de0b0b;}
+body.light .p-conf      {color:#1f7c8c;}
+body.light .p-bank      {color:#16803d;}
+body.light .p-supplies  {color:#b84e05;}
+body.light .p-other     {color:#646f85;}
+body.light .p-personal  {color:#d51177;}
 
 .route-cell{font-size:11px;color:var(--text3);font-family:'JetBrains Mono',monospace;max-width:var(--cw-route,140px);min-width:var(--cw-route,140px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 /* A resizable column clamps its width on a block INSIDE the cell, not on the
@@ -627,7 +643,7 @@ th.sortable{position:relative;}
     --border:rgba(0,0,0,0.08); --border2:rgba(0,0,0,0.12); --border3:rgba(0,0,0,0.18);
     --text:#1a1f2e; --text2:#4a5568; --text3:#5f6b7f;
     --accent:#2563eb; --accent2:#1d4ed8; --accent-glow:rgba(37,99,235,0.15); --accent-bg:rgba(37,99,235,0.08);
-    --green:#059669; --green-bg:rgba(5,150,105,0.08);
+    --green:#05875f; --green-bg:rgba(5,135,95,0.08);   /* was #059669 — 3.77:1 on white */
     --red:#dc2626; --red-bg:rgba(220,38,38,0.08);
     --viz-biz:#2a78d6; --viz-com:#eda100; --viz-per:#e87ba4; --viz-accent:#2a78d6;
     --glass:rgba(255,255,255,0.90); --glass-br:rgba(0,0,0,0.08); --glass-sh:rgba(15,23,42,0.16);
@@ -1882,11 +1898,16 @@ body:not(.light) .offline-pill{color:#fbbf24;}
         <select id="fSort" aria-label="Sort trips" onchange="renderH()" style="background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:13px;padding:7px 10px;font-family:'Inter',sans-serif;">
           <option value="date_desc">Date (newest)</option>
           <option value="date_asc">Date (oldest)</option>
+          <option value="route_asc">Route (A-Z)</option>
+          <option value="route_desc">Route (Z-A)</option>
+          <option value="purpose_asc">Purpose (A-Z)</option>
+          <option value="purpose_desc">Purpose (Z-A)</option>
+          <option value="category_asc">Category (A-Z)</option>
+          <option value="category_desc">Category (Z-A)</option>
           <option value="miles_desc">Miles (high to low)</option>
           <option value="miles_asc">Miles (low to high)</option>
           <option value="value_desc">Value (high to low)</option>
-          <option value="category">Category (A-Z)</option>
-          <option value="route">Route (A-Z)</option>
+          <option value="value_asc">Value (low to high)</option>
         </select>
         <select id="fCat" onchange="renderH()" aria-label="Filter trips by category">
           <option value="">All categories</option>
@@ -5072,10 +5093,18 @@ function renderH(){
     miles_asc:(a,b)=>parseFloat(a.miles||0)-parseFloat(b.miles||0),
     value_desc:(a,b)=>parseFloat(b.miles||0)*rate(b.date)-parseFloat(a.miles||0)*rate(a.date),
     value_asc:(a,b)=>parseFloat(a.miles||0)*rate(a.date)-parseFloat(b.miles||0)*rate(b.date),
-    category:(a,b)=>(a.category||'').localeCompare(b.category||''),
-    route:(a,b)=>((a.from||'')+(a.to||'')).localeCompare((b.from||'')+(b.to||'')),
-    purpose:(a,b)=>(a.purpose||'').localeCompare(b.purpose||'')
+    category_asc:(a,b)=>(a.category||'').localeCompare(b.category||''),
+    category_desc:(a,b)=>(b.category||'').localeCompare(a.category||''),
+    route_asc:(a,b)=>((a.from||'')+(a.to||'')).localeCompare((b.from||'')+(b.to||'')),
+    route_desc:(a,b)=>((b.from||'')+(b.to||'')).localeCompare((a.from||'')+(a.to||'')),
+    purpose_asc:(a,b)=>(a.purpose||'').localeCompare(b.purpose||''),
+    purpose_desc:(a,b)=>(b.purpose||'').localeCompare(a.purpose||'')
   };
+  // The text columns used to be ascending-only, under a bare key. Keep those
+  // keys working — a saved dropdown value may still hold one.
+  sorters.category=sorters.category_asc;
+  sorters.route=sorters.route_asc;
+  sorters.purpose=sorters.purpose_asc;
   fl.sort(sorters[sortMode]||sorters.date_desc);
   // Update sort indicators after rendering
   setTimeout(()=>{if(typeof updateSortIndicators==='function')updateSortIndicators();},0);
@@ -6352,7 +6381,7 @@ function sortBy(col){
   // Map to the existing fSort dropdown
   const fSort=document.getElementById('fSort');
   if(fSort){
-    const sortKey=(col==='category'||col==='route'||col==='purpose')?col:col+'_'+currentSortDir;
+    const sortKey=col+'_'+currentSortDir;
     // Try to find matching option, else default
     const opts=Array.from(fSort.options).map(o=>o.value);
     if(opts.includes(sortKey)){

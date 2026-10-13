@@ -5,6 +5,31 @@ if a change doesn't alter what you see or what you can trust, it isn't here.
 
 ---
 
+## Two long-standing defects in the ledger
+
+**Clicking a column heading now actually sorts by it.** Clicking **Purpose** did
+nothing at all — the little arrow moved onto it and the rows stayed exactly
+where they were. Route, Category and Value couldn't be reversed either: click
+once to sort, click again and nothing happened. Only Date and Miles ever
+behaved. Every column now sorts in both directions, and the sort menu lists all
+twelve orderings instead of seven, in the same order as the columns.
+
+A sort arrow that points at a column it isn't sorting is worse than no arrow,
+because you trust it.
+
+**The ledger is now readable.** Every category pill failed the standard contrast
+threshold in light mode — *Client Meeting* was at **1.6:1** where **4.5:1** is
+the floor for text that size. On a bright screen it was close to invisible. In
+dark mode the column headings, month separators and subtotals sat at **2.6:1**.
+
+All of it now clears the threshold: pills on white keep their colour but take a
+darker shade of it, so you still recognise a category at a glance, and the muted
+grey in dark mode is lighter without losing the hierarchy that tells you it's
+secondary. **Dark mode's pills are unchanged** — they were already fine there,
+and only the light theme needed its own colours.
+
+The numbers are now checked by the tests, so this can't quietly drift back.
+
 ## Your car now tells Milo when you set off, not just when you arrive
 
 The first version of this only noticed when you **parked**, and only captured

@@ -128,7 +128,12 @@ trip; in multi-stop batches the return distance folds into the last leg.
 - `clearF()` — reset the entry form.
 - `filteredTrips()` — the year/month/category slice the ledger is showing;
   `renderH()` and `doExport()` both use it so Export CSV matches the screen.
-- `renderH()` — render the history table.
+- `renderH()` — render the history table. Sorting is driven by the `fSort`
+  dropdown value, which is the single source of truth; `sortBy()` maps a header
+  click onto it. Every column therefore needs a `<option>` for **both**
+  directions or the header's arrow lies — it used to strip the direction off
+  Route/Purpose/Category, and there was no `purpose` option at all, so clicking
+  Purpose moved the arrow and sorted nothing.
 - `gapDays()` / `renderNudge()` — the unlogged-day reminder on Home. Reports only
   that a day is empty, never that a trip was missed; learns which weekdays the
   owner actually logs; silent under 5 trips; `cfg.nudgeOff` turns it off.
@@ -181,6 +186,14 @@ trip; in multi-stop batches the return distance folds into the last leg.
 - Colors and spacing come from CSS variables in `:root` (dark theme) with a
   light-mode override in a media query. Don't hardcode hex where a variable
   exists. Category colors live in the `PCOLOR` map.
+- **The ledger palette is pinned to WCAG AA by `tests/dom.test.js`**, which
+  computes the ratios from the stylesheet rather than a rendered page — edit a
+  colour and the suite tells you. The category pills carry a separate
+  `body.light .p-*` colour because the `:root` ones are tuned for a dark
+  background and every one of them failed on white (Client Meeting was 1.57:1).
+  `PCOLOR` is deliberately untouched by that override — the charts are a
+  different surface. Dark `--text3` is solved against `--surface3`, the lightest
+  surface it lands on, so it clears 4.5:1 everywhere.
 
 ## Testing
 
